@@ -242,3 +242,58 @@ tags
 [._]*.un~
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,linux,vim,python
+
+# =============================================================================
+# Project-Specific: Obsidian Voice RAG Plugin (TypeScript + Node.js + esbuild)
+# =============================================================================
+
+### Node.js ###
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.yarn/
+
+### TypeScript ###
+*.tsbuildinfo
+
+### Build Output (esbuild) ###
+# main.js  # Uncomment during development if not tracking build output
+
+### Obsidian Plugin ###
+# Plugin user settings (사용자별 설정, 레포에 포함 X)
+data.json
+
+### Database (SQLite / Vector DB) ###
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+
+### Audio Files ###
+# 녹음 원본 파일 (용량이 크므로 Git에 부적합)
+*.wav
+*.mp3
+*.ogg
+*.webm
+*.m4a
+recordings/
+
+### Secrets ###
+.env.local
+.env.*.local
+*.pem
+
+### IDE ###
+.vscode/
+.idea/
+*.code-workspace
+.cursor/
+
+### Project Documentation & Assets ###
+png/
+pre-research/
+project plan & architecture/
