@@ -1,8 +1,8 @@
 """
 Pydantic v2 request / response models used across the API layer.
 
-Only models needed for the current milestone (v0.1.0) are defined here.
-Additional models will be added as features are implemented.
+v0.1.0 — Recording, Summary, Transcription, WebSocket, Error
+v0.2.0 — HourSummary, Classification, Template, RAG, CrossBoundary, Obsidian
 """
 
 from datetime import datetime
@@ -149,3 +149,147 @@ class ErrorResponse(BaseModel):
     detail: str
     code: str
     timestamp: str
+
+
+# ---------------------------------------------------------------------------
+# v0.2.0 — Hour Summary
+# ---------------------------------------------------------------------------
+
+
+class HourSummaryResponse(BaseModel):
+    """A single hour-level summary."""
+
+    id: int
+    recording_id: int
+    hour_index: int
+    summary_text: str
+    keywords: list[str] = Field(default_factory=list)
+    topic_segments: list[dict] = Field(default_factory=list)
+    token_count: int = 0
+    model_used: str = ""
+    created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# v0.2.0 — Classification
+# ---------------------------------------------------------------------------
+
+
+class ClassificationResult(BaseModel):
+    """Internal service result from zero-shot classification."""
+
+    category: str
+    confidence: float = 0.0
+    reason: str = ""
+
+
+class ClassificationResponse(BaseModel):
+    """A classification result for a recording segment."""
+
+    id: int
+    recording_id: int
+    template_name: str
+    start_minute: int
+    end_minute: int
+    confidence: float = 0.0
+    result: dict = Field(default_factory=dict)
+    export_path: str | None = None
+    created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# v0.2.0 — Template
+# ---------------------------------------------------------------------------
+
+
+class TemplateCreate(BaseModel):
+    """POST /templates request body."""
+
+    name: str
+    display_name: str = ""
+    triggers: list[str] = Field(default_factory=list)
+    output_format: str = "markdown"
+    fields: list[dict] = Field(default_factory=list)
+    icon: str = ""
+    priority: int = 0
+
+
+class TemplateResponse(BaseModel):
+    """Standard template representation returned by the API."""
+
+    id: int
+    name: str
+    display_name: str = ""
+    triggers: list[str] = Field(default_factory=list)
+    output_format: str = "markdown"
+    fields: list[dict] = Field(default_factory=list)
+    icon: str = ""
+    priority: int = 0
+    is_default: bool = False
+    is_active: bool = True
+    created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# v0.2.0 — RAG
+# ---------------------------------------------------------------------------
+
+
+class RAGSource(BaseModel):
+    """A single source reference within a RAG answer."""
+
+    recording_id: int
+    minute_index: int
+    summary_text: str
+    similarity: float
+    date: str
+    category: str = ""
+
+
+class RAGQueryRequest(BaseModel):
+    """POST /rag/query request body."""
+
+    query: str
+    top_k: int = 5
+    min_similarity: float = 0.3
+    date_from: str | None = None
+    date_to: str | None = None
+    category: str | None = None
+    keywords: list[str] | None = None
+
+
+class RAGQueryResponse(BaseModel):
+    """Response from a RAG search query."""
+
+    answer: str
+    sources: list[RAGSource] = Field(default_factory=list)
+    model_used: str = ""
+    query_time_ms: int = 0
+
+
+# ---------------------------------------------------------------------------
+# v0.2.0 — Cross-Boundary Extraction & Obsidian Export
+# ---------------------------------------------------------------------------
+
+
+class ExtractRangeRequest(BaseModel):
+    """POST /recordings/{id}/extract request body."""
+
+    start_minute: int
+    end_minute: int
+
+
+class ObsidianExportRequest(BaseModel):
+    """POST /recordings/{id}/export request body."""
+
+    format: str = "obsidian"
+    include_transcript: bool = False
+    vault_path: str | None = None
+
+
+class ObsidianExportResponse(BaseModel):
+    """Response from an Obsidian Markdown export."""
+
+    file_path: str
+    markdown_content: str
+    frontmatter: dict = Field(default_factory=dict)

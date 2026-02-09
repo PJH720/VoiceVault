@@ -17,10 +17,14 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from src.core.config import get_settings
 from src.core.exceptions import RecordingAlreadyActiveError
+from src.services.classification import create_classifier
+from src.services.classification.template_matcher import TemplateMatcher
 from src.services.llm import create_llm
+from src.services.rag import create_embedding, create_vectorstore
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
 from src.services.summarization.minute_summarizer import MinuteSummarizer
@@ -63,6 +67,15 @@ class RecordingSession:
         llm = create_llm(provider=settings.llm_provider)
         self._summarizer = MinuteSummarizer(llm)
 
+        # RAG embedding pipeline (failures are non-fatal)
+        try:
+            self._embedding = create_embedding(provider=settings.embedding_provider)
+            self._vectorstore = create_vectorstore()
+        except Exception:
+            logger.warning("Failed to initialize RAG pipeline; embedding will be skipped")
+            self._embedding = None
+            self._vectorstore = None
+
     def start(self) -> None:
         """Launch the background summarization loop."""
         self._task = asyncio.create_task(self._summarization_loop())
@@ -88,6 +101,9 @@ class RecordingSession:
             logger.exception(
                 "Failed to finalize recording %s", self.recording_id
             )
+
+        # Auto-classify recording (non-fatal)
+        await self._classify_recording()
 
     async def _summarization_loop(self) -> None:
         """Background loop: drain queue every interval or on stop signal."""
@@ -152,6 +168,14 @@ class RecordingSession:
 
             self._previous_summary = result.summary_text
 
+            # Embed summary into ChromaDB (non-blocking, non-fatal)
+            await self._embed_summary(
+                recording_id=self.recording_id,
+                minute_index=item.minute_index,
+                summary_text=result.summary_text,
+                keywords=result.keywords,
+            )
+
             summary_data = {
                 "minute_index": result.minute_index,
                 "summary_text": result.summary_text,
@@ -182,6 +206,100 @@ class RecordingSession:
                 )
             except Exception:
                 pass
+
+    async def _embed_summary(
+        self,
+        recording_id: int,
+        minute_index: int,
+        summary_text: str,
+        keywords: list[str],
+    ) -> None:
+        """Embed a summary into the vector store. Failures are logged but never block."""
+        if self._embedding is None or self._vectorstore is None:
+            return
+
+        try:
+            vector = await self._embedding.embed(summary_text)
+            doc_id = f"summary-{recording_id}-{minute_index}"
+            metadata = {
+                "recording_id": recording_id,
+                "minute_index": minute_index,
+                "date": datetime.now(UTC).isoformat(),
+                "keywords": ",".join(keywords) if keywords else "",
+            }
+            await self._vectorstore.add(
+                doc_id=doc_id,
+                text=summary_text,
+                embedding=vector,
+                metadata=metadata,
+            )
+            logger.debug(
+                "Embedded summary %s into vector store", doc_id
+            )
+        except Exception:
+            logger.warning(
+                "Failed to embed summary for recording=%s minute=%s (non-fatal)",
+                recording_id,
+                minute_index,
+            )
+
+    async def _classify_recording(self) -> None:
+        """Classify the recording after stop. Failures are logged but never block."""
+        try:
+            async with get_session() as session:
+                repo = RecordingRepository(session)
+                summaries = await repo.list_summaries(self.recording_id)
+
+                if not summaries:
+                    logger.info(
+                        "No summaries for recording %s; skipping classification",
+                        self.recording_id,
+                    )
+                    return
+
+                combined_text = "\n".join(
+                    s.summary_text for s in summaries if s.summary_text
+                )
+                if not combined_text.strip():
+                    return
+
+                settings = get_settings()
+                llm = create_llm(provider=settings.llm_provider)
+                classifier = create_classifier(llm)
+                result = await classifier.classify(combined_text)
+
+                matcher = TemplateMatcher(session)
+                template = await matcher.match(result)
+
+                total_minutes = len(summaries)
+                await repo.create_classification(
+                    recording_id=self.recording_id,
+                    template_name=template.name,
+                    template_id=template.id,
+                    start_minute=0,
+                    end_minute=max(total_minutes - 1, 0),
+                    confidence=result.confidence,
+                    result_json={
+                        "category": result.category,
+                        "confidence": result.confidence,
+                        "reason": result.reason,
+                        "template_display_name": template.display_name,
+                        "template_icon": template.icon,
+                    },
+                )
+                logger.info(
+                    "Recording %s classified as %r (confidence=%.2f, template=%s)",
+                    self.recording_id,
+                    result.category,
+                    result.confidence,
+                    template.name,
+                )
+        except Exception:
+            logger.warning(
+                "Classification failed for recording %s (non-fatal)",
+                self.recording_id,
+                exc_info=True,
+            )
 
 
 # ---------------------------------------------------------------------------

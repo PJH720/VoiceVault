@@ -11,14 +11,26 @@ from src.services.storage.database import (
     reset_engine,
 )
 from src.services.storage.export import export_recording_to_markdown
-from src.services.storage.models_db import Recording, Summary, Transcript
+from src.services.storage.models_db import (
+    Classification,
+    HourSummary,
+    RAGQuery,
+    Recording,
+    Summary,
+    Template,
+    Transcript,
+)
 from src.services.storage.repository import RecordingRepository
 
 __all__ = [
     "Base",
+    "Classification",
+    "HourSummary",
+    "RAGQuery",
     "Recording",
     "RecordingRepository",
     "Summary",
+    "Template",
     "Transcript",
     "close_db",
     "export_recording_to_markdown",
