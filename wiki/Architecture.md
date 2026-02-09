@@ -9,10 +9,12 @@ VoiceVault의 시스템 아키텍처 전체 설계 문서입니다.
 | 원칙 | 설명 |
 |------|------|
 | **Local-First** | 외부 서비스 없이 완전 동작. 클라우드는 선택사항 |
-| **Provider Agnostic** | LLM/STT 제공자를 인터페이스로 추상화. 자유 교체 |
+| **Provider Agnostic** | LLM/STT/Embedding 제공자를 인터페이스로 추상화. 자유 교체 |
 | **Modular Pipeline** | 각 처리 단계가 독립적. 단계 실패가 전체를 차단하지 않음 |
 | **Service Layer Pattern** | UI → API → Service → Storage 분리. 관심사 격리 |
 | **Event-Driven** | 파이프라인 단계 간 이벤트 기반 통신 |
+| **RAG-Powered** | 모든 요약은 벡터 임베딩으로 저장 → 자연어 검색 가능 |
+| **PKM-Compatible** | Obsidian 호환 Markdown 내보내기 (frontmatter, wikilinks, tags) |
 
 ---
 
@@ -57,17 +59,33 @@ VoiceVault의 시스템 아키텍처 전체 설계 문서입니다.
 │  └──────────────────────────────────────────────────────┘ │
 │                                                            │
 │  ┌──────────┐ ┌──────────┐ ┌───────────────────────────┐ │
-│  │ Storage  │ │  Export   │ │  Template Matcher         │ │
-│  │ Service  │ │  Service  │ │  Service                  │ │
-│  └──────────┘ └──────────┘ └───────────────────────────┘ │
+│  │   RAG    │ │  Export   │ │  Template Matcher         │ │
+│  │ Service  │ │ Service   │ │  Service                  │ │
+│  │(Retriever│ │(Obsidian) │ │                           │ │
+│  │+Embedder)│ │           │ │                           │ │
+│  └─────┬────┘ └──────────┘ └───────────────────────────┘ │
+│        │                                                   │
+│  ┌─────▼────────────────────────────────────────────────┐ │
+│  │           Embedding Provider Abstraction              │ │
+│  │  ┌────────────────────┐  ┌─────────────────────┐     │ │
+│  │  │ SentenceTransformer│  │  Ollama Embeddings  │     │ │
+│  │  │ (all-MiniLM-L6-v2)│  │  (nomic-embed-text) │     │ │
+│  │  └────────────────────┘  └─────────────────────┘     │ │
+│  └──────────────────────────────────────────────────────┘ │
+│                                                            │
+│  ┌──────────┐                                              │
+│  │ Storage  │                                              │
+│  │ Service  │                                              │
+│  └──────────┘                                              │
 └──────────────────────────┬────────────────────────────────┘
-                           │ ORM / File I/O
+                           │ ORM / File I/O / Vector I/O
 ┌──────────────────────────▼────────────────────────────────┐
 │                   DATA LAYER                               │
-│  ┌──────────────────┐  ┌───────────────────────────────┐  │
-│  │  SQLite Database  │  │  File System                  │  │
-│  │  (SQLAlchemy ORM) │  │  recordings/ · exports/       │  │
-│  └──────────────────┘  └───────────────────────────────┘  │
+│  ┌──────────────────┐  ┌──────────────┐  ┌─────────────┐ │
+│  │  SQLite Database  │  │  ChromaDB    │  │ File System │ │
+│  │  (SQLAlchemy ORM) │  │  (Vector DB) │  │ recordings/ │ │
+│  │  metadata + CRUD  │  │  embeddings  │  │ exports/    │ │
+│  └──────────────────┘  └──────────────┘  └─────────────┘ │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -78,24 +96,25 @@ VoiceVault의 시스템 아키텍처 전체 설계 문서입니다.
 ### 전체 처리 흐름
 
 ```
-[Phase 1: Real-time]                    [Phase 2: Post-processing]
-                                        
- User → Microphone                       Recording Stop
-   ↓                                        ↓
- Audio Chunks (PCM)                      Collect all 1-min summaries
-   ↓                                        ↓
- WebSocket → FastAPI                     Hour Integration
-   ↓                                     (60 summaries → 1 document)
- Whisper STT                                ↓
-   ↓                                     Zero-shot Classification
- Real-time Transcript                    (Claude/Ollama)
-   ↓                                        ↓
- Every 60s → LLM Summarize              Template Matching
-   ↓                                     (사용자 정의 규칙)
- 1-min Summary → SQLite                    ↓
-   ↓                                     Markdown Generation
- UI Update (live)                           ↓
-                                         Export (.md files)
+[Phase 1: Real-time]              [Phase 2: Post-processing]        [Phase 3: RAG & Export]
+
+ User → Microphone                 Recording Stop                    User Query (자연어)
+   ↓                                  ↓                                  ↓
+ Audio Chunks (PCM)                Collect all 1-min summaries       Embed query → ChromaDB
+   ↓                                  ↓                                  ↓
+ WebSocket → FastAPI               Hour Integration                  Similarity search (Top-K)
+   ↓                               (60 summaries → 1 document)          ↓
+ Whisper STT                          ↓                              Re-rank + metadata filter
+   ↓                               Zero-shot Classification              ↓
+ Real-time Transcript              (Claude/Ollama)                   LLM answer with citations
+   ↓                                  ↓                                  ↓
+ Every 60s → LLM Summarize        Template Matching                  Grounded response + sources
+   ↓                               (사용자 정의 규칙)
+ 1-min Summary → SQLite               ↓
+   ↓                               Obsidian Markdown Export
+ Embed summary → ChromaDB         (frontmatter + wikilinks)
+   ↓
+ UI Update (live)
 ```
 
 ### Pipeline A: 녹음 & 전사 (실시간)
@@ -155,10 +174,43 @@ Every 60 seconds (timer trigger)
 └──────────────┬───────────────────┘
                ↓
          DB: Save to summaries table
+         Embed: summary → ChromaDB (async)
          UI: Update summary list
 ```
 
-### Pipeline C: 자동 분류 (녹음 종료 시)
+### Pipeline C: RAG 검색 (사용자 쿼리)
+
+```
+User enters natural language query
+    ↓
+┌──────────────────────────────────┐
+│ Embed Query                      │
+│ ├─ Input: "LangChain에 대해 뭐?" │
+│ ├─ Model: MiniLM / nomic-embed   │
+│ └─ Output: 384-dim vector         │
+└──────────────┬───────────────────┘
+               ↓
+┌──────────────────────────────────┐
+│ ChromaDB Similarity Search       │
+│ ├─ Distance: cosine              │
+│ ├─ Top-K: 5 (configurable)      │
+│ └─ Metadata filter (date, type)  │
+└──────────────┬───────────────────┘
+               ↓
+┌──────────────────────────────────┐
+│ LLM Grounded Answer              │
+│ ├─ Input: query + retrieved docs │
+│ ├─ System: "Answer based on the  │
+│ │   provided context only.       │
+│ │   Cite sources."               │
+│ └─ Output: answer + source refs  │
+└──────────────┬───────────────────┘
+               ↓
+         UI: Display answer + sources
+         Each source links to recording
+```
+
+### Pipeline D: 자동 분류 (녹음 종료 시)
 
 ```
 Recording stopped → Trigger classification
@@ -197,14 +249,38 @@ Recording stopped → Trigger classification
 └──────────────┬───────────────────┘
                ↓
          DB: Save classifications
-         Files: Export .md files
+         Files: Export Obsidian-compatible .md files
+         (YAML frontmatter + [[wikilinks]] from RAG similarity)
+```
+
+### Pipeline E: Obsidian Markdown 내보내기
+
+```
+Classification complete → Export trigger
+    ↓
+┌──────────────────────────────────┐
+│ Obsidian Markdown Generator      │
+│ ├─ YAML Frontmatter:             │
+│ │   title, date, type, category, │
+│ │   tags, keywords, speakers,    │
+│ │   recording_id, confidence     │
+│ ├─ Body: Summary + key points    │
+│ ├─ Related: RAG similarity →     │
+│ │   [[wikilinks]] to similar     │
+│ │   recordings                   │
+│ └─ Transcript: collapsible       │
+│     section with timestamps      │
+└──────────────┬───────────────────┘
+               ↓
+         Files: data/exports/ (or Obsidian vault path)
+         Format: [type] Title - Date.md
 ```
 
 ---
 
 ## Provider 추상화 패턴
 
-모든 외부 서비스(LLM, STT)는 인터페이스를 통해 추상화됩니다.
+모든 외부 서비스(LLM, STT, Embedding)는 인터페이스를 통해 추상화됩니다.
 
 ```python
 # src/services/llm/base.py
@@ -234,7 +310,32 @@ class OllamaLLM(BaseLLM):
         ...
 ```
 
-**장점**: `.env`에서 `LLM_PROVIDER=claude` 또는 `LLM_PROVIDER=ollama`만 바꾸면 전환 완료.
+```python
+# src/services/rag/base.py
+from abc import ABC, abstractmethod
+
+class BaseEmbedding(ABC):
+    @abstractmethod
+    async def embed(self, text: str) -> list[float]:
+        """텍스트를 벡터로 변환합니다."""
+        pass
+
+    @abstractmethod
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """여러 텍스트를 배치로 벡터 변환합니다."""
+        pass
+
+class BaseVectorStore(ABC):
+    @abstractmethod
+    async def add(self, id: str, document: str, embedding: list[float], metadata: dict) -> None:
+        pass
+
+    @abstractmethod
+    async def search(self, query_embedding: list[float], top_k: int = 5) -> list[dict]:
+        pass
+```
+
+**장점**: `.env`에서 `LLM_PROVIDER`, `EMBEDDING_PROVIDER`만 바꾸면 전환 완료.
 
 ---
 
@@ -254,7 +355,8 @@ src/
 │   ├── summarization/       # 1분/1시간/세션 요약
 │   ├── classification/      # 자동 분류 + 템플릿 매칭
 │   ├── llm/                 # LLM 추상화 (Claude / Ollama)
-│   └── storage/             # DB CRUD + Markdown 내보내기
+│   ├── rag/                 # RAG (임베딩 + ChromaDB + 검색)
+│   └── storage/             # DB CRUD + Obsidian Markdown 내보내기
 │
 ├── api/                     # FastAPI 라우터 (얇은 래퍼)
 │   ├── app.py               # 앱 팩토리

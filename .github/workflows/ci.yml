@@ -77,7 +77,7 @@ jobs:
           uv pip install -e ".[dev]"
 
       - name: Create test directories
-        run: mkdir -p data/recordings data/exports logs
+        run: mkdir -p data/recordings data/exports data/chroma_db logs
 
       - name: Run tests
         env:

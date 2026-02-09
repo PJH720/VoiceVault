@@ -80,9 +80,12 @@ OLLAMA_MODEL=llama3.2
 
 WHISPER_PROVIDER=local
 WHISPER_MODEL=base
+
+EMBEDDING_PROVIDER=ollama
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 ```
 
-> **사전 준비**: [Ollama](https://ollama.ai/) 설치 후 `ollama pull llama3.2` 실행
+> **사전 준비**: [Ollama](https://ollama.ai/) 설치 후 `ollama pull llama3.2 && ollama pull nomic-embed-text` 실행
 
 ### Case B: 클라우드 API 사용
 
@@ -104,6 +107,9 @@ CLAUDE_API_KEY=sk-ant-api03-YOUR_KEY_HERE
 
 WHISPER_PROVIDER=local
 WHISPER_MODEL=base
+
+EMBEDDING_PROVIDER=local
+EMBEDDING_MODEL=all-MiniLM-L6-v2
 ```
 
 ---
@@ -173,10 +179,17 @@ streamlit run src/ui/app.py --server.port 8501
 2. 1분 단위 요약이 자동 생성됨
 3. Summaries 페이지에서 결과 확인
 
-### Step 4: 내보내기
-1. 원하는 요약 선택
-2. **"Export as Markdown"** 버튼 클릭
-3. `.md` 파일 다운로드
+### Step 4: RAG 검색 (v0.2.0)
+1. RAG Search 페이지로 이동
+2. 자연어로 질문 입력 (예: "오늘 강의에서 RAG에 대해 뭐라고 했지?")
+3. AI가 관련 녹음을 찾아 출처와 함께 답변
+
+### Step 5: Obsidian 내보내기 (v0.2.0)
+1. Export 페이지로 이동
+2. 내보낼 녹음 선택
+3. **"Export as Obsidian"** 버튼 클릭
+4. YAML frontmatter + [[wikilinks]] 포함된 `.md` 파일 생성
+5. (선택) Obsidian vault 경로를 설정하면 vault에 직접 저장
 
 ---
 

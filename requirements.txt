@@ -19,6 +19,10 @@ numpy>=1.26.0,<2.0.0
 anthropic>=0.39.0
 ollama>=0.4.5
 
+# RAG & Embeddings
+chromadb>=0.5.0
+sentence-transformers>=3.3.0
+
 # Database
 sqlalchemy[asyncio]>=2.0.35
 aiosqlite>=0.20.0
@@ -27,6 +31,9 @@ alembic>=1.14.0
 # Data Validation & Serialization
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
+
+# Obsidian Export
+pyyaml>=6.0.0
 
 # Utilities
 python-dotenv>=1.0.1

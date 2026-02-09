@@ -1,14 +1,14 @@
 [project]
 name = "voicevault"
 version = "0.1.0"
-description = "AI-powered voice recording system with automatic transcription, summarization, and classification"
+description = "AI-powered voice recording system with transcription, summarization, classification, and RAG-powered search. Obsidian-compatible export."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = { text = "MIT" }
 authors = [
     { name = "VoiceVault Team", email = "voicevault@example.com" }
 ]
-keywords = ["voice", "transcription", "summarization", "ai", "whisper", "llm"]
+keywords = ["voice", "transcription", "summarization", "ai", "whisper", "llm", "rag", "obsidian", "chromadb"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -36,6 +36,10 @@ dependencies = [
     "anthropic>=0.39.0",
     "ollama>=0.4.5",
 
+    # RAG & Embeddings
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.3.0",
+
     # Database
     "sqlalchemy[asyncio]>=2.0.35",
     "aiosqlite>=0.20.0",
@@ -44,6 +48,9 @@ dependencies = [
     # Data Validation & Serialization
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
+
+    # Obsidian Export
+    "pyyaml>=6.0.0",
 
     # Utilities
     "python-dotenv>=1.0.1",

@@ -7,14 +7,14 @@ VoiceVault의 마일스톤, 개발 일정, 향후 확장 계획입니다.
 ## 해커톤 타임라인 (2026년 2월)
 
 ```
-Week 0                Week 1                 Week 2                 Final
-(Feb 6)               (Feb 7-13)             (Feb 14-20)            (Feb 21-22)
-  │                     │                      │                      │
-  ├─ GitHub 세팅        ├─ Core Pipeline       ├─ Classification      ├─ Polish
-  ├─ Wiki 작성          ├─ Whisper STT         ├─ Template System     ├─ Demo 준비
-  ├─ 프로젝트 구조      ├─ 1분 요약             ├─ 1시간 통합          ├─ 발표 자료
-  └─ 첫 커밋            ├─ SQLite 저장          ├─ Cross-boundary     └─ 데모 영상
-                        ├─ Streamlit UI         ├─ MD Export
+Week 0                Week 1                 Week 2                      Final
+(Feb 6)               (Feb 7-13)             (Feb 14-20)                 (Feb 21-22)
+  │                     │                      │                           │
+  ├─ GitHub 세팅        ├─ Core Pipeline       ├─ Classification           ├─ Polish
+  ├─ Wiki 작성          ├─ Whisper STT         ├─ RAG (ChromaDB+검색)      ├─ Demo 준비
+  ├─ 프로젝트 구조      ├─ 1분 요약             ├─ Cross-boundary           ├─ RAG 데모
+  └─ 첫 커밋            ├─ SQLite 저장          ├─ Obsidian MD Export       ├─ 발표 자료
+                        ├─ Streamlit UI         ├─ RAG Search UI            └─ 데모 영상
                         └─ E2E 테스트           └─ 최종 테스트
 ```
 
@@ -41,7 +41,7 @@ Week 0                Week 1                 Week 2                 Final
 
 ---
 
-### v0.2.0 - Smart Classification (Week 2)
+### v0.2.0 - Classification + RAG + Obsidian (Week 2)
 
 **마감**: 2026-02-20 (금)
 
@@ -50,12 +50,14 @@ Week 0                Week 1                 Week 2                 Final
 | 9 | Zero-shot 자동 분류 서비스 | P1 | ▶ |
 | 10 | 사용자 정의 템플릿 시스템 | P1 | ▶ |
 | 11 | 1시간 통합 요약 (계층적 압축) | P1 | ▶ |
-| 12 | 크로스 경계 구간 검색 | P2 | ▶ |
-| 13 | Markdown 자동 생성 & 다운로드 | P1 | ▶ |
-| 14 | UI 개선 (타임라인, 분류 결과) | P2 | ▶ |
-| 15 | 최종 테스트 + 버그 수정 | P0 | ▶ |
+| 12 | RAG: ChromaDB 벡터 스토어 + 임베딩 파이프라인 | P0 | ▶ |
+| 13 | RAG: 자연어 검색 API + 유사 녹음 조회 | P0 | ▶ |
+| 14 | 크로스 경계 구간 검색 | P2 | ▶ |
+| 15 | Obsidian 호환 Markdown 내보내기 (frontmatter + wikilinks) | P1 | ▶ |
+| 16 | UI 개선 (타임라인, 분류 결과, RAG 검색 패널) | P2 | ▶ |
+| 17 | 최종 테스트 + 버그 수정 | P0 | ▶ |
 
-**성공 기준**: 1시간 녹음 → 5분 내 자동 분류 + 요약 + MD 생성
+**성공 기준**: 1시간 녹음 → 자동 분류 → RAG 검색 → Obsidian MD 내보내기
 
 ---
 
@@ -66,6 +68,8 @@ Week 0                Week 1                 Week 2                 Final
 | Task | Priority |
 |------|----------|
 | 데모 시나리오 완성 (8시간 시뮬레이션) | P0 |
+| RAG 데모: 자연어 쿼리로 과거 녹음 검색 | P0 |
+| Obsidian vault 통합 데모 | P0 |
 | 발표 자료 (슬라이드) 준비 | P0 |
 | README & 문서 최종 정리 | P1 |
 | 데모 영상 촬영 | P1 |
@@ -92,14 +96,16 @@ Week 0                Week 1                 Week 2                 Final
 
 [녹음 종료 → AI 처리: 30초]
 
-[결과]
-├── 👥 친구 노트 (2개)
-│   ├── Sarah - Project Meeting
-│   └── Friend2 - Academic Check-in
-├── 📚 강의 노트
-│   └── Advanced AI - LangChain & Agents
-└── 💡 개인 메모
-    └── Study Session - LangGraph Deep Dive
+[결과 - Obsidian 호환 Markdown 내보내기]
+├── 👥 [대화] Sarah - Project Meeting.md (YAML frontmatter + wikilinks)
+├── 👥 [대화] Friend2 - Academic Check-in.md
+├── 📚 [강의] Advanced AI - LangChain & Agents.md
+└── 💡 [메모] Study Session - LangGraph Deep Dive.md
+
+[RAG 검색 데모]
+Query: "LangChain Agent 설계 패턴에 대해 뭐라고 했지?"
+→ ChromaDB 유사도 검색 → 강의 + 스터디 세션 매칭
+→ "Advanced AI 강의에서 Agent 설계 패턴은... [source: 10:30~12:00]"
 ```
 
 ---
@@ -111,18 +117,21 @@ Week 0                Week 1                 Week 2                 Final
 | 기능 | 설명 | 기술 |
 |------|------|------|
 | 화자 분리 | 누가 언제 말했는지 자동 감지 | Pyannote 3.1 |
-| RAG 벡터 검색 | 과거 녹음에서 관련 내용 검색 | FAISS + SQLite |
 | 세션 간 맥락 유지 | "아까 말한 그 프로젝트" 자동 해석 | LangGraph thread_id |
 | 학습 기반 분류 개선 | 사용자 수정 패턴 학습 | Few-shot learning |
+| RAG 고도화 | Re-ranker, HyDE, Multi-query | FAISS + cross-encoder |
 
 ### Phase 3: 플랫폼 확장 (2026 Q3)
 
 | 기능 | 설명 | 기술 |
 |------|------|------|
-| Obsidian 플러그인 | Vault 내 직접 통합 | TypeScript + Obsidian API |
+| Obsidian 네이티브 플러그인 | Vault 내 녹음+RAG 직접 통합 | TypeScript + Obsidian API |
 | Notion 연동 | 노트 자동 동기화 | Notion API |
 | 웹 클라우드 버전 | 클라우드 동기화 + 다기기 | Supabase + Vercel |
 | 모바일 앱 | iOS/Android | React Native |
+
+> **Note**: RAG 벡터 검색과 Obsidian 호환 Markdown 내보내기는 v0.2.0 (Week 2 MVP)로 이동되었습니다.
+> Phase 3의 Obsidian 플러그인은 TypeScript 네이티브 플러그인으로, MVP의 Markdown 내보내기와 별개입니다.
 
 ### Phase 4: 엔터프라이즈 (2026 Q4)
 
@@ -146,6 +155,9 @@ Week 0                Week 1                 Week 2                 Final
 | 분류 정확도 | 85%+ | Claude zero-shot 91% |
 | 연속 녹음 | 12시간+ | SQLite + 1시간 분할 |
 | 프라이버시 | 0% 외부 저장 | Ollama 완전 로컬 |
+| RAG 응답 시간 | < 5초 | ChromaDB HNSW 인덱스 |
+| RAG 관련성 | recall@5 > 80% | 메타데이터 강화 검색 |
+| Obsidian 내보내기 | 완전 호환 | frontmatter + wikilinks |
 | 데모 완성도 | 93/100점 | 상위 10-15% 목표 |
 
 ### 장기 목표
