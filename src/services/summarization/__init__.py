@@ -2,4 +2,7 @@
 Summarization module - Text summarization services.
 """
 
-__all__ = []
+from .base import BaseSummarizer
+from .minute_summarizer import MinuteSummarizer
+
+__all__ = ["BaseSummarizer", "MinuteSummarizer"]

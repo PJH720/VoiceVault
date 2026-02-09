@@ -58,6 +58,16 @@ class RecordingResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class MinuteSummaryResult(BaseModel):
+    """Internal service result from 1-minute summarization."""
+
+    minute_index: int
+    summary_text: str
+    keywords: list[str] = Field(default_factory=list)
+    topic: str = ""
+    model_used: str = ""
+
+
 class SummaryResponse(BaseModel):
     """A single 1-minute summary."""
 
