@@ -6,6 +6,8 @@ routers, and the health endpoint. The module-level ``app`` instance
 allows ``uvicorn src.api.app:app --reload``.
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI
@@ -15,6 +17,15 @@ from src.api import websocket
 from src.api.middleware.error_handler import register_error_handlers
 from src.api.routes import recording, summary
 from src.core.models import HealthResponse
+from src.services.storage.database import close_db, init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Initialize DB on startup, dispose engine on shutdown."""
+    await init_db()
+    yield
+    await close_db()
 
 
 def create_app() -> FastAPI:
@@ -25,6 +36,7 @@ def create_app() -> FastAPI:
         description="AI-powered voice recorder with transcription, "
         "summarization, and classification.",
         version="0.1.0",
+        lifespan=lifespan,
     )
 
     # -- CORS --

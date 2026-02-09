@@ -106,3 +106,41 @@ def sample_audio_path(tmp_path, sample_pcm_bytes):
         wf.setframerate(16000)
         wf.writeframes(sample_pcm_bytes)
     return str(wav_path)
+
+
+# ---------------------------------------------------------------------------
+# Database Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def db_engine():
+    """Create an in-memory SQLite async engine with tables, dispose after test."""
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from src.services.storage.database import Base
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
+
+@pytest.fixture
+async def db_session(db_engine):
+    """Yield an AsyncSession bound to the test engine; rolls back after test."""
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with factory() as session:
+        yield session
+        await session.rollback()
+
+
+@pytest.fixture
+def repository(db_session):
+    """Return a RecordingRepository bound to the test session."""
+    from src.services.storage.repository import RecordingRepository
+
+    return RecordingRepository(db_session)
