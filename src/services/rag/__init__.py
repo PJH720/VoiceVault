@@ -6,8 +6,15 @@ based on provider configuration.
 """
 
 from .base import BaseEmbedding, BaseVectorStore
+from .retriever import RAGRetriever
 
-__all__ = ["BaseEmbedding", "BaseVectorStore", "create_embedding", "create_vectorstore"]
+__all__ = [
+    "BaseEmbedding",
+    "BaseVectorStore",
+    "RAGRetriever",
+    "create_embedding",
+    "create_vectorstore",
+]
 
 
 def create_embedding(provider: str, **kwargs) -> BaseEmbedding:

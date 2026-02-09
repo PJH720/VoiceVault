@@ -1,16 +1,19 @@
 """
 RAG REST endpoints.
 
-Provides reindex and future RAG query endpoints.
+Provides reindex, natural-language query, and similar-recording endpoints.
 """
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from src.core.config import get_settings
+from src.core.models import RAGQueryRequest, RAGQueryResponse, RAGSource
+from src.services.llm import create_llm
 from src.services.rag import create_embedding, create_vectorstore
+from src.services.rag.retriever import RAGRetriever
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
 
@@ -86,3 +89,42 @@ async def reindex_summaries():
             total_in_store=total,
         ),
     )
+
+
+def _create_retriever() -> RAGRetriever:
+    """Build a RAGRetriever from current application settings."""
+    settings = get_settings()
+    return RAGRetriever(
+        llm=create_llm(provider=settings.llm_provider),
+        embedding=create_embedding(provider=settings.embedding_provider),
+        vectorstore=create_vectorstore(),
+    )
+
+
+@router.post("/query", response_model=RAGQueryResponse)
+async def rag_query(request: RAGQueryRequest):
+    """Search past recordings with a natural-language query."""
+    retriever = _create_retriever()
+    response = await retriever.query(request)
+
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        await repo.create_rag_query(
+            query_text=request.query,
+            results_json=[s.model_dump() for s in response.sources],
+            model_used=response.model_used,
+            answer_text=response.answer,
+            sources=[s.model_dump() for s in response.sources],
+        )
+
+    return response
+
+
+@router.get("/similar/{recording_id}", response_model=list[RAGSource])
+async def rag_similar(
+    recording_id: int,
+    top_k: int = Query(default=5, ge=1, le=50),
+):
+    """Find recordings similar to the given recording."""
+    retriever = _create_retriever()
+    return await retriever.find_similar(recording_id=recording_id, top_k=top_k)
