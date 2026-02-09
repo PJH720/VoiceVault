@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # VoiceVault Development Environment Setup Script
-# This script automates the setup of the local development environment
+# Uses uv for Python version management and package installation.
+# Target: Python 3.12
 
 set -e  # Exit on error
 
@@ -11,6 +12,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+PYTHON_VERSION="3.12"
 
 # Helper functions
 print_step() {
@@ -46,54 +49,50 @@ detect_os() {
     print_success "Detected OS: $OS"
 }
 
-# Verify Python version
-verify_python() {
-    print_step "Verifying Python installation..."
+# Install uv if not present
+install_uv() {
+    print_step "Checking for uv installation..."
 
-    if ! command -v python3 &> /dev/null; then
-        print_error "Python 3 is not installed. Please install Python 3.11 or 3.12."
-        exit 1
+    if command -v uv &> /dev/null; then
+        UV_VERSION=$(uv --version)
+        print_success "uv is already installed ($UV_VERSION)"
+    else
+        print_step "Installing uv..."
+        if [ "$OS" == "macOS" ] && command -v brew &> /dev/null; then
+            brew install uv
+        else
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+        fi
+        print_success "uv installed"
     fi
-
-    PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
-    PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d'.' -f1)
-    PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d'.' -f2)
-
-    if [ "$PYTHON_MAJOR" -ne 3 ] || [ "$PYTHON_MINOR" -lt 11 ] || [ "$PYTHON_MINOR" -ge 13 ]; then
-        print_error "Python 3.11 or 3.12 is required. Found: $PYTHON_VERSION"
-        exit 1
-    fi
-
-    print_success "Python $PYTHON_VERSION is compatible"
 }
 
-# Create virtual environment
+# Create virtual environment with Python 3.12 (uv auto-downloads if needed)
 create_venv() {
-    print_step "Creating virtual environment..."
+    print_step "Creating virtual environment with Python ${PYTHON_VERSION}..."
 
     if [ -d ".venv" ]; then
-        print_warning "Virtual environment already exists. Skipping creation."
-    else
-        python3 -m venv .venv
-        print_success "Virtual environment created at .venv/"
+        # Verify existing venv Python version
+        EXISTING_VERSION=$(.venv/bin/python --version 2>/dev/null | cut -d' ' -f2 | cut -d'.' -f1-2)
+        if [ "$EXISTING_VERSION" == "$PYTHON_VERSION" ]; then
+            print_warning "Virtual environment already exists with Python ${EXISTING_VERSION}. Skipping."
+            return
+        else
+            print_warning "Existing venv uses Python ${EXISTING_VERSION}. Recreating with ${PYTHON_VERSION}..."
+            rm -rf .venv
+        fi
     fi
+
+    uv venv --python "$PYTHON_VERSION"
+    print_success "Virtual environment created at .venv/ (Python ${PYTHON_VERSION})"
 }
 
-# Activate virtual environment and upgrade pip
-upgrade_pip() {
-    print_step "Activating virtual environment and upgrading pip..."
-
-    source .venv/bin/activate
-    pip install --upgrade pip setuptools wheel
-    print_success "pip, setuptools, and wheel upgraded"
-}
-
-# Install dependencies
+# Install dependencies via uv
 install_dependencies() {
-    print_step "Installing Python dependencies..."
+    print_step "Installing Python dependencies via uv..."
 
     if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt
+        uv pip install -r requirements.txt
         print_success "Core dependencies installed"
     else
         print_error "requirements.txt not found"
@@ -101,9 +100,14 @@ install_dependencies() {
     fi
 
     # Install dev dependencies
-    print_step "Installing development dependencies..."
-    pip install pytest pytest-asyncio pytest-cov pytest-mock ruff mypy bandit
-    print_success "Development dependencies installed"
+    print_step "Installing development dependencies via uv..."
+    if [ -f "pyproject.toml" ]; then
+        uv pip install -e ".[dev]"
+        print_success "Development dependencies installed"
+    else
+        uv pip install pytest pytest-asyncio pytest-cov pytest-env pytest-mock ruff mypy bandit
+        print_success "Development dependencies installed (fallback)"
+    fi
 }
 
 # Create data directories
@@ -138,7 +142,7 @@ setup_env_file() {
 download_whisper_model() {
     print_step "Downloading Whisper base model..."
 
-    python scripts/download_models.py --model base
+    .venv/bin/python scripts/download_models.py --model base
     print_success "Whisper base model downloaded"
 }
 
@@ -149,7 +153,6 @@ install_ollama() {
     if command -v ollama &> /dev/null; then
         print_success "Ollama is already installed"
 
-        # Pull llama3.2 model
         read -p "Would you like to pull the llama3.2 model? (y/n) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -161,17 +164,10 @@ install_ollama() {
         read -p "Ollama is not installed. Would you like to install it? (y/n) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if [ "$OS" == "macOS" ]; then
-                print_step "Installing Ollama for macOS..."
-                curl -fsSL https://ollama.com/install.sh | sh
-            elif [ "$OS" == "Linux" ]; then
-                print_step "Installing Ollama for Linux..."
-                curl -fsSL https://ollama.com/install.sh | sh
-            fi
-
+            print_step "Installing Ollama..."
+            curl -fsSL https://ollama.com/install.sh | sh
             print_success "Ollama installed"
 
-            # Pull llama3.2 model
             print_step "Pulling llama3.2 model..."
             ollama pull llama3.2
             print_success "llama3.2 model pulled"
@@ -204,6 +200,7 @@ print_next_steps() {
     echo "  5. Run tests:"
     echo "     ${BLUE}pytest${NC}"
     echo
+    echo "Note: Always use 'uv pip install ...' instead of 'pip install ...'"
     echo "For more information, see README.md and CLAUDE.md"
     echo
 }
@@ -211,14 +208,13 @@ print_next_steps() {
 # Main execution
 main() {
     echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}VoiceVault Development Setup${NC}"
+    echo -e "${BLUE}VoiceVault Development Setup (uv)${NC}"
     echo -e "${BLUE}========================================${NC}"
     echo
 
     detect_os
-    verify_python
+    install_uv
     create_venv
-    upgrade_pip
     install_dependencies
     create_directories
     setup_env_file

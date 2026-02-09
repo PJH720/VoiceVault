@@ -10,7 +10,8 @@ VoiceVault 설치부터 첫 녹음까지의 가이드입니다.
 | 항목 | 요구사항 |
 |------|---------|
 | **OS** | macOS 12+, Ubuntu 20.04+, Windows 10+ |
-| **Python** | 3.11 이상 |
+| **Python** | 3.12 (uv가 자동 관리) |
+| **uv** | [설치 가이드](https://docs.astral.sh/uv/) |
 | **RAM** | 4GB 이상 |
 | **디스크** | 2GB 여유 공간 (Whisper 모델 포함) |
 | **마이크** | 내장 또는 외장 마이크 |
@@ -33,17 +34,19 @@ VoiceVault 설치부터 첫 녹음까지의 가이드입니다.
 git clone https://github.com/<your-username>/voice-vault.git
 cd voice-vault
 
-# 2. Python 가상환경 생성 & 활성화
-python -m venv .venv
+# 2. uv로 Python 3.12 가상환경 생성 & 활성화
+uv venv --python 3.12
 source .venv/bin/activate        # macOS/Linux
-# .venv\Scripts\activate         # Windows
 
-# 3. 의존성 설치
-pip install -r requirements.txt
+# 3. 의존성 설치 (반드시 uv pip 사용)
+uv pip install -r requirements.txt
+uv pip install -e ".[dev]"
 
 # 4. 환경변수 설정
 cp .env.example .env
 ```
+
+> **Note**: `pip` 대신 반드시 `uv pip`을 사용하세요. uv 환경에는 pip 바이너리가 포함되지 않습니다.
 
 ### 방법 2: Docker 설치
 

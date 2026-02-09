@@ -62,6 +62,21 @@
 
 ### 설치 관련
 
+#### 문제: `pip install` 또는 `pip list`에서 exit code 127 발생
+
+**원인**: uv로 생성한 가상환경에는 `pip` 바이너리가 포함되지 않습니다.
+
+**해결**: 모든 패키지 명령에 `uv pip`을 사용하세요.
+```bash
+# 올바른 사용법
+uv pip install <package>
+uv pip list
+
+# 잘못된 사용법 (exit 127 발생)
+pip install <package>
+pip list
+```
+
 #### 문제: `pip install openai-whisper` 실패
 
 **원인**: ffmpeg가 설치되지 않음
@@ -73,9 +88,6 @@ brew install ffmpeg
 
 # Ubuntu
 sudo apt-get install ffmpeg
-
-# Windows
-# https://ffmpeg.org/download.html 에서 다운로드
 ```
 
 #### 문제: `ModuleNotFoundError: No module named 'soundfile'`
@@ -84,11 +96,11 @@ sudo apt-get install ffmpeg
 ```bash
 # macOS
 brew install libsndfile
-pip install soundfile
+uv pip install soundfile
 
 # Ubuntu
 sudo apt-get install libsndfile1
-pip install soundfile
+uv pip install soundfile
 ```
 
 ---
@@ -190,7 +202,7 @@ nvidia-smi
 
 1. [GitHub Issues](https://github.com/) 에서 기존 이슈 검색
 2. 없으면 새 이슈 생성 (Bug Report 템플릿 사용)
-3. 환경 정보(OS, Python 버전, 에러 로그) 반드시 포함
+3. 환경 정보(OS, Python 버전, uv 버전, 에러 로그) 반드시 포함
 
 ---
 

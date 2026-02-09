@@ -8,7 +8,7 @@ VoiceVault 개발 참여를 위한 환경 설정, 코딩 규칙, 워크플로우
 
 ### 사전 요구사항
 
-- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (Python 3.12는 uv가 자동 관리)
 - Git
 - (선택) Docker & Docker Compose
 - (선택) Ollama (로컬 LLM 테스트용)
@@ -20,12 +20,13 @@ VoiceVault 개발 참여를 위한 환경 설정, 코딩 규칙, 워크플로우
 git clone https://github.com/<your-username>/voice-vault.git
 cd voice-vault
 
-# 2. 가상환경 생성 & 활성화
-python -m venv .venv
+# 2. uv로 가상환경 생성 & 활성화
+uv venv --python 3.12
 source .venv/bin/activate
 
-# 3. 개발 의존성 포함 설치
-pip install -r requirements.txt
+# 3. 의존성 설치 (반드시 uv pip 사용)
+uv pip install -r requirements.txt
+uv pip install -e ".[dev]"
 
 # 4. 환경변수 설정
 cp .env.example .env
@@ -45,6 +46,8 @@ uvicorn src.api.app:app --reload --port 8000
 streamlit run src/ui/app.py
 ```
 
+> **중요**: 패키지 설치는 반드시 `uv pip install ...`을 사용합니다. `pip install`은 동작하지 않습니다.
+
 ---
 
 ## 코딩 규칙
@@ -53,7 +56,7 @@ streamlit run src/ui/app.py
 
 | 규칙 | 설명 |
 |------|------|
-| **Python 버전** | 3.11+ |
+| **Python 버전** | 3.12 (uv 관리) |
 | **Type hints** | 모든 함수 시그니처에 필수 |
 | **데이터 모델** | Pydantic v2 사용 |
 | **비동기** | I/O 작업에 async/await |

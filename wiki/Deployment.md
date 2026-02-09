@@ -95,7 +95,7 @@ docker-compose down
 ### Backend (FastAPI + Whisper)
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -105,9 +105,10 @@ RUN apt-get update && apt-get install -y \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Python 의존성
+# uv 설치 & Python 의존성
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Whisper 모델 다운로드 (base)
 RUN python -c "import whisper; whisper.load_model('base')"
@@ -131,12 +132,13 @@ CMD ["uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
 ### Frontend (Streamlit)
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY requirements.txt .
-RUN pip install --no-cache-dir streamlit httpx
+RUN uv pip install --system --no-cache streamlit httpx
 
 COPY src/ui/ ./src/ui/
 
