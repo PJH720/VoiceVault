@@ -2,16 +2,17 @@
 
 > "Record your day, let AI organize it"
 
-AI-powered voice recording system with automatic transcription, summarization, and classification. Built for 서강대학교 러너톤 2026.
+AI-powered voice recording system with automatic transcription, summarization, classification, and RAG-powered search. Export as Obsidian-compatible notes. Built for 서강대학교 러너톤 2026.
 
 ## Features
 
 - 🎙️ **Real-time Transcription** - Whisper-powered speech-to-text
 - 📝 **Smart Summaries** - AI-generated summaries (1-min, hourly, session-level)
 - 🏷️ **Auto-Classification** - Zero-shot classification into lectures, meetings, conversations
-- 🔒 **Local-First** - 100% offline with Ollama + local Whisper
+- 🔍 **RAG Search** - Query past recordings with natural language, get grounded answers with citations
+- 🔒 **Local-First** - 100% offline with Ollama + local Whisper + local embeddings
 - 🔄 **Provider-Agnostic** - Switch between Claude API ↔ Ollama via config
-- 📦 **Export Ready** - Generate structured Markdown notes
+- 📦 **Obsidian Integration** - Export as Obsidian-compatible Markdown with frontmatter, wikilinks, and tags
 
 ## Quick Start
 
@@ -106,8 +107,11 @@ python scripts/download_models.py --model base
 - **Backend:** FastAPI with WebSocket for real-time audio streaming
 - **Frontend:** Streamlit multi-page application
 - **Database:** SQLite with async SQLAlchemy
+- **Vector DB:** ChromaDB for RAG embeddings
 - **STT:** faster-whisper (CTranslate2)
 - **LLM:** Ollama (local) or Claude API (optional)
+- **Embeddings:** sentence-transformers (local) or Ollama (nomic-embed-text)
+- **Export:** Obsidian-compatible Markdown (YAML frontmatter + wikilinks)
 
 See [CLAUDE.md](./CLAUDE.md) for detailed development guidelines.
 
@@ -120,8 +124,11 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development guidelines.
 | Frontend | Streamlit |
 | STT | faster-whisper |
 | LLM | Ollama / Claude API |
+| Embeddings | sentence-transformers / Ollama |
+| Vector DB | ChromaDB (persistent, zero-config) |
 | Database | SQLite + SQLAlchemy (async) |
 | Audio | sounddevice + pydub |
+| Export | Obsidian-compatible Markdown |
 | Testing | pytest + pytest-asyncio |
 
 ## Environment Variables
@@ -137,6 +144,15 @@ CLAUDE_API_KEY=sk-ant-...        # Optional
 # Whisper
 WHISPER_MODEL=base               # tiny, base, small, medium, large-v3
 WHISPER_DEVICE=cpu               # cpu or cuda
+
+# RAG & Embeddings
+EMBEDDING_PROVIDER=local         # "local" (sentence-transformers) or "ollama"
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+CHROMA_PERSIST_DIR=data/chroma_db
+
+# Obsidian Export
+OBSIDIAN_VAULT_PATH=             # Optional: direct export to vault
+OBSIDIAN_FRONTMATTER=true
 
 # Database
 DATABASE_URL=sqlite+aiosqlite:///./data/voicevault.db

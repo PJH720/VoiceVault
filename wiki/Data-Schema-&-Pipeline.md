@@ -4,7 +4,7 @@ VoiceVault의 데이터베이스 스키마, 데이터 모델, 처리 파이프�
 
 ---
 
-## 데이터베이스 스키마 (SQLite)
+## 데이터베이스 스키마 (SQLite + ChromaDB)
 
 ### ERD 개요
 
@@ -57,6 +57,19 @@ VoiceVault의 데이터베이스 스키마, 데이터 모델, 처리 파이프�
                      │ export_path      │
                      │ created_at       │
                      └──────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  ChromaDB (Vector Store)         │  rag_queries (SQLite)     │
+│  ────────────────────────        │  ─────────────────────    │
+│  Collection:                     │  id (PK)                  │
+│    voicevault_summaries          │  query_text               │
+│  ├─ id (summary-{rec}-{min})     │  answer_text              │
+│  ├─ document (summary_text)      │  sources (JSON)           │
+│  ├─ embedding (384-dim vec)      │  model_used               │
+│  └─ metadata                     │  created_at               │
+│     (recording_id, category,     │                           │
+│      keywords, date, ...)        │                           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -178,6 +191,49 @@ CREATE TABLE templates (
 CREATE UNIQUE INDEX idx_templates_name ON templates(name);
 ```
 
+#### `rag_queries` - RAG 검색 이력
+
+```sql
+CREATE TABLE rag_queries (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_text      TEXT NOT NULL,                     -- 사용자 자연어 쿼리
+    results_json    TEXT,                              -- 검색 결과 (JSON)
+    model_used      TEXT,                              -- 사용된 LLM 모델
+    answer_text     TEXT,                              -- LLM 생성 답변
+    sources         TEXT,                              -- JSON: [{recording_id, minute_index, similarity}]
+    top_k           INTEGER DEFAULT 5,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+### ChromaDB 벡터 스토어 스키마
+
+SQLite와 별도로, 벡터 임베딩은 ChromaDB에 저장됩니다.
+
+```
+Collection: voicevault_summaries
+├── id: "summary-{recording_id}-{minute_index}"
+├── document: summary_text (plain text)
+├── embedding: 384-dim vector (MiniLM / nomic-embed-text)
+└── metadata:
+    ├── recording_id: int        # FK → recordings.id
+    ├── minute_index: int        # 0-based minute within recording
+    ├── category: str            # lecture / meeting / personal / ...
+    ├── keywords: str            # comma-separated keywords
+    ├── speakers: str            # comma-separated speaker names
+    ├── confidence: float        # summary confidence (0-1)
+    ├── date: str                # ISO 8601 (e.g., "2026-02-10")
+    └── hour_index: int          # which hour of the recording
+```
+
+**인덱스**: ChromaDB는 자동으로 HNSW (Hierarchical Navigable Small World) 인덱스를 생성합니다.
+
+**Distance Metric**: Cosine similarity (값이 작을수록 유사)
+
+**저장 경로**: `data/chroma_db/` (persistent SQLite backend)
+
 ---
 
 ## Pydantic 데이터 모델
@@ -218,12 +274,49 @@ class ClassificationSegment(BaseModel):
     confidence: float
     keywords: list[str] = Field(default_factory=list)
 
+class RAGQuery(BaseModel):
+    """RAG 검색 요청"""
+    query: str                                       # 자연어 쿼리
+    top_k: int = Field(default=5, ge=1, le=20)
+    min_similarity: float = Field(default=0.3, ge=0.0, le=1.0)
+    filters: dict | None = None                      # 메타데이터 필터 (date, category 등)
+
+class RAGResult(BaseModel):
+    """RAG 검색 결과"""
+    answer: str                                      # LLM 생성 답변
+    sources: list["RAGSource"]
+    model_used: str
+    query_time_ms: int
+
+class RAGSource(BaseModel):
+    """RAG 결과 출처"""
+    recording_id: int
+    minute_index: int
+    summary_text: str
+    similarity: float
+    date: str
+    category: str | None = None
+
+class ObsidianFrontmatter(BaseModel):
+    """Obsidian YAML Frontmatter"""
+    title: str
+    date: str                                        # ISO 8601
+    type: str                                        # lecture_note / meeting / conversation / memo
+    category: str
+    duration: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+    speakers: list[str] = Field(default_factory=list)
+    recording_id: str
+    confidence: float
+
 class ExportRequest(BaseModel):
     """내보내기 요청"""
     recording_id: int
     classification_id: int | None = None             # 특정 분류만 내보내기
     include_transcript: bool = False                  # 원본 전사 포함 여부
-    format: str = "markdown"                         # markdown | json | txt
+    format: str = "obsidian"                         # obsidian | markdown | json | txt
+    obsidian_vault_path: str | None = None           # Obsidian vault 직접 내보내기
 ```
 
 ---

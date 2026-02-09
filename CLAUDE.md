@@ -3,18 +3,22 @@
 ## Project Overview
 
 VoiceVault is an open-source AI voice recorder that transcribes, summarizes,
-and auto-classifies recordings into structured notes.
+auto-classifies recordings into structured notes, and uses RAG to connect
+knowledge across your entire vault.
 
 **Context**: 서강대학교 러너톤 2026 해커톤 (2-week MVP)
-**Stack**: Python 3.12 (uv) | FastAPI | Streamlit | Whisper | Claude/Ollama | SQLite
+**Stack**: Python 3.12 (uv) | FastAPI | Streamlit | Whisper | Claude/Ollama | SQLite | ChromaDB
 **Tagline**: "Record your day, let AI organize it"
+**Deployment Targets**: Standalone web app (MVP) → Obsidian plugin (v1.0)
 
 ### Core Value Proposition
 
 - **All-day continuous recording** → AI auto-classifies & organizes
 - Record a lecture → get a "lecture note"; record with friends → get a "conversation log"
 - User-defined templates control how each segment is classified and formatted
-- Local-first architecture: 100% offline with Ollama + local Whisper
+- **RAG-powered search**: Query past recordings with natural language, get grounded answers with citations
+- **Obsidian integration**: Export as Obsidian-compatible Markdown with frontmatter, wikilinks, and tags
+- Local-first architecture: 100% offline with Ollama + local Whisper + local embeddings
 - Provider-agnostic: Claude API ↔ Ollama switchable via `.env`
 
 ### Key Differentiators vs Clova Note / Tiro
@@ -27,6 +31,8 @@ and auto-classifies recordings into structured notes.
 | Classification | None | Zero-shot auto-classification with user templates |
 | Cross-boundary | No | Select any time range across hour boundaries |
 | API Freedom | Locked | User chooses provider (Claude/Ollama/OpenAI) |
+| **RAG Search** | No | Search past recordings with natural language |
+| **PKM Integration** | No | Obsidian plugin with wikilinks + frontmatter |
 
 ---
 
@@ -57,11 +63,16 @@ src/
 │   │   ├── base.py        # BaseLLM interface (ABC)
 │   │   ├── claude_llm.py  # Claude API (anthropic package)
 │   │   └── ollama_llm.py  # Ollama local (localhost:11434)
+│   ├── rag/           # RAG (Retrieval-Augmented Generation)
+│   │   ├── base.py        # BaseEmbedding / BaseVectorStore interfaces (ABC)
+│   │   ├── embeddings.py  # Sentence-transformer / Ollama embeddings
+│   │   ├── vectorstore.py # ChromaDB vector store wrapper
+│   │   └── retriever.py   # RAG query pipeline (embed → search → rerank → answer)
 │   └── storage/       # Data persistence
 │       ├── database.py    # SQLAlchemy async engine (aiosqlite)
 │       ├── models_db.py   # ORM table models
 │       ├── repository.py  # CRUD operations
-│       └── export.py      # Markdown file generation
+│       └── export.py      # Markdown file generation (Obsidian-compatible)
 │
 ├── api/               # FastAPI (thin wrapper over services)
 │   ├── app.py         # App factory + CORS + router registration
@@ -77,10 +88,16 @@ src/
     ├── pages/         # 01_recording, 02_summaries, ...
     └── components/    # Reusable UI widgets
 
+obsidian-plugin/       # Obsidian plugin (TypeScript, future v1.0)
+│   ├── manifest.json  # Plugin metadata
+│   ├── main.ts        # Plugin entry point
+│   ├── settings.ts    # Settings tab (API keys, templates)
+│   └── src/           # Plugin source (UI panels, service wrappers)
+
 templates/             # Default classification templates (JSON)
 tests/                 # pytest (unit + integration + fixtures)
 scripts/               # Dev utilities (setup, model download, seed)
-data/                  # Runtime data (gitignored): recordings/, exports/, DB
+data/                  # Runtime data (gitignored): recordings/, exports/, chroma_db/, DB
 ```
 
 ---
@@ -125,30 +142,34 @@ python scripts/seed_templates.py                     # Default templates
 ### Data Flow — Full Pipeline
 
 ```
-[Phase 1: Real-time]                      [Phase 2: Post-processing]
+[Phase 1: Real-time]              [Phase 2: Post-processing]         [Phase 3: RAG & Export]
 
- Microphone → Audio Chunks (PCM)           Recording Stop
-       ↓                                       ↓
- WebSocket → FastAPI                       Collect all 1-min summaries
-       ↓                                       ↓
- Whisper STT (base model)                  Hour Integration (계층적 압축)
-       ↓                                   60 summaries → 1 hour doc
- Real-time Transcript → SQLite                 ↓
-       ↓                                   Zero-shot Classification
- Every 60s → LLM Summarize                (Claude/Ollama + user templates)
-       ↓                                       ↓
- 1-min Summary → SQLite                    Template Matching → Segments
-       ↓                                       ↓
- UI Live Update                            Markdown Generation → Export
+ Microphone → Audio (PCM)          Recording Stop                     User Query (natural lang)
+       ↓                               ↓                                   ↓
+ WebSocket → FastAPI               Collect all 1-min summaries        Embed query → ChromaDB
+       ↓                               ↓                                   ↓
+ Whisper STT (base model)          Hour Integration (계층적 압축)      Similarity search (Top-K)
+       ↓                           60 summaries → 1 hour doc               ↓
+ Real-time Transcript → SQLite         ↓                              Re-rank + metadata filter
+       ↓                           Zero-shot Classification                ↓
+ Every 60s → LLM Summarize        (Claude/Ollama + user templates)    LLM answer with citations
+       ↓                               ↓                                   ↓
+ 1-min Summary → SQLite            Template Matching → Segments       Grounded response + sources
+       ↓                               ↓                                   ↓
+ Embed summary → ChromaDB         Obsidian Markdown Export            UI: RAG search panel
+       ↓                          (frontmatter + wikilinks)
+ UI Live Update
 ```
 
 ### Provider Pattern (Interface Abstraction)
 
-All LLM/STT services implement base interfaces for provider swapping:
+All LLM/STT/RAG services implement base interfaces for provider swapping:
 
 - `src/services/llm/base.py` → `ClaudeLLM`, `OllamaLLM`
 - `src/services/transcription/base.py` → `WhisperSTT`
+- `src/services/rag/base.py` → `BaseEmbedding`, `BaseVectorStore`
 - `.env` `LLM_PROVIDER=claude` or `LLM_PROVIDER=ollama` switches providers
+- `.env` `EMBEDDING_PROVIDER=local` or `EMBEDDING_PROVIDER=ollama` switches embedding models
 - Never import concrete implementations directly in business logic
 
 ### Service Layer Pattern
@@ -158,9 +179,9 @@ UI (Streamlit) → HTTP/WebSocket only
     ↓
 API (FastAPI routes) → delegates to services only (no business logic)
     ↓
-Services (business logic) → DB/File/LLM calls
+Services (business logic) → DB/File/LLM/RAG calls
     ↓
-Data Layer (SQLite via SQLAlchemy, file system)
+Data Layer (SQLite via SQLAlchemy, ChromaDB for vectors, file system)
 ```
 
 **Rules**:
@@ -191,9 +212,72 @@ internal hour files. The system:
 2. Re-summarizes the selected summaries into a new document
 3. Hour boundaries are invisible to the user (seamless UX)
 
+### RAG Architecture (Retrieval-Augmented Generation)
+
+Every 1-min summary is automatically embedded and stored in ChromaDB.
+Users can query past recordings with natural language:
+
+```
+User: "지난주 강의에서 RAG에 대해 뭐라고 했지?"
+    ↓
+1. Embed query → sentence-transformers (all-MiniLM-L6-v2)
+    ↓
+2. ChromaDB similarity search → Top-K summaries (default K=5)
+    ↓
+3. Re-rank by metadata (date, category, confidence)
+    ↓
+4. LLM generates grounded answer with citations
+    ↓
+Output: "1월 25일 Advanced AI 강의에서 RAG는... [source: recording-2026-01-25]"
+```
+
+**Embedding Strategy**:
+- Each 1-min summary → 1 embedding vector (384-dim, MiniLM)
+- Metadata stored alongside: recording_id, minute_index, category, keywords, date
+- Ollama embeddings (nomic-embed-text) available for fully offline RAG
+- Incremental indexing: new summaries are embedded as they're created
+
+**Vector Store**: ChromaDB (local SQLite backend, zero-config)
+- Collection: `voicevault_summaries`
+- Distance metric: cosine similarity
+- Persistent storage: `data/chroma_db/`
+
+### Obsidian Integration
+
+VoiceVault generates Obsidian-compatible Markdown exports:
+
+```markdown
+---
+title: "[강의] Advanced AI - LangChain & Agents"
+date: 2026-02-10T10:30:00Z
+type: lecture_note
+category: lecture
+duration: "01:30:00"
+tags: [AI, LangChain, Agent, RAG]
+keywords: [artificial_intelligence, langchain, agent_design]
+speakers: [Professor Kim]
+recording_id: rec-2026-02-10-103000
+confidence: 0.92
 ---
 
-## Database Schema (SQLite)
+## 📝 Summary
+- Key concept 1: LangChain fundamentals...
+- Key concept 2: Agent design patterns...
+
+## 🔗 Related Notes
+- [[2026-02-03 AI Lecture - Transformer Basics]]
+- [[Study Session - LangGraph Deep Dive]]
+
+## 📋 Full Transcript
+(collapsed section with timestamped transcript)
+```
+
+**Future**: Obsidian Community Plugin (`obsidian-voice-rag`) that embeds
+the recording UI + RAG search directly inside Obsidian sidebar.
+
+---
+
+## Database Schema (SQLite + ChromaDB)
 
 ### Core Tables (v0.1.0 — Week 1)
 
@@ -209,6 +293,25 @@ summaries (id, recording_id, minute_index, summary_text, keywords[JSON], speaker
 hour_summaries (id, recording_id, hour_index, summary_text, keywords[JSON], topic_segments[JSON], token_count)
 classifications (id, recording_id, template_id, template_name, start_minute, end_minute, confidence, result_json, export_path)
 templates (id, name, display_name, triggers[JSON], output_format, fields[JSON], icon, priority, is_default, is_active)
+rag_queries (id, query_text, results_json, model_used, answer_text, sources[JSON], created_at)
+```
+
+### ChromaDB Vector Store (v0.2.0 — Week 2)
+
+```
+Collection: voicevault_summaries
+├── id: "summary-{recording_id}-{minute_index}"
+├── document: summary_text (plain text)
+├── embedding: 384-dim vector (MiniLM or nomic-embed-text)
+└── metadata:
+    ├── recording_id: int
+    ├── minute_index: int
+    ├── category: str (lecture/meeting/personal/...)
+    ├── keywords: str (comma-separated)
+    ├── speakers: str (comma-separated)
+    ├── confidence: float
+    ├── date: str (ISO 8601)
+    └── hour_index: int
 ```
 
 ### Key Indexes
@@ -217,6 +320,7 @@ templates (id, name, display_name, triggers[JSON], output_format, fields[JSON], 
 - `summaries(recording_id, minute_index)` — cross-boundary range queries
 - `recordings(status)` — active/completed filtering
 - `templates(name)` — unique constraint for template lookup
+- ChromaDB: automatic HNSW index on embedding vectors
 
 ---
 
@@ -287,6 +391,21 @@ Separate each group with a blank line.
 5. Register router in `src/api/app.py`
 6. Add tests in `tests/unit/` and `tests/integration/`
 
+### Adding a new embedding provider
+
+1. Create `src/services/rag/new_embedding.py`
+2. Implement `BaseEmbedding` interface from `src/services/rag/base.py`
+3. Add config fields in `src/core/config.py`
+4. Register in provider factory at `src/services/rag/__init__.py`
+5. Add to `.env.example` with documentation
+
+### Customizing Obsidian export format
+
+1. Edit export templates in `templates/obsidian/` directory
+2. Modify `src/services/storage/export.py` for generation logic
+3. Frontmatter fields are defined in `src/core/models.py` → `ObsidianExportModel`
+4. Wikilinks are auto-generated from RAG similarity results
+
 ### Adding a new feature (full checklist)
 
 1. `src/core/models.py` — Pydantic data models
@@ -325,7 +444,10 @@ Server sends: JSON `{type: "transcript"|"summary"|"error", data: {...}}`
 | `PATCH` | `/classifications/{id}` | Manual classification override |
 | `GET` | `/templates` | List templates |
 | `POST` | `/templates` | Create template |
-| `POST` | `/recordings/{id}/export` | Export as Markdown |
+| `POST` | `/recordings/{id}/export` | Export as Obsidian Markdown |
+| `POST` | `/rag/query` | RAG search across all recordings |
+| `GET` | `/rag/similar/{recording_id}` | Find similar past recordings |
+| `POST` | `/rag/reindex` | Rebuild vector index |
 
 ### Error Response Format
 
@@ -377,6 +499,20 @@ WHISPER_PROVIDER=local          # "local" or "api"
 WHISPER_MODEL=base              # base, small, medium, large-v3, turbo
 WHISPER_API_KEY=                # OpenAI key (if provider=api)
 
+# RAG & Embeddings
+EMBEDDING_PROVIDER=local        # "local" (sentence-transformers) or "ollama"
+EMBEDDING_MODEL=all-MiniLM-L6-v2  # sentence-transformers model name
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text  # Ollama embedding model (if provider=ollama)
+CHROMA_PERSIST_DIR=data/chroma_db
+RAG_TOP_K=5                     # Number of results for RAG queries
+RAG_MIN_SIMILARITY=0.3          # Minimum cosine similarity threshold
+
+# Obsidian Export
+OBSIDIAN_VAULT_PATH=            # Optional: direct export to Obsidian vault
+OBSIDIAN_EXPORT_FOLDER=VoiceVault  # Subfolder within vault for exports
+OBSIDIAN_FRONTMATTER=true       # Include YAML frontmatter in exports
+OBSIDIAN_WIKILINKS=true         # Use [[wikilinks]] for related notes
+
 # Application
 APP_HOST=0.0.0.0
 APP_PORT=8000
@@ -405,21 +541,24 @@ EXPORTS_DIR=data/exports
 
 **Success Criteria**: 30s recording → real-time transcript → 1-min summary → saved in DB
 
-### Week 2 (Feb 14–20): Smart Classification → v0.2.0
+### Week 2 (Feb 14–20): Classification + RAG + Obsidian → v0.2.0
 
 | Day | Task | Deliverable |
 |-----|------|-------------|
 | 8–9 | Zero-shot classification + templates | Auto document typing |
-| 9–10 | 1-hour integration summary | Hierarchical compression |
+| 9–10 | RAG: ChromaDB + embeddings + search API | Query past recordings |
 | 10–11 | Cross-boundary search + re-summary | Any time range selection |
-| 11–12 | Markdown export + improved UI | Timeline, template mgmt |
-| 13–14 | Final testing + demo prep | **Complete MVP** |
+| 11–12 | Obsidian Markdown export (frontmatter + wikilinks) | PKM-ready export |
+| 12–13 | RAG search UI + improved Streamlit | Timeline, template mgmt, RAG panel |
+| 14 | Final testing + demo prep | **Complete MVP** |
 
-**Success Criteria**: 1h recording → classify into lecture/meeting/chat → export as Markdown
+**Success Criteria**: 1h recording → classify → RAG search → export as Obsidian Markdown
 
 ### Final (Feb 21–22): Demo Ready → v0.3.0
 
 - Demo scenario: 8-hour simulated recording
+- RAG demo: natural language query across all recordings
+- Obsidian vault integration demo
 - Presentation slides + demo video
 - README & documentation polish
 
@@ -435,6 +574,10 @@ EXPORTS_DIR=data/exports
 | Hour summary generation | < 30 seconds | Hierarchical compression |
 | Cross-boundary query | < 2 seconds | SQLite indexes on minute_index |
 | 12-hour continuous recording | Stable | 1-hour internal file splits |
+| RAG query response | < 5 seconds | ChromaDB HNSW + cached embeddings |
+| Embedding generation | < 1 second/summary | Local MiniLM (384-dim) |
+| RAG relevance (recall@5) | > 80% | Metadata-enhanced retrieval |
+| Obsidian export | < 3 seconds/recording | Template-based Markdown gen |
 
 ---
 
@@ -466,7 +609,7 @@ main            ← stable (demo-ready)
 type(scope): description
 
 # Types: feat, fix, docs, style, refactor, test, chore
-# Scopes: stt, llm, ui, api, storage, classification, template
+# Scopes: stt, llm, rag, ui, api, storage, classification, template, obsidian
 
 # Examples:
 feat(stt): add Whisper WebSocket streaming endpoint
@@ -493,6 +636,12 @@ chore(ci): update GitHub Actions Python matrix
 11. **Claude rate limits**: 5 req/min on free tier. Always use `asyncio.Semaphore` for concurrent calls.
 12. **Token budget**: Each 1-min summary should be ≤ 50 tokens to keep costs manageable.
 13. **Cross-boundary is key UX**: The invisible hour boundaries + free time range selection is a major differentiator. Prioritize this feature.
+14. **RAG is core**: ChromaDB for vector storage, sentence-transformers for local embeddings. Embed every summary as it's created (incremental, not batch).
+15. **Embedding provider agnostic**: Like LLM, support both local (sentence-transformers) and Ollama (nomic-embed-text) embedding models.
+16. **ChromaDB is zero-config**: No separate server needed. It runs in-process with SQLite backend. Perfect for local-first.
+17. **Obsidian frontmatter**: Always include YAML frontmatter in exports. Fields: title, date, type, category, tags, keywords, speakers, recording_id, confidence.
+18. **Wikilinks from RAG**: Use RAG similarity to auto-generate `[[wikilinks]]` in exported Markdown, connecting related recordings.
+19. **Obsidian plugin is future**: MVP uses Streamlit UI + Obsidian-compatible Markdown export. Full Obsidian plugin (TypeScript) is the v1.0 goal.
 
 ---
 
@@ -523,9 +672,24 @@ chore(ci): update GitHub Actions Python matrix
 └── 💡 Personal Memo
     └── Study Session - LangGraph Deep Dive
 
-[User Action]
+[User Action 1: Cross-boundary extraction]
 Select: 00:40 ~ 01:20 (important part across hour boundary)
   → System extracts & re-summarizes that range
   → Cross-references with lecture content
   → Exports as structured Markdown
+
+[User Action 2: RAG Search]
+Query: "LangChain Agent 설계 패턴에 대해 뭐라고 했지?"
+  → ChromaDB similarity search across all recordings
+  → Found: Lecture (10:30–12:00) + Study session (13:00–18:00)
+  → LLM generates: "Advanced AI 강의에서 Agent 설계 패턴은..."
+  → Sources linked: [[Advanced AI - LangChain & Agents]]
+
+[User Action 3: Obsidian Export]
+Export all → Obsidian vault/VoiceVault/
+  ├── 📚 [강의] Advanced AI - LangChain & Agents.md (with frontmatter)
+  ├── 👥 [대화] Sarah - Project Meeting.md
+  ├── 👥 [대화] Friend2 - Academic Check-in.md
+  └── 💡 [메모] Study Session - LangGraph Deep Dive.md
+  → Each file has [[wikilinks]] to related notes (from RAG similarity)
 ```
