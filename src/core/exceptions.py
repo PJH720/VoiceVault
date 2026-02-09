@@ -90,6 +90,20 @@ class TemplateNotFoundError(VoiceVaultError):
         )
 
 
+class RAGError(VoiceVaultError):
+    """Raised when a RAG query or retrieval operation fails."""
+
+    def __init__(self, detail: str = "RAG query failed") -> None:
+        super().__init__(detail=detail, code="RAG_ERROR", status_code=500)
+
+
+class ExportError(VoiceVaultError):
+    """Raised when Obsidian Markdown export fails."""
+
+    def __init__(self, detail: str = "Export failed") -> None:
+        super().__init__(detail=detail, code="EXPORT_ERROR", status_code=500)
+
+
 class NotImplementedYetError(VoiceVaultError):
     """Raised for stub endpoints not yet implemented."""
 

@@ -1,17 +1,27 @@
 """
 Recording REST endpoints.
 
-Implements CRUD operations for recording sessions. Week 2 stubs
-(classifications, export) remain as ``NotImplementedYetError``.
+Implements CRUD operations for recording sessions and Obsidian export.
 """
+
+import logging
 
 from fastapi import APIRouter, Query
 
-from src.core.exceptions import NotImplementedYetError
-from src.core.models import RecordingCreate, RecordingResponse, RecordingStatus
+from src.core.models import (
+    ClassificationResponse,
+    ObsidianExportRequest,
+    ObsidianExportResponse,
+    RecordingCreate,
+    RecordingResponse,
+    RecordingStatus,
+)
 from src.services import orchestrator
 from src.services.storage.database import get_session
+from src.services.storage.export import export_recording_to_markdown
 from src.services.storage.repository import RecordingRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/recordings", tags=["recordings"])
 
@@ -77,13 +87,58 @@ async def stop_recording(recording_id: int):
     return _to_response(recording)
 
 
-@router.get("/{recording_id}/classifications")
+@router.get("/{recording_id}/classifications", response_model=list[ClassificationResponse])
 async def get_classifications(recording_id: int):
     """Get classification results for a recording."""
-    raise NotImplementedYetError("Get classifications")
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        await repo.get_recording(recording_id)  # verify exists
+        classifications = await repo.list_classifications(recording_id)
+    return [
+        ClassificationResponse(
+            id=c.id,
+            recording_id=c.recording_id,
+            template_name=c.template_name,
+            start_minute=c.start_minute,
+            end_minute=c.end_minute,
+            confidence=c.confidence,
+            result=c.result_json or {},
+            export_path=c.export_path,
+            created_at=c.created_at,
+        )
+        for c in classifications
+    ]
 
 
-@router.post("/{recording_id}/export")
-async def export_recording(recording_id: int):
+@router.post("/{recording_id}/export", response_model=ObsidianExportResponse)
+async def export_recording(
+    recording_id: int,
+    body: ObsidianExportRequest | None = None,
+):
     """Export recording as Obsidian-compatible Markdown."""
-    raise NotImplementedYetError("Export recording")
+    # Build RAG retriever if wikilinks are enabled
+    retriever = None
+    try:
+        from src.core.config import get_settings
+
+        settings = get_settings()
+        if settings.obsidian_wikilinks:
+            from src.services.llm import create_llm
+            from src.services.rag import create_embedding, create_vectorstore
+            from src.services.rag.retriever import RAGRetriever
+
+            llm = create_llm(provider=settings.llm_provider)
+            embedding = create_embedding(provider=settings.embedding_provider)
+            vectorstore = create_vectorstore()
+            retriever = RAGRetriever(llm=llm, embedding=embedding, vectorstore=vectorstore)
+    except Exception:
+        logger.warning("Could not initialize RAG retriever for wikilinks", exc_info=True)
+
+    async with get_session() as session:
+        result = await export_recording_to_markdown(
+            recording_id=recording_id,
+            request=body,
+            session=session,
+            retriever=retriever,
+        )
+    return result

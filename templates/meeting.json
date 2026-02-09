@@ -1,0 +1,15 @@
+{
+  "name": "meeting",
+  "display_name": "회의록",
+  "triggers": ["회의", "미팅", "프로젝트", "업무", "meeting", "project", "agenda", "action item"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "요약", "type": "text"},
+    {"name": "decisions", "label": "결정 사항", "type": "list"},
+    {"name": "action_items", "label": "할 일", "type": "list"},
+    {"name": "participants", "label": "참석자", "type": "list"}
+  ],
+  "icon": "🤝",
+  "priority": 8,
+  "is_default": false
+}

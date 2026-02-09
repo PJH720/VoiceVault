@@ -1,0 +1,15 @@
+{
+  "name": "lecture",
+  "display_name": "강의 노트",
+  "triggers": ["강의", "수업", "교수", "시험", "과제", "lecture", "class", "professor", "exam", "assignment"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "요약", "type": "text"},
+    {"name": "key_concepts", "label": "핵심 개념", "type": "list"},
+    {"name": "examples", "label": "예시", "type": "list"},
+    {"name": "questions", "label": "질문", "type": "list"}
+  ],
+  "icon": "📚",
+  "priority": 10,
+  "is_default": false
+}
