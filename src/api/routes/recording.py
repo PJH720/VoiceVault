@@ -8,7 +8,12 @@ Implements CRUD operations for recording sessions. Week 2 stubs
 from fastapi import APIRouter, Query
 
 from src.core.exceptions import NotImplementedYetError
-from src.core.models import RecordingCreate, RecordingResponse, RecordingStatus
+from src.core.models import (
+    ClassificationResponse,
+    RecordingCreate,
+    RecordingResponse,
+    RecordingStatus,
+)
 from src.services import orchestrator
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
@@ -77,10 +82,27 @@ async def stop_recording(recording_id: int):
     return _to_response(recording)
 
 
-@router.get("/{recording_id}/classifications")
+@router.get("/{recording_id}/classifications", response_model=list[ClassificationResponse])
 async def get_classifications(recording_id: int):
     """Get classification results for a recording."""
-    raise NotImplementedYetError("Get classifications")
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        await repo.get_recording(recording_id)  # verify exists
+        classifications = await repo.list_classifications(recording_id)
+    return [
+        ClassificationResponse(
+            id=c.id,
+            recording_id=c.recording_id,
+            template_name=c.template_name,
+            start_minute=c.start_minute,
+            end_minute=c.end_minute,
+            confidence=c.confidence,
+            result=c.result_json or {},
+            export_path=c.export_path,
+            created_at=c.created_at,
+        )
+        for c in classifications
+    ]
 
 
 @router.post("/{recording_id}/export")

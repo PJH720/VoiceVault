@@ -1,0 +1,14 @@
+{
+  "name": "memo",
+  "display_name": "개인 메모",
+  "triggers": ["메모", "노트", "기록", "공부", "memo", "note", "study", "personal"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "요약", "type": "text"},
+    {"name": "key_points", "label": "핵심 포인트", "type": "list"},
+    {"name": "references", "label": "참고 자료", "type": "list"}
+  ],
+  "icon": "💡",
+  "priority": 1,
+  "is_default": true
+}
