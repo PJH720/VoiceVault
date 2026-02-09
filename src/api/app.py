@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import websocket
 from src.api.middleware.error_handler import register_error_handlers
-from src.api.routes import recording, summary
+from src.api.routes import rag, recording, summary
 from src.core.models import HealthResponse
 from src.services import orchestrator
 from src.services.storage.database import close_db, init_db
@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
     # -- REST routes --
     app.include_router(recording.router, prefix="/api/v1")
     app.include_router(summary.router, prefix="/api/v1")
+    app.include_router(rag.router, prefix="/api/v1")
 
     # -- WebSocket --
     app.include_router(websocket.router)

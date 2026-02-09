@@ -44,6 +44,8 @@ def _make_session(
     session._task = None
     session._previous_summary = None
     session._summarizer = summarizer or _mock_summarizer()
+    session._embedding = None
+    session._vectorstore = None
     return session
 
 
@@ -95,13 +97,16 @@ def mock_db():
 # ---------------------------------------------------------------------------
 
 
+@patch("src.services.orchestrator.create_vectorstore")
+@patch("src.services.orchestrator.create_embedding")
 @patch("src.services.orchestrator.create_llm")
 @patch("src.services.orchestrator.get_settings")
 async def test_start_session_creates_active_session(
-    mock_settings, mock_create_llm, mock_notify
+    mock_settings, mock_create_llm, mock_create_embed, mock_create_vs, mock_notify
 ):
     """start_session should create and register an active session."""
     mock_settings.return_value.llm_provider = "ollama"
+    mock_settings.return_value.embedding_provider = "local"
     mock_create_llm.return_value = AsyncMock()
 
     session = await orchestrator.start_session(
@@ -121,13 +126,16 @@ async def test_start_session_creates_active_session(
         await session._task
 
 
+@patch("src.services.orchestrator.create_vectorstore")
+@patch("src.services.orchestrator.create_embedding")
 @patch("src.services.orchestrator.create_llm")
 @patch("src.services.orchestrator.get_settings")
 async def test_start_session_rejects_second(
-    mock_settings, mock_create_llm, mock_notify
+    mock_settings, mock_create_llm, mock_create_embed, mock_create_vs, mock_notify
 ):
     """Starting a second session should raise RecordingAlreadyActiveError."""
     mock_settings.return_value.llm_provider = "ollama"
+    mock_settings.return_value.embedding_provider = "local"
     mock_create_llm.return_value = AsyncMock()
 
     session = await orchestrator.start_session(
@@ -308,11 +316,16 @@ async def test_empty_text_skipped(mock_notify, mock_db):
     summarizer.summarize_minute.assert_not_called()
 
 
+@patch("src.services.orchestrator.create_vectorstore")
+@patch("src.services.orchestrator.create_embedding")
 @patch("src.services.orchestrator.create_llm")
 @patch("src.services.orchestrator.get_settings")
-async def test_cleanup_stops_active(mock_settings, mock_create_llm, mock_notify):
+async def test_cleanup_stops_active(
+    mock_settings, mock_create_llm, mock_create_embed, mock_create_vs, mock_notify
+):
     """cleanup() should clear the singleton and stop the session."""
     mock_settings.return_value.llm_provider = "ollama"
+    mock_settings.return_value.embedding_provider = "local"
     mock_create_llm.return_value = AsyncMock()
 
     session = await orchestrator.start_session(
