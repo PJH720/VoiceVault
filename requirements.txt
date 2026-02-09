@@ -1,0 +1,35 @@
+# Core Dependencies
+# Generated from pyproject.toml for CI/CD compatibility
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+streamlit>=1.40.0
+python-multipart>=0.0.18
+websockets>=13.1
+
+# Audio Processing & Transcription
+faster-whisper>=1.1.0
+soundfile>=0.12.1
+sounddevice>=0.5.1
+pydub>=0.25.1
+numpy>=1.26.0,<2.0.0
+
+# LLM Providers
+anthropic>=0.39.0
+ollama>=0.4.5
+
+# Database
+sqlalchemy[asyncio]>=2.0.35
+aiosqlite>=0.20.0
+alembic>=1.14.0
+
+# Data Validation & Serialization
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+
+# Utilities
+python-dotenv>=1.0.1
+loguru>=0.7.3
+tenacity>=9.0.0
+httpx>=0.28.0

@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicevault-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/voicevault.db}
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-20250514}
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
+      - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-int8}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_RECORDING_DURATION=${MAX_RECORDING_DURATION:-3600}
+      - ALLOWED_AUDIO_FORMATS=${ALLOWED_AUDIO_FORMATS:-wav,mp3,m4a,ogg}
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src:ro  # Read-only mount for hot reload
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - voicevault
+    command: uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # Streamlit Frontend
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicevault-ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    volumes:
+      - ./src:/app/src:ro  # Read-only mount for hot reload
+    depends_on:
+      - api
+    networks:
+      - voicevault
+    command: streamlit run src/ui/app.py --server.port 8501 --server.address 0.0.0.0
+    restart: unless-stopped
+
+  # Ollama LLM Server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: voicevault-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - voicevault
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  voicevault:
+    driver: bridge
+
+volumes:
+  ollama_models:
+    driver: local
