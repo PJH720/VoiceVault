@@ -1,16 +1,16 @@
-"""
-WebSocket endpoint for real-time audio transcription.
+"""WebSocket endpoint for real-time audio transcription.
 
 The client streams raw PCM audio bytes over the WebSocket connection.
 The server responds with JSON messages (transcript chunks, summaries, errors).
-STT integration will be implemented in Issue #3.
 """
 
 import logging
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
+from src.core.config import get_settings
 from src.core.models import WebSocketMessage, WebSocketMessageType
+from src.services.transcription import create_stt
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +41,33 @@ async def transcribe_ws(
     )
     await websocket.send_json(connected_msg.model_dump(mode="json"))
 
+    settings = get_settings()
+    stt = create_stt(provider=settings.whisper_provider)
+
+    async def audio_stream():
+        """Async generator that yields PCM bytes from the WebSocket."""
+        try:
+            while True:
+                yield await websocket.receive_bytes()
+        except WebSocketDisconnect:
+            return
+
     try:
-        while True:
-            # Receive raw audio bytes from client
-            audio_bytes = await websocket.receive_bytes()
-            logger.debug(
-                "Received %d bytes for recording_id=%s",
-                len(audio_bytes),
-                recording_id,
+        async for result in stt.transcribe_stream(audio_stream()):
+            msg = WebSocketMessage(
+                type=WebSocketMessageType.transcript,
+                data=result,
             )
-
-            # TODO(Issue #3): Feed audio_bytes to STT service and stream
-            # back transcript chunks. For now, acknowledge receipt.
-
+            await websocket.send_json(msg.model_dump(mode="json"))
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected for recording_id=%s", recording_id)
+    except Exception:
+        logger.exception("Error during transcription for recording_id=%s", recording_id)
+        try:
+            error_msg = WebSocketMessage(
+                type=WebSocketMessageType.error,
+                data={"detail": "Transcription error occurred"},
+            )
+            await websocket.send_json(error_msg.model_dump(mode="json"))
+        except Exception:
+            pass
