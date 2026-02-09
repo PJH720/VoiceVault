@@ -127,6 +127,7 @@ class WebSocketMessageType(StrEnum):
     connected = "connected"
     transcript = "transcript"
     summary = "summary"
+    status = "status"
     error = "error"
 
 

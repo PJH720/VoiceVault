@@ -1,12 +1,11 @@
 """Tests for the WebSocket transcription endpoint."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from starlette.testclient import TestClient
 
 from src.api.app import create_app
-from src.services.llm.base import BaseLLM
 
 
 def _make_mock_stt():
@@ -21,11 +20,12 @@ def _make_mock_stt():
     return stt
 
 
-def _make_mock_llm():
-    """Create a mock LLM for WebSocket pipeline."""
-    llm = AsyncMock(spec=BaseLLM)
-    llm.generate.return_value = '{"summary": "test", "keywords": ["AI"]}'
-    return llm
+def _make_mock_session():
+    """Create a mock RecordingSession returned by the orchestrator."""
+    session = MagicMock()
+    session.recording_id = 1
+    session.enqueue_transcript = MagicMock()
+    return session
 
 
 @pytest.fixture
@@ -38,9 +38,16 @@ def app():
 # ---------------------------------------------------------------------------
 
 
-@patch("src.api.websocket.create_llm", return_value=_make_mock_llm())
+@patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock)
+@patch(
+    "src.api.websocket.orchestrator.start_session",
+    new_callable=AsyncMock,
+    return_value=_make_mock_session(),
+)
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
-def test_websocket_connects_and_sends_connected_message(_mock_stt, _mock_llm, app):
+def test_websocket_connects_and_sends_connected_message(
+    _mock_stt, _mock_start, _mock_stop, app
+):
     client = TestClient(app)
     with client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
         msg = ws.receive_json()
@@ -48,9 +55,14 @@ def test_websocket_connects_and_sends_connected_message(_mock_stt, _mock_llm, ap
         assert msg["data"]["recording_id"] == 1
 
 
-@patch("src.api.websocket.create_llm", return_value=_make_mock_llm())
+@patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock)
+@patch(
+    "src.api.websocket.orchestrator.start_session",
+    new_callable=AsyncMock,
+    return_value=_make_mock_session(),
+)
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
-def test_websocket_receives_audio_bytes(_mock_stt, _mock_llm, app):
+def test_websocket_receives_audio_bytes(_mock_stt, _mock_start, _mock_stop, app):
     client = TestClient(app)
     with client.websocket_connect("/ws/transcribe?recording_id=42") as ws:
         # Consume the initial connected message
@@ -59,9 +71,14 @@ def test_websocket_receives_audio_bytes(_mock_stt, _mock_llm, app):
         ws.send_bytes(b"\x00" * 1024)
 
 
-@patch("src.api.websocket.create_llm", return_value=_make_mock_llm())
+@patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock)
+@patch(
+    "src.api.websocket.orchestrator.start_session",
+    new_callable=AsyncMock,
+    return_value=_make_mock_session(),
+)
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
-def test_websocket_requires_recording_id(_mock_stt, _mock_llm, app):
+def test_websocket_requires_recording_id(_mock_stt, _mock_start, _mock_stop, app):
     """Connecting without recording_id query param should fail."""
     client = TestClient(app)
     with pytest.raises(Exception):  # noqa: B017

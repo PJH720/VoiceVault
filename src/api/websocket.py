@@ -3,7 +3,11 @@
 The client streams raw PCM audio bytes over the WebSocket connection.
 The server responds with JSON messages (transcript chunks, summaries, errors).
 
-Pipeline: Audio → STT → Transcript (DB) → Summarizer → Summary (DB)
+Summarization is handled asynchronously by the orchestrator — the WebSocket
+handler only transcribes audio and enqueues transcripts for background
+processing.
+
+Pipeline: Audio → STT → Transcript (DB) → Orchestrator queue → (async) Summary
 """
 
 import logging
@@ -12,10 +16,9 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from src.core.config import get_settings
 from src.core.models import WebSocketMessage, WebSocketMessageType
-from src.services.llm import create_llm
+from src.services import orchestrator
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
-from src.services.summarization.minute_summarizer import MinuteSummarizer
 from src.services.transcription import create_stt
 
 logger = logging.getLogger(__name__)
@@ -35,7 +38,6 @@ class _PipelineState:
         self.current_minute: int = 0
         self.text_buffer: str = ""
         self.total_audio_bytes: int = 0
-        self.previous_summary: str | None = None
 
     def add_audio_bytes(self, n: int) -> None:
         """Increment the total audio byte counter."""
@@ -74,53 +76,12 @@ async def _save_transcript(
         )
 
 
-async def _summarize_and_save(
-    summarizer: MinuteSummarizer,
-    recording_id: int,
-    minute_index: int,
-    text: str,
-    previous_context: str | None,
-) -> dict | None:
-    """Run summarization and persist the result. Returns summary data or None on failure."""
-    try:
-        result = await summarizer.summarize_minute(
-            transcript=text,
-            minute_index=minute_index,
-            previous_context=previous_context,
-        )
-
-        settings = get_settings()
-        async with get_session() as session:
-            repo = RecordingRepository(session)
-            await repo.create_summary(
-                recording_id=recording_id,
-                minute_index=minute_index,
-                summary_text=result.summary_text,
-                keywords=result.keywords,
-                model_used=settings.llm_provider,
-            )
-
-        return {
-            "minute_index": result.minute_index,
-            "summary_text": result.summary_text,
-            "keywords": result.keywords,
-            "topic": result.topic,
-        }
-    except Exception:
-        logger.exception(
-            "Summarization failed for recording=%s minute=%s",
-            recording_id,
-            minute_index,
-        )
-        return None
-
-
 @router.websocket("/ws/transcribe")
 async def transcribe_ws(
     websocket: WebSocket,
     recording_id: int = Query(...),
 ) -> None:
-    """Real-time audio-to-text streaming endpoint with DB persistence.
+    """Real-time audio-to-text streaming endpoint with background summarization.
 
     Query params:
         recording_id: ID of the recording session to attach to.
@@ -131,9 +92,10 @@ async def transcribe_ws(
 
     Pipeline per minute boundary:
         1. Save accumulated transcript to DB
-        2. Trigger LLM summarization
-        3. Save summary to DB
-        4. Send summary message to client
+        2. Enqueue transcript for background summarization (non-blocking)
+    On disconnect:
+        3. Flush partial buffer → save + enqueue
+        4. Stop orchestrator session (final drain + DB update)
     """
     await websocket.accept()
     logger.info("WebSocket connected for recording_id=%s", recording_id)
@@ -147,9 +109,27 @@ async def transcribe_ws(
 
     settings = get_settings()
     stt = create_stt(provider=settings.whisper_provider)
-    llm = create_llm(provider=settings.llm_provider)
-    summarizer = MinuteSummarizer(llm)
     state = _PipelineState(recording_id)
+
+    # --- Start orchestrator session ---
+    async def _notify(data: dict) -> None:
+        """Send orchestrator results back to the WebSocket client."""
+        if data.get("error"):
+            msg = WebSocketMessage(
+                type=WebSocketMessageType.error,
+                data={"detail": data.get("detail", "Summarization failed")},
+            )
+        else:
+            msg = WebSocketMessage(
+                type=WebSocketMessageType.summary,
+                data=data,
+            )
+        await websocket.send_json(msg.model_dump(mode="json"))
+
+    session = await orchestrator.start_session(
+        recording_id=recording_id,
+        notify=_notify,
+    )
 
     async def audio_stream():
         """Async generator that yields PCM bytes and tracks byte count."""
@@ -163,7 +143,7 @@ async def transcribe_ws(
 
     try:
         async for result in stt.transcribe_stream(audio_stream()):
-            # Send transcript to client (existing behavior)
+            # Send transcript to client
             msg = WebSocketMessage(
                 type=WebSocketMessageType.transcript,
                 data=result,
@@ -178,38 +158,11 @@ async def transcribe_ws(
             if state.has_crossed_minute_boundary() and state.text_buffer.strip():
                 minute_index, minute_text = state.flush_minute()
 
-                # Save transcript (independent transaction)
+                # Save transcript to DB (independent transaction)
                 await _save_transcript(recording_id, minute_index, minute_text)
 
-                # Summarize and save (non-fatal on failure)
-                summary_data = await _summarize_and_save(
-                    summarizer,
-                    recording_id,
-                    minute_index,
-                    minute_text,
-                    state.previous_summary,
-                )
-
-                if summary_data:
-                    state.previous_summary = summary_data["summary_text"]
-                    summary_msg = WebSocketMessage(
-                        type=WebSocketMessageType.summary,
-                        data=summary_data,
-                    )
-                    await websocket.send_json(
-                        summary_msg.model_dump(mode="json")
-                    )
-                else:
-                    # Summarization failed — notify client but keep going
-                    error_msg = WebSocketMessage(
-                        type=WebSocketMessageType.error,
-                        data={
-                            "detail": f"Summarization failed for minute {minute_index}"
-                        },
-                    )
-                    await websocket.send_json(
-                        error_msg.model_dump(mode="json")
-                    )
+                # Enqueue for background summarization (non-blocking)
+                session.enqueue_transcript(minute_index, minute_text)
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected for recording_id=%s", recording_id)
@@ -234,13 +187,8 @@ async def transcribe_ws(
             minute_index,
             recording_id,
         )
-
         await _save_transcript(recording_id, minute_index, minute_text)
+        session.enqueue_transcript(minute_index, minute_text)
 
-        await _summarize_and_save(
-            summarizer,
-            recording_id,
-            minute_index,
-            minute_text,
-            state.previous_summary,
-        )
+    # ── Stop orchestrator (drains queue + finalizes recording) ──
+    await orchestrator.stop_session()

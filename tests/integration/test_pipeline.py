@@ -4,10 +4,10 @@ Recording → Transcription → Summarization → DB Storage → API retrieval.
 Uses real in-memory SQLite with mocked LLM provider.
 
 WebSocket pipeline tests verify the end-to-end flow:
-  Audio bytes → STT → Transcript (DB) → Summarizer → Summary (DB)
+  Audio bytes → STT → Transcript (DB) → Orchestrator → Summary (DB)
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from starlette.testclient import TestClient
@@ -186,23 +186,37 @@ def _get_summaries_via_api(client: TestClient, recording_id: int) -> list[dict]:
     return resp.json()
 
 
+def _make_mock_session():
+    """Create a mock RecordingSession for the orchestrator."""
+    session = MagicMock()
+    session.recording_id = 1
+    session.enqueue_transcript = MagicMock()
+    return session
+
+
 # ---------------------------------------------------------------------------
-# WS Pipeline: transcript + summary saved to DB on minute boundary
+# WS Pipeline: transcript saved to DB + enqueued to orchestrator on boundary
 # ---------------------------------------------------------------------------
 
 
-def test_ws_pipeline_saves_transcript_and_summary(
+def test_ws_pipeline_saves_transcript_and_enqueues(
     test_client: TestClient,
     mock_stt_for_pipeline,
-    mock_llm_for_pipeline,
 ):
-    """Send >= 1 minute of PCM → transcript + summary saved to DB."""
+    """Send >= 1 minute of PCM → transcript saved to DB + enqueued to orchestrator."""
     recording_id = _create_recording(test_client)
     one_minute_chunk = b"\x00\x80" * (_BYTES_PER_MINUTE // 2)
 
+    mock_session = _make_mock_session()
+
     with (
         patch("src.api.websocket.create_stt", return_value=mock_stt_for_pipeline),
-        patch("src.api.websocket.create_llm", return_value=mock_llm_for_pipeline),
+        patch(
+            "src.api.websocket.orchestrator.start_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
+        ),
+        patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
     ):
         with test_client.websocket_connect(
             f"/ws/transcribe?recording_id={recording_id}"
@@ -215,16 +229,16 @@ def test_ws_pipeline_saves_transcript_and_summary(
             assert transcript_msg["type"] == "transcript"
             assert transcript_msg["data"]["text"] == "오늘 강의에서 중요한 내용"
 
-            summary_msg = ws.receive_json()
-            assert summary_msg["type"] == "summary"
-            assert summary_msg["data"]["keywords"] == ["LangChain", "Agent", "AI"]
-            assert "LangChain" in summary_msg["data"]["summary_text"]
+            # Send a small follow-up chunk so the server processes the
+            # minute boundary from the previous iteration before we close.
+            ws.send_bytes(b"\x00" * 64)
+            followup = ws.receive_json()
+            assert followup["type"] == "transcript"
 
-    # Verify summary persisted via REST API
-    summaries = _get_summaries_via_api(test_client, recording_id)
-    assert len(summaries) >= 1
-    assert summaries[0]["minute_index"] == 0
-    assert "LangChain" in summaries[0]["summary_text"]
+    # Verify transcript enqueued to orchestrator
+    mock_session.enqueue_transcript.assert_called_once_with(
+        0, "오늘 강의에서 중요한 내용"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -235,25 +249,24 @@ def test_ws_pipeline_saves_transcript_and_summary(
 def test_ws_pipeline_flushes_on_disconnect(
     test_client: TestClient,
     mock_stt_for_pipeline,
-    mock_llm_for_pipeline,
 ):
-    """Send < 1 min → disconnect → flush saves partial transcript + summary."""
+    """Send < 1 min → disconnect → flush saves partial transcript + enqueues."""
     recording_id = _create_recording(test_client)
     # 10 seconds of audio (well below 1 minute)
     small_chunk = b"\x00\x80" * (16000 * 10)
 
+    mock_session = _make_mock_session()
     mock_save_transcript = AsyncMock()
-    mock_summarize_and_save = AsyncMock(return_value=None)
 
     with (
         patch("src.api.websocket.create_stt", return_value=mock_stt_for_pipeline),
-        patch("src.api.websocket.create_llm", return_value=mock_llm_for_pipeline),
         patch(
-            "src.api.websocket._save_transcript", mock_save_transcript
+            "src.api.websocket.orchestrator.start_session",
+            new_callable=AsyncMock,
+            return_value=mock_session,
         ),
-        patch(
-            "src.api.websocket._summarize_and_save", mock_summarize_and_save
-        ),
+        patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
+        patch("src.api.websocket._save_transcript", mock_save_transcript),
     ):
         with test_client.websocket_connect(
             f"/ws/transcribe?recording_id={recording_id}"
@@ -270,41 +283,39 @@ def test_ws_pipeline_flushes_on_disconnect(
     assert call_args[0][1] == 0  # minute_index
     assert "중요한 내용" in call_args[0][2]  # text
 
-    # Flush should also have attempted summarization
-    mock_summarize_and_save.assert_called_once()
+    # Flush should also have enqueued to orchestrator
+    mock_session.enqueue_transcript.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
-# WS Pipeline: survives LLM failure
+# WS Pipeline: orchestrator stop called on disconnect
 # ---------------------------------------------------------------------------
 
 
-def test_ws_pipeline_survives_llm_failure(
+def test_ws_pipeline_starts_orchestrator_session(
     test_client: TestClient,
     mock_stt_for_pipeline,
-    mock_failing_llm,
 ):
-    """LLM fails → error sent to client, but transcript still saved."""
+    """WebSocket handler should start an orchestrator session on connect."""
     recording_id = _create_recording(test_client)
-    one_minute_chunk = b"\x00\x80" * (_BYTES_PER_MINUTE // 2)
+    small_chunk = b"\x00\x80" * (16000 * 5)
+
+    mock_session = _make_mock_session()
+    mock_start = AsyncMock(return_value=mock_session)
 
     with (
         patch("src.api.websocket.create_stt", return_value=mock_stt_for_pipeline),
-        patch("src.api.websocket.create_llm", return_value=mock_failing_llm),
+        patch("src.api.websocket.orchestrator.start_session", mock_start),
+        patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
     ):
         with test_client.websocket_connect(
             f"/ws/transcribe?recording_id={recording_id}"
         ) as ws:
             ws.receive_json()  # connected
-            ws.send_bytes(one_minute_chunk)
+            ws.send_bytes(small_chunk)
+            ws.receive_json()  # transcript
 
-            msg = ws.receive_json()  # transcript
-            assert msg["type"] == "transcript"
-
-            msg = ws.receive_json()  # error (summarization failed)
-            assert msg["type"] == "error"
-            assert "Summarization failed" in msg["data"]["detail"]
-
-    # No summary saved (LLM failed), but transcript was still processed
-    summaries = _get_summaries_via_api(test_client, recording_id)
-    assert len(summaries) == 0
+    # Verify orchestrator.start_session was called with the recording_id
+    mock_start.assert_called_once()
+    call_kwargs = mock_start.call_args
+    assert call_kwargs[1].get("recording_id") or call_kwargs[0][0] == recording_id

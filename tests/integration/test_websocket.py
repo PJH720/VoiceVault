@@ -1,17 +1,16 @@
 """Integration tests for WebSocket transcription endpoint."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from starlette.testclient import TestClient
 
-from src.services.llm.base import BaseLLM
 
-
-def _make_mock_llm():
-    """Create a mock LLM for WebSocket pipeline."""
-    llm = AsyncMock(spec=BaseLLM)
-    llm.generate.return_value = '{"summary": "test", "keywords": ["AI"]}'
-    return llm
+def _make_mock_session():
+    """Create a mock RecordingSession for the orchestrator."""
+    session = MagicMock()
+    session.recording_id = 1
+    session.enqueue_transcript = MagicMock()
+    return session
 
 
 # ---------------------------------------------------------------------------
@@ -23,7 +22,12 @@ def test_websocket_connection(test_client: TestClient):
     """Connect to WS and receive initial 'connected' message."""
     with (
         patch("src.api.websocket.create_stt", return_value=AsyncMock()),
-        patch("src.api.websocket.create_llm", return_value=_make_mock_llm()),
+        patch(
+            "src.api.websocket.orchestrator.start_session",
+            new_callable=AsyncMock,
+            return_value=_make_mock_session(),
+        ),
+        patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
     ):
         with test_client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
             msg = ws.receive_json()
@@ -49,7 +53,12 @@ def test_websocket_transcription(test_client: TestClient, sample_pcm_bytes):
 
     with (
         patch("src.api.websocket.create_stt", return_value=mock_stt),
-        patch("src.api.websocket.create_llm", return_value=_make_mock_llm()),
+        patch(
+            "src.api.websocket.orchestrator.start_session",
+            new_callable=AsyncMock,
+            return_value=_make_mock_session(),
+        ),
+        patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
     ):
         with test_client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
             # Receive the initial connected message
@@ -83,7 +92,12 @@ def test_websocket_disconnect_handling(test_client: TestClient, sample_pcm_bytes
 
     with (
         patch("src.api.websocket.create_stt", return_value=mock_stt),
-        patch("src.api.websocket.create_llm", return_value=_make_mock_llm()),
+        patch(
+            "src.api.websocket.orchestrator.start_session",
+            new_callable=AsyncMock,
+            return_value=_make_mock_session(),
+        ),
+        patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
     ):
         with test_client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
             connected_msg = ws.receive_json()
