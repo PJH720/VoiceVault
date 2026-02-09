@@ -17,10 +17,12 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from src.core.config import get_settings
 from src.core.exceptions import RecordingAlreadyActiveError
 from src.services.llm import create_llm
+from src.services.rag import create_embedding, create_vectorstore
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
 from src.services.summarization.minute_summarizer import MinuteSummarizer
@@ -62,6 +64,15 @@ class RecordingSession:
         settings = get_settings()
         llm = create_llm(provider=settings.llm_provider)
         self._summarizer = MinuteSummarizer(llm)
+
+        # RAG embedding pipeline (failures are non-fatal)
+        try:
+            self._embedding = create_embedding(provider=settings.embedding_provider)
+            self._vectorstore = create_vectorstore()
+        except Exception:
+            logger.warning("Failed to initialize RAG pipeline; embedding will be skipped")
+            self._embedding = None
+            self._vectorstore = None
 
     def start(self) -> None:
         """Launch the background summarization loop."""
@@ -152,6 +163,14 @@ class RecordingSession:
 
             self._previous_summary = result.summary_text
 
+            # Embed summary into ChromaDB (non-blocking, non-fatal)
+            await self._embed_summary(
+                recording_id=self.recording_id,
+                minute_index=item.minute_index,
+                summary_text=result.summary_text,
+                keywords=result.keywords,
+            )
+
             summary_data = {
                 "minute_index": result.minute_index,
                 "summary_text": result.summary_text,
@@ -182,6 +201,42 @@ class RecordingSession:
                 )
             except Exception:
                 pass
+
+    async def _embed_summary(
+        self,
+        recording_id: int,
+        minute_index: int,
+        summary_text: str,
+        keywords: list[str],
+    ) -> None:
+        """Embed a summary into the vector store. Failures are logged but never block."""
+        if self._embedding is None or self._vectorstore is None:
+            return
+
+        try:
+            vector = await self._embedding.embed(summary_text)
+            doc_id = f"summary-{recording_id}-{minute_index}"
+            metadata = {
+                "recording_id": recording_id,
+                "minute_index": minute_index,
+                "date": datetime.now(UTC).isoformat(),
+                "keywords": ",".join(keywords) if keywords else "",
+            }
+            await self._vectorstore.add(
+                doc_id=doc_id,
+                text=summary_text,
+                embedding=vector,
+                metadata=metadata,
+            )
+            logger.debug(
+                "Embedded summary %s into vector store", doc_id
+            )
+        except Exception:
+            logger.warning(
+                "Failed to embed summary for recording=%s minute=%s (non-fatal)",
+                recording_id,
+                minute_index,
+            )
 
 
 # ---------------------------------------------------------------------------
