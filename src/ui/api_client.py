@@ -64,6 +64,76 @@ class APIClient:
         resp.raise_for_status()
         return resp.json()
 
+    # -- RAG --
+
+    def rag_query(
+        self,
+        query: str,
+        top_k: int = 5,
+        min_similarity: float = 0.3,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        category: str | None = None,
+        keywords: list[str] | None = None,
+    ) -> dict:
+        body: dict = {
+            "query": query,
+            "top_k": top_k,
+            "min_similarity": min_similarity,
+        }
+        if date_from is not None:
+            body["date_from"] = date_from
+        if date_to is not None:
+            body["date_to"] = date_to
+        if category is not None:
+            body["category"] = category
+        if keywords is not None:
+            body["keywords"] = keywords
+        resp = self._client.post("/api/v1/rag/query", json=body)
+        resp.raise_for_status()
+        return resp.json()
+
+    def rag_similar(
+        self,
+        recording_id: int,
+        top_k: int = 5,
+    ) -> list[dict]:
+        resp = self._client.get(
+            f"/api/v1/rag/similar/{recording_id}",
+            params={"top_k": top_k},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # -- export --
+
+    def export_recording(
+        self,
+        recording_id: int,
+        format: str = "obsidian",
+        include_transcript: bool = False,
+        vault_path: str | None = None,
+    ) -> dict:
+        body: dict = {
+            "format": format,
+            "include_transcript": include_transcript,
+        }
+        if vault_path:
+            body["vault_path"] = vault_path
+        resp = self._client.post(
+            f"/api/v1/recordings/{recording_id}/export",
+            json=body,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # -- templates --
+
+    def list_templates(self) -> list[dict]:
+        resp = self._client.get("/api/v1/templates")
+        resp.raise_for_status()
+        return resp.json()
+
 
 @st.cache_resource
 def get_api_client() -> APIClient:

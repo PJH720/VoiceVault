@@ -26,6 +26,14 @@ _DEFAULTS = {
     "transcripts": [],
     "transcript_text": "",
     "summaries": [],
+    "rag_query": "",
+    "rag_results": None,
+    "rag_search_history": [],
+    "export_selected_ids": [],
+    "export_format": "obsidian",
+    "export_vault_path": "",
+    "export_include_transcript": False,
+    "export_preview": None,
 }
 
 for key, value in _DEFAULTS.items():
@@ -67,6 +75,16 @@ summaries_page = st.Page(
     title="Summaries",
     icon="\U0001f4cb",
 )
+rag_search_page = st.Page(
+    "pages/03_rag_search.py",
+    title="RAG Search",
+    icon="\U0001f50d",
+)
+export_page = st.Page(
+    "pages/04_export.py",
+    title="Export",
+    icon="\U0001f4e4",
+)
 
-nav = st.navigation([recording_page, summaries_page])
+nav = st.navigation([recording_page, summaries_page, rag_search_page, export_page])
 nav.run()
