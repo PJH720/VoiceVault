@@ -25,6 +25,7 @@ def create_stt(provider: str, **kwargs) -> BaseSTT:
     """
     if provider == "whisper" or provider == "local":
         from .whisper import WhisperSTT
+
         return WhisperSTT(**kwargs)
     else:
         raise ValueError(f"Unknown STT provider: {provider}")
