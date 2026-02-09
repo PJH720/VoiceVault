@@ -1,0 +1,22 @@
+{
+  "segments": [
+    {
+      "minute_index": 0,
+      "text": "오늘 강의에서는 LangChain의 기본 개념과 Agent 설계 패턴에 대해 알아보겠습니다. LangChain은 대규모 언어 모델을 활용한 애플리케이션 개발 프레임워크입니다.",
+      "language": "ko",
+      "confidence": 0.92
+    },
+    {
+      "minute_index": 1,
+      "text": "Agent는 LLM이 도구를 사용하여 복잡한 작업을 수행할 수 있게 해주는 핵심 구성 요소입니다. ReAct 패턴을 통해 reasoning과 acting을 결합합니다.",
+      "language": "ko",
+      "confidence": 0.89
+    },
+    {
+      "minute_index": 2,
+      "text": "RAG, Retrieval-Augmented Generation은 외부 지식을 검색하여 LLM의 응답을 보강하는 기법입니다. ChromaDB와 같은 벡터 데이터베이스를 활용합니다.",
+      "language": "ko",
+      "confidence": 0.95
+    }
+  ]
+}

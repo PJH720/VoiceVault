@@ -17,6 +17,7 @@ from src.api import websocket
 from src.api.middleware.error_handler import register_error_handlers
 from src.api.routes import recording, summary
 from src.core.models import HealthResponse
+from src.services import orchestrator
 from src.services.storage.database import close_db, init_db
 
 
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize DB on startup, dispose engine on shutdown."""
     await init_db()
     yield
+    await orchestrator.cleanup()
     await close_db()
 
 

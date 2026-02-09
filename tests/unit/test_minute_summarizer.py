@@ -6,7 +6,7 @@ import pytest
 
 from src.core.exceptions import SummarizationError
 from src.core.models import MinuteSummaryResult
-from src.services.summarization.minute_summarizer import MinuteSummarizer
+from src.services.summarization.minute_summarizer import MinuteSummarizer, _strip_code_fences
 
 
 @pytest.fixture
@@ -135,3 +135,23 @@ class TestPromptStructure:
 
         prompt = mock_llm.generate.call_args[0][0]
         assert "LangChain agent design patterns are important." in prompt
+
+
+class TestMarkdownFenceStripping:
+    """Tests for _strip_code_fences helper."""
+
+    def test_json_with_code_fence(self):
+        raw = '```json\n{"summary": "test", "keywords": ["AI"], "topic": "AI"}\n```'
+        result = json.loads(_strip_code_fences(raw))
+        assert result["summary"] == "test"
+
+    def test_json_with_plain_fence(self):
+        raw = '```\n{"summary": "test", "keywords": [], "topic": ""}\n```'
+        result = json.loads(_strip_code_fences(raw))
+        assert result["summary"] == "test"
+
+    def test_clean_json_unchanged(self):
+        raw = '{"summary": "test", "keywords": ["AI"], "topic": "lecture"}'
+        result = json.loads(_strip_code_fences(raw))
+        assert result["summary"] == "test"
+        assert result["topic"] == "lecture"

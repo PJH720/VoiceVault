@@ -32,6 +32,7 @@ class RecordingStatus(StrEnum):
     """Possible states for a recording session."""
 
     active = "active"
+    processing = "processing"
     completed = "completed"
     failed = "failed"
 
@@ -126,6 +127,7 @@ class WebSocketMessageType(StrEnum):
     connected = "connected"
     transcript = "transcript"
     summary = "summary"
+    status = "status"
     error = "error"
 
 

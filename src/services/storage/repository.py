@@ -81,6 +81,13 @@ class RecordingRepository:
         await self._session.flush()
         return recording
 
+    async def update_recording_status(self, recording_id: int, status: str) -> Recording:
+        """Update only the status field of a recording."""
+        recording = await self.get_recording(recording_id)
+        recording.status = status
+        await self._session.flush()
+        return recording
+
     async def delete_recording(self, recording_id: int) -> None:
         """Delete a recording and cascade to transcripts/summaries."""
         recording = await self.get_recording(recording_id)
