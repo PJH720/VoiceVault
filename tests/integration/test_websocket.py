@@ -4,6 +4,16 @@ from unittest.mock import AsyncMock, patch
 
 from starlette.testclient import TestClient
 
+from src.services.llm.base import BaseLLM
+
+
+def _make_mock_llm():
+    """Create a mock LLM for WebSocket pipeline."""
+    llm = AsyncMock(spec=BaseLLM)
+    llm.generate.return_value = '{"summary": "test", "keywords": ["AI"]}'
+    return llm
+
+
 # ---------------------------------------------------------------------------
 # WebSocket connection
 # ---------------------------------------------------------------------------
@@ -11,10 +21,14 @@ from starlette.testclient import TestClient
 
 def test_websocket_connection(test_client: TestClient):
     """Connect to WS and receive initial 'connected' message."""
-    with test_client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
-        msg = ws.receive_json()
-        assert msg["type"] == "connected"
-        assert msg["data"]["recording_id"] == 1
+    with (
+        patch("src.api.websocket.create_stt", return_value=AsyncMock()),
+        patch("src.api.websocket.create_llm", return_value=_make_mock_llm()),
+    ):
+        with test_client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
+            msg = ws.receive_json()
+            assert msg["type"] == "connected"
+            assert msg["data"]["recording_id"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +47,10 @@ def test_websocket_transcription(test_client: TestClient, sample_pcm_bytes):
 
     mock_stt.transcribe_stream = fake_transcribe_stream
 
-    with patch("src.api.websocket.create_stt", return_value=mock_stt):
+    with (
+        patch("src.api.websocket.create_stt", return_value=mock_stt),
+        patch("src.api.websocket.create_llm", return_value=_make_mock_llm()),
+    ):
         with test_client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
             # Receive the initial connected message
             connected_msg = ws.receive_json()
@@ -64,7 +81,10 @@ def test_websocket_disconnect_handling(test_client: TestClient, sample_pcm_bytes
 
     mock_stt.transcribe_stream = fake_transcribe_stream
 
-    with patch("src.api.websocket.create_stt", return_value=mock_stt):
+    with (
+        patch("src.api.websocket.create_stt", return_value=mock_stt),
+        patch("src.api.websocket.create_llm", return_value=_make_mock_llm()),
+    ):
         with test_client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
             connected_msg = ws.receive_json()
             assert connected_msg["type"] == "connected"
