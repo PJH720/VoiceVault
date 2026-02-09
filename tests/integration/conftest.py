@@ -15,6 +15,7 @@ from starlette.testclient import TestClient
 from src.api.app import create_app
 from src.services.llm.base import BaseLLM
 from src.services.storage import database
+from src.services.transcription.base import BaseSTT
 
 
 @pytest.fixture
@@ -62,6 +63,27 @@ def mock_llm_for_pipeline():
             "topic": "AI 강의",
         }
     )
+    return llm
+
+
+@pytest.fixture
+def mock_stt_for_pipeline():
+    """Mock STT that yields one transcript result per audio chunk received."""
+    stt = AsyncMock(spec=BaseSTT)
+
+    async def fake_transcribe_stream(audio_chunks, **kwargs):
+        async for _ in audio_chunks:
+            yield {"text": "오늘 강의에서 중요한 내용", "is_final": True, "confidence": 0.92}
+
+    stt.transcribe_stream = fake_transcribe_stream
+    return stt
+
+
+@pytest.fixture
+def mock_failing_llm():
+    """Mock LLM that always raises an exception."""
+    llm = AsyncMock(spec=BaseLLM)
+    llm.generate.side_effect = ConnectionError("LLM service unavailable")
     return llm
 
 

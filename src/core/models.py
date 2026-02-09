@@ -32,6 +32,7 @@ class RecordingStatus(StrEnum):
     """Possible states for a recording session."""
 
     active = "active"
+    processing = "processing"
     completed = "completed"
     failed = "failed"
 

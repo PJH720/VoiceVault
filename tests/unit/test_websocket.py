@@ -6,6 +6,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from src.api.app import create_app
+from src.services.llm.base import BaseLLM
 
 
 def _make_mock_stt():
@@ -20,6 +21,13 @@ def _make_mock_stt():
     return stt
 
 
+def _make_mock_llm():
+    """Create a mock LLM for WebSocket pipeline."""
+    llm = AsyncMock(spec=BaseLLM)
+    llm.generate.return_value = '{"summary": "test", "keywords": ["AI"]}'
+    return llm
+
+
 @pytest.fixture
 def app():
     return create_app()
@@ -30,8 +38,9 @@ def app():
 # ---------------------------------------------------------------------------
 
 
+@patch("src.api.websocket.create_llm", return_value=_make_mock_llm())
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
-def test_websocket_connects_and_sends_connected_message(_mock_factory, app):
+def test_websocket_connects_and_sends_connected_message(_mock_stt, _mock_llm, app):
     client = TestClient(app)
     with client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
         msg = ws.receive_json()
@@ -39,8 +48,9 @@ def test_websocket_connects_and_sends_connected_message(_mock_factory, app):
         assert msg["data"]["recording_id"] == 1
 
 
+@patch("src.api.websocket.create_llm", return_value=_make_mock_llm())
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
-def test_websocket_receives_audio_bytes(_mock_factory, app):
+def test_websocket_receives_audio_bytes(_mock_stt, _mock_llm, app):
     client = TestClient(app)
     with client.websocket_connect("/ws/transcribe?recording_id=42") as ws:
         # Consume the initial connected message
@@ -49,8 +59,9 @@ def test_websocket_receives_audio_bytes(_mock_factory, app):
         ws.send_bytes(b"\x00" * 1024)
 
 
+@patch("src.api.websocket.create_llm", return_value=_make_mock_llm())
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
-def test_websocket_requires_recording_id(_mock_factory, app):
+def test_websocket_requires_recording_id(_mock_stt, _mock_llm, app):
     """Connecting without recording_id query param should fail."""
     client = TestClient(app)
     with pytest.raises(Exception):  # noqa: B017
