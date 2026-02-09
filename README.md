@@ -17,7 +17,7 @@ AI-powered voice recording system with automatic transcription, summarization, a
 
 ### Prerequisites
 
-- Python 3.11 or 3.12
+- [uv](https://docs.astral.sh/uv/) (Python 3.12 is auto-managed by uv)
 - Docker + docker-compose (optional, for containerized setup)
 
 ### Local Development Setup
@@ -27,11 +27,14 @@ AI-powered voice recording system with automatic transcription, summarization, a
 git clone <your-repo-url>
 cd VoiceVault
 
-# Run automated setup script
+# Run automated setup script (installs uv, creates venv, installs deps)
 bash scripts/setup_dev.sh
 
-# Activate virtual environment
+# Or manual setup:
+uv venv --python 3.12
 source .venv/bin/activate
+uv pip install -r requirements.txt
+uv pip install -e ".[dev]"
 
 # Configure environment
 cp .env.example .env
@@ -112,6 +115,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development guidelines.
 
 | Component | Technology |
 |-----------|-----------|
+| Runtime | Python 3.12 (managed by uv) |
 | Backend | FastAPI + WebSocket |
 | Frontend | Streamlit |
 | STT | faster-whisper |
