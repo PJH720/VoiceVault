@@ -175,6 +175,14 @@ class HourSummaryResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class ClassificationResult(BaseModel):
+    """Internal service result from zero-shot classification."""
+
+    category: str
+    confidence: float = 0.0
+    reason: str = ""
+
+
 class ClassificationResponse(BaseModel):
     """A classification result for a recording segment."""
 

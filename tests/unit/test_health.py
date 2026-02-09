@@ -145,9 +145,17 @@ async def test_extract_range_returns_501(client):
     assert resp.status_code == 501
 
 
-async def test_get_classifications_returns_501(client):
-    resp = await client.get("/api/v1/recordings/1/classifications")
-    assert resp.status_code == 501
+async def test_get_classifications_not_found(client):
+    resp = await client.get("/api/v1/recordings/9999/classifications")
+    assert resp.status_code == 404
+
+
+async def test_get_classifications_empty(client):
+    create_resp = await client.post("/api/v1/recordings")
+    rec_id = create_resp.json()["id"]
+    resp = await client.get(f"/api/v1/recordings/{rec_id}/classifications")
+    assert resp.status_code == 200
+    assert resp.json() == []
 
 
 async def test_export_recording_returns_501(client):

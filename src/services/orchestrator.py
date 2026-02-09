@@ -21,6 +21,8 @@ from datetime import UTC, datetime
 
 from src.core.config import get_settings
 from src.core.exceptions import RecordingAlreadyActiveError
+from src.services.classification import create_classifier
+from src.services.classification.template_matcher import TemplateMatcher
 from src.services.llm import create_llm
 from src.services.rag import create_embedding, create_vectorstore
 from src.services.storage.database import get_session
@@ -99,6 +101,9 @@ class RecordingSession:
             logger.exception(
                 "Failed to finalize recording %s", self.recording_id
             )
+
+        # Auto-classify recording (non-fatal)
+        await self._classify_recording()
 
     async def _summarization_loop(self) -> None:
         """Background loop: drain queue every interval or on stop signal."""
@@ -236,6 +241,64 @@ class RecordingSession:
                 "Failed to embed summary for recording=%s minute=%s (non-fatal)",
                 recording_id,
                 minute_index,
+            )
+
+    async def _classify_recording(self) -> None:
+        """Classify the recording after stop. Failures are logged but never block."""
+        try:
+            async with get_session() as session:
+                repo = RecordingRepository(session)
+                summaries = await repo.list_summaries(self.recording_id)
+
+                if not summaries:
+                    logger.info(
+                        "No summaries for recording %s; skipping classification",
+                        self.recording_id,
+                    )
+                    return
+
+                combined_text = "\n".join(
+                    s.summary_text for s in summaries if s.summary_text
+                )
+                if not combined_text.strip():
+                    return
+
+                settings = get_settings()
+                llm = create_llm(provider=settings.llm_provider)
+                classifier = create_classifier(llm)
+                result = await classifier.classify(combined_text)
+
+                matcher = TemplateMatcher(session)
+                template = await matcher.match(result)
+
+                total_minutes = len(summaries)
+                await repo.create_classification(
+                    recording_id=self.recording_id,
+                    template_name=template.name,
+                    template_id=template.id,
+                    start_minute=0,
+                    end_minute=max(total_minutes - 1, 0),
+                    confidence=result.confidence,
+                    result_json={
+                        "category": result.category,
+                        "confidence": result.confidence,
+                        "reason": result.reason,
+                        "template_display_name": template.display_name,
+                        "template_icon": template.icon,
+                    },
+                )
+                logger.info(
+                    "Recording %s classified as %r (confidence=%.2f, template=%s)",
+                    self.recording_id,
+                    result.category,
+                    result.confidence,
+                    template.name,
+                )
+        except Exception:
+            logger.warning(
+                "Classification failed for recording %s (non-fatal)",
+                self.recording_id,
+                exc_info=True,
             )
 
 
