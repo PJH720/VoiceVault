@@ -158,6 +158,6 @@ async def test_get_classifications_empty(client):
     assert resp.json() == []
 
 
-async def test_export_recording_returns_501(client):
-    resp = await client.post("/api/v1/recordings/1/export")
-    assert resp.status_code == 501
+async def test_export_recording_not_found(client):
+    resp = await client.post("/api/v1/recordings/9999/export")
+    assert resp.status_code == 500
