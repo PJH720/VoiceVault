@@ -1,9 +1,10 @@
-"""Tests for the health check, CORS headers, and stub endpoint 501 responses."""
+"""Tests for health check, CORS headers, implemented routes, and stub 501 responses."""
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.api.app import create_app
+from src.services.storage import database
 
 
 @pytest.fixture
@@ -12,10 +13,15 @@ def app():
 
 
 @pytest.fixture
-async def client(app):
+async def client(app, db_engine):
+    """AsyncClient that injects the test in-memory engine into the database module."""
+    # Inject the test engine so routes use in-memory SQLite with tables created
+    database._engine = db_engine
+    database._session_factory = None  # force re-creation from new engine
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
+    database.reset_engine()
 
 
 # ---------------------------------------------------------------------------
@@ -23,7 +29,6 @@ async def client(app):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_health_returns_200(client):
     resp = await client.get("/health")
     assert resp.status_code == 200
@@ -38,7 +43,6 @@ async def test_health_returns_200(client):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_cors_allows_streamlit_origin(client):
     resp = await client.options(
         "/health",
@@ -50,7 +54,6 @@ async def test_cors_allows_streamlit_origin(client):
     assert resp.headers.get("access-control-allow-origin") == "http://localhost:8501"
 
 
-@pytest.mark.asyncio
 async def test_cors_rejects_unknown_origin(client):
     resp = await client.options(
         "/health",
@@ -63,61 +66,90 @@ async def test_cors_rejects_unknown_origin(client):
 
 
 # ---------------------------------------------------------------------------
-# Stub endpoints return 501
+# Implemented recording routes
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_list_recordings_returns_501(client):
-    resp = await client.get("/api/v1/recordings")
-    assert resp.status_code == 501
+async def test_create_recording(client):
+    resp = await client.post("/api/v1/recordings", json={"title": "Test"})
+    assert resp.status_code == 200
     body = resp.json()
-    assert body["code"] == "NOT_IMPLEMENTED"
+    assert body["title"] == "Test"
+    assert body["status"] == "active"
+    assert "id" in body
 
 
-@pytest.mark.asyncio
-async def test_create_recording_returns_501(client):
-    resp = await client.post("/api/v1/recordings")
-    assert resp.status_code == 501
+async def test_list_recordings_empty(client):
+    resp = await client.get("/api/v1/recordings")
+    assert resp.status_code == 200
+    assert resp.json() == []
 
 
-@pytest.mark.asyncio
-async def test_get_recording_returns_501(client):
-    resp = await client.get("/api/v1/recordings/1")
-    assert resp.status_code == 501
+async def test_list_recordings_returns_created(client):
+    await client.post("/api/v1/recordings", json={"title": "Rec 1"})
+    resp = await client.get("/api/v1/recordings")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Rec 1"
 
 
-@pytest.mark.asyncio
-async def test_stop_recording_returns_501(client):
-    resp = await client.patch("/api/v1/recordings/1/stop")
-    assert resp.status_code == 501
+async def test_get_recording(client):
+    create_resp = await client.post("/api/v1/recordings")
+    rec_id = create_resp.json()["id"]
+    resp = await client.get(f"/api/v1/recordings/{rec_id}")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == rec_id
 
 
-@pytest.mark.asyncio
-async def test_list_summaries_returns_501(client):
-    resp = await client.get("/api/v1/recordings/1/summaries")
-    assert resp.status_code == 501
+async def test_get_recording_not_found(client):
+    resp = await client.get("/api/v1/recordings/9999")
+    assert resp.status_code == 404
 
 
-@pytest.mark.asyncio
+async def test_stop_recording(client):
+    create_resp = await client.post("/api/v1/recordings")
+    rec_id = create_resp.json()["id"]
+    resp = await client.patch(f"/api/v1/recordings/{rec_id}/stop")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "completed"
+    assert body["ended_at"] is not None
+
+
+async def test_list_summaries_empty(client):
+    create_resp = await client.post("/api/v1/recordings")
+    rec_id = create_resp.json()["id"]
+    resp = await client.get(f"/api/v1/recordings/{rec_id}/summaries")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+async def test_list_summaries_recording_not_found(client):
+    resp = await client.get("/api/v1/recordings/9999/summaries")
+    assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Stub endpoints still return 501
+# ---------------------------------------------------------------------------
+
+
 async def test_list_hour_summaries_returns_501(client):
     resp = await client.get("/api/v1/recordings/1/hour-summaries")
     assert resp.status_code == 501
 
 
-@pytest.mark.asyncio
 async def test_extract_range_returns_501(client):
     resp = await client.post("/api/v1/recordings/1/extract")
     assert resp.status_code == 501
 
 
-@pytest.mark.asyncio
 async def test_get_classifications_returns_501(client):
     resp = await client.get("/api/v1/recordings/1/classifications")
     assert resp.status_code == 501
 
 
-@pytest.mark.asyncio
 async def test_export_recording_returns_501(client):
     resp = await client.post("/api/v1/recordings/1/export")
     assert resp.status_code == 501

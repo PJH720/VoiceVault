@@ -1,0 +1,22 @@
+/* VoiceVault custom styles */
+
+/* Transcript display */
+.transcript-text {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* Status indicators */
+.status-active {
+    color: #22c55e;
+    font-weight: 600;
+}
+.status-completed {
+    color: #3b82f6;
+    font-weight: 600;
+}
+.status-failed {
+    color: #ef4444;
+    font-weight: 600;
+}
