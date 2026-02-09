@@ -244,34 +244,24 @@ tags
 # End of https://www.toptal.com/developers/gitignore/api/macos,linux,vim,python
 
 # =============================================================================
-# Project-Specific: Obsidian Voice RAG Plugin (TypeScript + Node.js + esbuild)
+# Project-Specific: VoiceVault (Python + FastAPI + Streamlit + Whisper)
 # =============================================================================
 
-### Node.js ###
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.npm
-.yarn/
+### Runtime Data ###
+# 녹음 파일, 내보내기, SQLite DB 등 런타임 생성 데이터 (CLAUDE.md 참조)
+data/
+logs/
+tmp/
+temp/
 
-### TypeScript ###
-*.tsbuildinfo
-
-### Build Output (esbuild) ###
-# main.js  # Uncomment during development if not tracking build output
-
-### Obsidian Plugin ###
-# Plugin user settings (사용자별 설정, 레포에 포함 X)
-data.json
-
-### Database (SQLite / Vector DB) ###
+### Database (SQLite) ###
 *.db
 *.sqlite
 *.sqlite3
 *.db-journal
 *.sqlite-journal
+*.db-shm
+*.db-wal
 
 ### Audio Files ###
 # 녹음 원본 파일 (용량이 크므로 Git에 부적합)
@@ -280,18 +270,60 @@ data.json
 *.ogg
 *.webm
 *.m4a
+*.flac
+*.aac
+*.opus
+*.wma
+*.pcm
 recordings/
 
-### Secrets ###
+### Whisper / ML Model Files ###
+# 모델 파일은 용량이 커서 Git에 부적합 (scripts/download_models.py로 다운로드)
+*.pt
+*.pth
+*.bin
+*.onnx
+*.ct2
+*.safetensors
+models/
+
+# HuggingFace / faster-whisper 모델 캐시
+.cache/
+huggingface/
+
+### Streamlit ###
+.streamlit/secrets.toml
+.streamlit/
+
+### Secrets & Credentials ###
 .env.local
 .env.*.local
+.env.production
+.env.staging
 *.pem
+*.key
+*.crt
+*.p12
+credentials.json
+service-account.json
+
+### Docker ###
+# Docker 볼륨 데이터 (로컬에서만 사용)
+docker-data/
+.docker/
 
 ### IDE ###
 .vscode/
 .idea/
 *.code-workspace
 .cursor/
+
+### Node.js (Docker/scripts에서 사용될 수 있음) ###
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 ### Project Documentation & Assets ###
 png/

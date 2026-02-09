@@ -6,7 +6,7 @@ VoiceVault is an open-source AI voice recorder that transcribes, summarizes,
 and auto-classifies recordings into structured notes.
 
 **Context**: 서강대학교 러너톤 2026 해커톤 (2-week MVP)
-**Stack**: Python 3.11+ | FastAPI | Streamlit | Whisper | Claude/Ollama | SQLite
+**Stack**: Python 3.12 (uv) | FastAPI | Streamlit | Whisper | Claude/Ollama | SQLite
 **Tagline**: "Record your day, let AI organize it"
 
 ### Core Value Proposition
@@ -108,9 +108,11 @@ mypy src/ --ignore-missing-imports                   # Type check
 docker-compose up -d                                 # Full stack
 docker-compose logs -f                               # Stream logs
 
-# ── Setup ──
-python -m venv .venv && source .venv/bin/activate    # Virtual env
-pip install -r requirements.txt                      # Install deps
+# ── Setup (uv 필수) ──
+uv venv --python 3.12                                # Virtual env (Python 자동 다운로드)
+source .venv/bin/activate                            # Activate
+uv pip install -r requirements.txt                   # Install deps
+uv pip install -e ".[dev]"                           # Install dev deps
 cp .env.example .env                                 # Config file
 python scripts/download_models.py                    # Whisper model
 python scripts/seed_templates.py                     # Default templates
@@ -222,7 +224,7 @@ templates (id, name, display_name, triggers[JSON], output_format, fields[JSON], 
 
 ### Python Style
 
-- **Python 3.11+** with type hints on all function signatures
+- **Python 3.12** (managed via uv) with type hints on all function signatures
 - **Pydantic v2** for all data models (request, response, config)
 - **async/await** for all I/O operations (FastAPI, WebSocket, DB, LLM calls)
 - **Google-format docstrings**
@@ -478,18 +480,19 @@ chore(ci): update GitHub Actions Python matrix
 
 ## Tips for Working on This Codebase
 
-1. **Start with services**: Core logic is in `src/services/`. Understand the ABC interfaces first (`base.py` files).
-2. **Provider agnostic**: Always test with both Claude AND Ollama. Never assume one provider.
-3. **SQLite is sufficient**: Don't over-engineer the storage layer. Local-first is the principle.
-4. **Streamlit quirks**: Use `st.session_state` for persistent state across reruns. Streamlit re-executes the entire script on every interaction.
-5. **WebSocket**: Real-time transcription uses FastAPI WebSocket, not REST polling.
-6. **Templates are JSON**: Default templates in `templates/` dir, user custom templates in DB.
-7. **Hackathon mindset**: Working demo > Perfect code. Ship early, iterate fast.
-8. **Async everywhere**: All service methods should be `async`. Use `await` for I/O.
-9. **Test with real audio**: Use `tests/fixtures/sample_audio.wav` for realistic testing. Dummy data tests miss edge cases.
-10. **Claude rate limits**: 5 req/min on free tier. Always use `asyncio.Semaphore` for concurrent calls.
-11. **Token budget**: Each 1-min summary should be ≤ 50 tokens to keep costs manageable.
-12. **Cross-boundary is key UX**: The invisible hour boundaries + free time range selection is a major differentiator. Prioritize this feature.
+1. **Use uv, not pip**: 패키지 관리는 반드시 `uv pip install ...`로 수행. `pip`/`python -m venv` 사용 금지. Python 3.12는 `uv venv --python 3.12`로 관리.
+2. **Start with services**: Core logic is in `src/services/`. Understand the ABC interfaces first (`base.py` files).
+3. **Provider agnostic**: Always test with both Claude AND Ollama. Never assume one provider.
+4. **SQLite is sufficient**: Don't over-engineer the storage layer. Local-first is the principle.
+5. **Streamlit quirks**: Use `st.session_state` for persistent state across reruns. Streamlit re-executes the entire script on every interaction.
+6. **WebSocket**: Real-time transcription uses FastAPI WebSocket, not REST polling.
+7. **Templates are JSON**: Default templates in `templates/` dir, user custom templates in DB.
+8. **Hackathon mindset**: Working demo > Perfect code. Ship early, iterate fast.
+9. **Async everywhere**: All service methods should be `async`. Use `await` for I/O.
+10. **Test with real audio**: Use `tests/fixtures/sample_audio.wav` for realistic testing. Dummy data tests miss edge cases.
+11. **Claude rate limits**: 5 req/min on free tier. Always use `asyncio.Semaphore` for concurrent calls.
+12. **Token budget**: Each 1-min summary should be ≤ 50 tokens to keep costs manageable.
+13. **Cross-boundary is key UX**: The invisible hour boundaries + free time range selection is a major differentiator. Prioritize this feature.
 
 ---
 
