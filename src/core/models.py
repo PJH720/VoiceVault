@@ -71,6 +71,41 @@ class SummaryResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Transcription
+# ---------------------------------------------------------------------------
+
+
+class TranscriptionSegment(BaseModel):
+    """A single transcription segment with timestamps."""
+
+    text: str
+    start: float
+    end: float
+    avg_logprob: float = 0.0
+    no_speech_prob: float = 0.0
+
+
+class TranscriptionResult(BaseModel):
+    """Complete transcription result from a file."""
+
+    text: str
+    language: str = "unknown"
+    language_probability: float = 0.0
+    confidence: float = 0.0
+    duration: float = 0.0
+    segments: list[TranscriptionSegment] = Field(default_factory=list)
+
+
+class StreamingTranscriptionResult(BaseModel):
+    """Transcription result from a streaming chunk."""
+
+    text: str
+    is_final: bool = False
+    confidence: float = 0.0
+    segments: list[TranscriptionSegment] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # WebSocket
 # ---------------------------------------------------------------------------
 

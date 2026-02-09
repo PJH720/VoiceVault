@@ -2,4 +2,7 @@
 Audio module - Audio processing and recording utilities.
 """
 
-__all__ = []
+from .processor import AudioProcessor
+from .recorder import AudioBuffer
+
+__all__ = ["AudioProcessor", "AudioBuffer"]
