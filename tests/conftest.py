@@ -130,7 +130,7 @@ async def db_engine():
 @pytest.fixture
 async def db_session(db_engine):
     """Yield an AsyncSession bound to the test engine; rolls back after test."""
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     factory = async_sessionmaker(db_engine, expire_on_commit=False)
     async with factory() as session:

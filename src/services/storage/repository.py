@@ -73,7 +73,10 @@ class RecordingRepository:
         recording.status = "completed"
         recording.ended_at = datetime.now(UTC)
         if recording.started_at:
-            delta = recording.ended_at - recording.started_at
+            # SQLite may return naive datetimes; ensure both sides match
+            ended = recording.ended_at.replace(tzinfo=None)
+            started = recording.started_at.replace(tzinfo=None)
+            delta = ended - started
             recording.total_minutes = max(int(delta.total_seconds() // 60), 0)
         await self._session.flush()
         return recording
