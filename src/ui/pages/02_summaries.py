@@ -39,7 +39,7 @@ for rec in recordings:
     minutes = rec.get("total_minutes", 0)
 
     with st.expander(f"{label}  |  {status}  |  {started}  |  {minutes} min"):
-        col1, col2 = st.columns([3, 1])
+        col1, col2, col3 = st.columns([3, 1, 1])
         with col1:
             st.markdown(f"**ID**: {rec['id']}  \n**Status**: {status}")
         with col2:
@@ -52,3 +52,20 @@ for rec in recordings:
                         st.info("No summaries yet for this recording.")
                 except Exception as exc:
                     st.error(f"Failed to load summaries: {exc}")
+        with col3:
+            if st.button("Find similar", key=f"similar_{rec['id']}"):
+                try:
+                    similar = client.rag_similar(rec["id"])
+                    if similar:
+                        st.markdown("**Similar recordings**")
+                        for item in similar:
+                            with st.container(border=True):
+                                sim_id = item.get("recording_id", "?")
+                                sim_score = item.get("similarity", 0.0)
+                                sim_text = item.get("summary_text", "")
+                                st.markdown(f"Recording #{sim_id} ({sim_score:.0%})")
+                                st.caption(sim_text[:200])
+                    else:
+                        st.info("No similar recordings found.")
+                except Exception as exc:
+                    st.error(f"Failed to find similar: {exc}")

@@ -326,6 +326,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 ### Project Documentation & Assets ###
+CLAUDE.md
 png/
 pre-research/
 project plan & architecture/
