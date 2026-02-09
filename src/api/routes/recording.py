@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 
 from src.core.exceptions import NotImplementedYetError
 from src.core.models import RecordingCreate, RecordingResponse, RecordingStatus
+from src.services import orchestrator
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
 
@@ -62,9 +63,17 @@ async def get_recording(recording_id: int):
 @router.patch("/{recording_id}/stop", response_model=RecordingResponse)
 async def stop_recording(recording_id: int):
     """Stop an active recording and trigger post-processing."""
+    active = orchestrator.get_active_session()
+    if active is not None and active.recording_id == recording_id:
+        await orchestrator.stop_session()
+    else:
+        async with get_session() as session:
+            repo = RecordingRepository(session)
+            await repo.stop_recording(recording_id)
+
     async with get_session() as session:
         repo = RecordingRepository(session)
-        recording = await repo.stop_recording(recording_id)
+        recording = await repo.get_recording(recording_id)
     return _to_response(recording)
 
 
