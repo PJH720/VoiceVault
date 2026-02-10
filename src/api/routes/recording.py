@@ -5,8 +5,10 @@ Implements CRUD operations for recording sessions and Obsidian export.
 """
 
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Query
+from fastapi.responses import FileResponse
 
 from src.core.models import (
     ClassificationResponse,
@@ -69,6 +71,39 @@ async def get_recording(recording_id: int):
         repo = RecordingRepository(session)
         recording = await repo.get_recording(recording_id)
     return _to_response(recording)
+
+
+@router.get("/{recording_id}/audio")
+async def get_recording_audio(recording_id: int):
+    """Serve the WAV audio file for a recording."""
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        recording = await repo.get_recording(recording_id)
+
+    if not recording.audio_path:
+        from src.core.exceptions import VoiceVaultError
+
+        raise VoiceVaultError(
+            detail=f"No audio file for recording {recording_id}",
+            code="AUDIO_NOT_FOUND",
+            status_code=404,
+        )
+
+    audio_path = Path(recording.audio_path)
+    if not audio_path.is_file():
+        from src.core.exceptions import VoiceVaultError
+
+        raise VoiceVaultError(
+            detail=f"Audio file not found on disk: {recording.audio_path}",
+            code="AUDIO_NOT_FOUND",
+            status_code=404,
+        )
+
+    return FileResponse(
+        path=audio_path,
+        media_type="audio/wav",
+        filename=f"recording-{recording_id}.wav",
+    )
 
 
 @router.patch("/{recording_id}/stop", response_model=RecordingResponse)

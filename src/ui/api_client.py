@@ -57,6 +57,17 @@ class APIClient:
         resp.raise_for_status()
         return resp.json()
 
+    # -- audio --
+
+    def download_audio(self, recording_id: int) -> bytes | None:
+        """Fetch raw audio bytes for a recording. Returns None on error."""
+        try:
+            resp = self._client.get(f"/api/v1/recordings/{recording_id}/audio")
+            resp.raise_for_status()
+            return resp.content
+        except httpx.HTTPStatusError:
+            return None
+
     # -- summaries --
 
     def list_summaries(self, recording_id: int) -> list[dict]:
