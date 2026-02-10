@@ -120,6 +120,10 @@ def _process_audio(audio_bytes: bytes) -> None:
         ws_host = api_url.replace("http://", "").replace("https://", "")
         ws_url = f"{ws_scheme}://{ws_host}/ws/transcribe?recording_id={rec['id']}"
 
+        lang = st.session_state.transcription_language
+        if lang:
+            ws_url += f"&language={lang}"
+
         transcripts = asyncio.run(_stream_audio_ws(ws_url, pcm_bytes))
         st.session_state.transcripts = transcripts
 
@@ -128,10 +132,16 @@ def _process_audio(audio_bytes: bytes) -> None:
         summary_list = []
         for msg in transcripts:
             msg_type = msg.get("type")
+            data = msg.get("data", {})
             if msg_type == "transcript":
-                text_parts.append(msg.get("data", {}).get("text", ""))
+                text_parts.append(data.get("text", ""))
+                # Track detected language from the last transcript chunk
+                if data.get("language"):
+                    st.session_state.detected_language = data["language"]
+                if data.get("language_probability"):
+                    st.session_state.detected_language_prob = data["language_probability"]
             elif msg_type == "summary":
-                summary_list.append(msg.get("data", {}))
+                summary_list.append(data)
         st.session_state.transcript_text = " ".join(text_parts)
         st.session_state.summaries = summary_list
 
@@ -156,13 +166,37 @@ def render_recorder() -> None:
         _render_completed()
 
 
+_LANGUAGE_OPTIONS = [
+    ("Auto-detect", None),
+    ("\ud55c\uad6d\uc5b4 (ko)", "ko"),
+    ("English (en)", "en"),
+    ("\u65e5\u672c\u8a9e (ja)", "ja"),
+    ("\u4e2d\u6587 (zh)", "zh"),
+    ("Espa\u00f1ol (es)", "es"),
+    ("Fran\u00e7ais (fr)", "fr"),
+    ("Deutsch (de)", "de"),
+]
+
+
 def _render_idle() -> None:
-    """Show title input and audio recorder."""
+    """Show title input, language selector, and audio recorder."""
     st.session_state.recording_title = st.text_input(
         "Recording title (optional)",
         value=st.session_state.recording_title,
         placeholder="e.g. AI Lecture - Week 5",
     )
+
+    lang_labels = [label for label, _ in _LANGUAGE_OPTIONS]
+    lang_values = [value for _, value in _LANGUAGE_OPTIONS]
+    current = st.session_state.transcription_language
+    current_idx = lang_values.index(current) if current in lang_values else 0
+    selected_idx = st.selectbox(
+        "Transcription language",
+        range(len(lang_labels)),
+        index=current_idx,
+        format_func=lambda i: lang_labels[i],
+    )
+    st.session_state.transcription_language = lang_values[selected_idx]
 
     audio = st.audio_input("Record audio")
 
@@ -192,6 +226,13 @@ def _render_completed() -> None:
 
     rec_id = st.session_state.recording_id
     st.markdown(f"**Recording ID**: {rec_id}")
+
+    # Detected language
+    detected_lang = st.session_state.detected_language
+    if detected_lang:
+        prob = st.session_state.detected_language_prob
+        prob_pct = f"{prob * 100:.1f}%" if prob else "N/A"
+        st.markdown(f"**Detected language**: {detected_lang} — Confidence: {prob_pct}")
 
     # Transcript
     transcript = st.session_state.transcript_text
@@ -223,4 +264,7 @@ def _render_completed() -> None:
         st.session_state.transcripts = []
         st.session_state.transcript_text = ""
         st.session_state.summaries = []
+        st.session_state.transcription_language = None
+        st.session_state.detected_language = None
+        st.session_state.detected_language_prob = 0.0
         st.rerun()

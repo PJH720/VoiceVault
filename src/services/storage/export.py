@@ -173,9 +173,7 @@ def _build_body(
     else:
         # Fallback: concatenate summaries
         if summaries:
-            summary_lines = "\n".join(
-                f"- {s.summary_text}" for s in summaries if s.summary_text
-            )
+            summary_lines = "\n".join(f"- {s.summary_text}" for s in summaries if s.summary_text)
             if summary_lines:
                 sections.append(f"## \U0001f4dd \uc694\uc57d\n\n{summary_lines}")
 
@@ -228,12 +226,7 @@ def _build_transcript_section(transcripts: list[Transcript]) -> str:
         lines.append(f"{timestamp} {t.text}")
 
     content = "\n\n".join(lines)
-    return (
-        "<details>\n"
-        "<summary>\U0001f4cb Full Transcript</summary>\n\n"
-        f"{content}\n\n"
-        "</details>"
-    )
+    return f"<details>\n<summary>\U0001f4cb Full Transcript</summary>\n\n{content}\n\n</details>"
 
 
 async def export_recording_to_markdown(

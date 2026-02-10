@@ -80,9 +80,7 @@ class RangeExtractor:
                 )
             )
 
-        numbered = "\n".join(
-            f"[Minute {idx}] {text}" for idx, text in summaries
-        )
+        numbered = "\n".join(f"[Minute {idx}] {text}" for idx, text in summaries)
         user_prompt = (
             f"Time range: minute {start_minute} to {end_minute}\n"
             f"Summaries to integrate:\n{numbered}"
@@ -105,8 +103,7 @@ class RangeExtractor:
         except json.JSONDecodeError as exc:
             raise SummarizationError(
                 detail=(
-                    f"Invalid JSON from LLM for range "
-                    f"[{start_minute}, {end_minute}]: {raw[:200]}"
+                    f"Invalid JSON from LLM for range [{start_minute}, {end_minute}]: {raw[:200]}"
                 )
             ) from exc
 

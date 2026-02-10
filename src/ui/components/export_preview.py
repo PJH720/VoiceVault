@@ -28,9 +28,7 @@ def render_export_preview(export_result: dict) -> None:
     if file_path:
         st.caption(f"Export path: {file_path}")
 
-    tab_rendered, tab_raw, tab_frontmatter = st.tabs(
-        ["Rendered", "Raw Markdown", "Frontmatter"]
-    )
+    tab_rendered, tab_raw, tab_frontmatter = st.tabs(["Rendered", "Raw Markdown", "Frontmatter"])
 
     with tab_rendered:
         st.markdown(markdown_content)

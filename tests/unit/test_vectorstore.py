@@ -84,9 +84,7 @@ class TestChromaVectorStoreInit:
             "src.services.rag.vectorstore.get_settings",
             return_value=settings,
         ):
-            with patch(
-                "src.services.rag.vectorstore.chromadb.PersistentClient"
-            ) as mock_cls:
+            with patch("src.services.rag.vectorstore.chromadb.PersistentClient") as mock_cls:
                 mock_cls.return_value.get_or_create_collection.return_value = MagicMock(
                     count=MagicMock(return_value=0)
                 )
@@ -100,9 +98,7 @@ class TestChromaVectorStoreInit:
             "src.services.rag.vectorstore.get_settings",
             return_value=settings,
         ):
-            with patch(
-                "src.services.rag.vectorstore.chromadb.PersistentClient"
-            ) as mock_cls:
+            with patch("src.services.rag.vectorstore.chromadb.PersistentClient") as mock_cls:
                 mock_cls.return_value.get_or_create_collection.return_value = MagicMock(
                     count=MagicMock(return_value=0)
                 )
@@ -163,7 +159,12 @@ class TestSearch:
         assert results[0]["distance"] == 0.1
 
     async def test_passes_top_k(self, vectorstore, mock_collection):
-        mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
+        mock_collection.query.return_value = {
+            "ids": [[]],
+            "documents": [[]],
+            "metadatas": [[]],
+            "distances": [[]],
+        }
 
         await vectorstore.search(embedding=[0.1], top_k=10)
 
@@ -171,7 +172,12 @@ class TestSearch:
         assert call_kwargs["n_results"] == 10
 
     async def test_passes_where_filter(self, vectorstore, mock_collection):
-        mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
+        mock_collection.query.return_value = {
+            "ids": [[]],
+            "documents": [[]],
+            "metadatas": [[]],
+            "distances": [[]],
+        }
 
         where = {"recording_id": 42}
         await vectorstore.search(embedding=[0.1], where=where)
@@ -180,7 +186,12 @@ class TestSearch:
         assert call_kwargs["where"] == {"recording_id": 42}
 
     async def test_no_where_omits_filter(self, vectorstore, mock_collection):
-        mock_collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
+        mock_collection.query.return_value = {
+            "ids": [[]],
+            "documents": [[]],
+            "metadatas": [[]],
+            "distances": [[]],
+        }
 
         await vectorstore.search(embedding=[0.1])
 
@@ -298,9 +309,7 @@ class TestSearchEmptyResults:
         assert len(results) == 1
         assert results[0]["distance"] == 0.0
 
-    async def test_shorter_documents_than_ids_uses_fallback(
-        self, vectorstore, mock_collection
-    ):
+    async def test_shorter_documents_than_ids_uses_fallback(self, vectorstore, mock_collection):
         """If documents list is shorter than ids, extras get empty strings."""
         mock_collection.query.return_value = {
             "ids": [["doc-1", "doc-2"]],
@@ -397,9 +406,7 @@ class TestCreateVectorstore:
             "src.services.rag.vectorstore.get_settings",
             return_value=_mock_settings(),
         ):
-            with patch(
-                "src.services.rag.vectorstore.chromadb.PersistentClient"
-            ) as mock_cls:
+            with patch("src.services.rag.vectorstore.chromadb.PersistentClient") as mock_cls:
                 mock_cls.return_value.get_or_create_collection.return_value = MagicMock(
                     count=MagicMock(return_value=0)
                 )
