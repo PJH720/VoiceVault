@@ -77,8 +77,18 @@ with st.sidebar:
     st.session_state.api_base_url = st.text_input(
         "Backend API URL",
         value=st.session_state.api_base_url,
-        help="VoiceVault FastAPI 백엔드 서버의 URL (기본값: http://localhost:8000)",
+        help="URL of the VoiceVault FastAPI backend server (default: http://localhost:8000)",
     )
+
+    # Connection status indicator
+    from src.ui.api_client import get_api_client  # noqa: E402
+
+    _client = get_api_client()
+    _conn_ok, _conn_msg = _client.check_connection()
+    if _conn_ok:
+        st.success(f"Backend: {_conn_msg}")
+    else:
+        st.error(f"Backend: {_conn_msg}")
 
     # Storage folder shortcuts
     st.divider()
@@ -126,17 +136,22 @@ templates_page = st.Page(
 )
 
 
-@st.dialog("녹음 처리 중입니다")
+@st.dialog("Recording in Progress")
 def _confirm_navigation():
-    st.warning(
-        "현재 오디오가 처리 중입니다. 페이지를 이동하면 처리가 중단되고 녹음 데이터가 유실됩니다."
-    )
+    status = st.session_state.recording_status
+    if status == "processing":
+        st.warning(
+            "Audio is currently being processed. Navigating away will interrupt "
+            "processing and recording data will be lost."
+        )
+    else:
+        st.info("You have a completed recording that hasn't been reviewed yet.")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("계속 처리", type="primary", use_container_width=True):
+        if st.button("Go to Recording", type="primary", use_container_width=True):
             st.switch_page(recording_page)
     with col2:
-        if st.button("이동", use_container_width=True):
+        if st.button("Leave", use_container_width=True):
             st.session_state.recording_status = "idle"
             st.session_state.pop("_pending_audio", None)
             st.rerun()
@@ -144,8 +159,11 @@ def _confirm_navigation():
 
 nav = st.navigation([recording_page, summaries_page, rag_search_page, export_page, templates_page])
 
-if st.session_state.recording_status == "processing" and nav != recording_page:
+if st.session_state.recording_status in ("processing", "completed") and nav != recording_page:
     _confirm_navigation()
-    recording_page.run()
+    if st.session_state.recording_status == "processing":
+        recording_page.run()
+    else:
+        nav.run()
 else:
     nav.run()
