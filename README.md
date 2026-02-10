@@ -115,7 +115,7 @@ Export any recording as an Obsidian-compatible Markdown file, complete with:
 2. **Clone VoiceVault:**
 
    ```bash
-   git clone https://github.com/your-username/VoiceVault.git
+   git clone https://github.com/PJH720/VoiceVault.git
    cd VoiceVault
    ```
 
@@ -148,7 +148,7 @@ Export any recording as an Obsidian-compatible Markdown file, complete with:
 If you have [Docker](https://www.docker.com/products/docker-desktop/) installed:
 
 ```bash
-git clone https://github.com/your-username/VoiceVault.git
+git clone https://github.com/PJH720/VoiceVault.git
 cd VoiceVault
 docker-compose up -d
 ```
@@ -288,7 +288,7 @@ You can create your own templates to match any recording scenario. Templates are
 - Ensure Docker Desktop is running
 - Try `docker-compose down` then `docker-compose up -d` again
 
-For more help, check the [FAQ & Troubleshooting](wiki/FAQ-&-Troubleshooting.md) guide or [open an issue](https://github.com/your-username/VoiceVault/issues).
+For more help, check the [FAQ & Troubleshooting](wiki/FAQ-&-Troubleshooting.md) guide or [open an issue](https://github.com/PJH720/VoiceVault/issues).
 
 ---
 
@@ -303,7 +303,7 @@ VoiceVault is open source and built with:
 - **Vector Search:** ChromaDB + sentence-transformers
 - **Database:** SQLite (async via SQLAlchemy)
 
-See **[CLAUDE.md](./CLAUDE.md)** for the full development guide — architecture, conventions, API reference, and contribution guidelines.
+See the **[wiki/](./wiki/)** for detailed documentation — architecture, API reference, data schema, deployment, and contribution guidelines.
 
 ```bash
 # Run tests
@@ -323,8 +323,8 @@ ruff format src/ tests/
 - [x] Zero-shot classification with templates
 - [x] RAG search across recordings
 - [x] Obsidian Markdown export
-- [ ] Hourly hierarchical summaries
-- [ ] Cross-boundary time range extraction
+- [x] Hourly hierarchical summaries
+- [x] Cross-boundary time range extraction
 - [ ] Obsidian community plugin (embedded UI + RAG search)
 - [ ] Speaker diarization (who said what)
 - [ ] Mobile companion app
