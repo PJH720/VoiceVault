@@ -118,6 +118,16 @@ async def transcribe_ws(
     # Resolve language: explicit param > config default > None (auto-detect)
     resolved_language = language or settings.whisper_default_language or None
 
+    # Load user-provided context from the recording (if any)
+    user_context: str | None = None
+    try:
+        async with get_session() as db_sess:
+            repo = RecordingRepository(db_sess)
+            rec = await repo.get_recording(recording_id)
+            user_context = rec.context if rec else None
+    except Exception:
+        logger.warning("Could not load context for recording %s", recording_id)
+
     # --- Start orchestrator session ---
     async def _notify(data: dict) -> None:
         """Send orchestrator results back to the WebSocket client."""
@@ -136,6 +146,7 @@ async def transcribe_ws(
     session = await orchestrator.start_session(
         recording_id=recording_id,
         notify=_notify,
+        user_context=user_context,
     )
 
     async def audio_stream():

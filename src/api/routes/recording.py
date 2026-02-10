@@ -33,6 +33,7 @@ def _to_response(recording) -> RecordingResponse:
     return RecordingResponse(
         id=recording.id,
         title=recording.title,
+        context=recording.context,
         status=RecordingStatus(recording.status),
         started_at=recording.started_at,
         ended_at=recording.ended_at,
@@ -45,9 +46,10 @@ def _to_response(recording) -> RecordingResponse:
 async def create_recording(body: RecordingCreate | None = None):
     """Start a new recording session."""
     title = body.title if body else None
+    context = body.context if body else None
     async with get_session() as session:
         repo = RecordingRepository(session)
-        recording = await repo.create_recording(title=title)
+        recording = await repo.create_recording(title=title, context=context)
     return _to_response(recording)
 
 

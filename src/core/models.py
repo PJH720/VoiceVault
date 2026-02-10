@@ -41,6 +41,7 @@ class RecordingCreate(BaseModel):
     """POST /recordings request body (optional fields)."""
 
     title: str | None = None
+    context: str | None = Field(None, max_length=500)
 
 
 class RecordingResponse(BaseModel):
@@ -48,6 +49,7 @@ class RecordingResponse(BaseModel):
 
     id: int
     title: str | None = None
+    context: str | None = None
     status: RecordingStatus
     started_at: datetime
     ended_at: datetime | None = None
@@ -60,6 +62,14 @@ class RecordingResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class TranscriptionCorrection(BaseModel):
+    """A single STT error correction made by the LLM summarizer."""
+
+    original: str
+    corrected: str
+    reason: str = ""
+
+
 class MinuteSummaryResult(BaseModel):
     """Internal service result from 1-minute summarization."""
 
@@ -68,6 +78,7 @@ class MinuteSummaryResult(BaseModel):
     keywords: list[str] = Field(default_factory=list)
     topic: str = ""
     model_used: str = ""
+    corrections: list[TranscriptionCorrection] = Field(default_factory=list)
 
 
 class SummaryResponse(BaseModel):
@@ -79,6 +90,7 @@ class SummaryResponse(BaseModel):
     summary_text: str
     keywords: list[str] = Field(default_factory=list)
     confidence: float = 0.0
+    corrections: list[TranscriptionCorrection] = Field(default_factory=list)
     created_at: datetime
 
 

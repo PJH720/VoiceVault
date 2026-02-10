@@ -1,0 +1,16 @@
+{
+  "name": "english_vocabulary",
+  "display_name": "English Vocabulary Note",
+  "triggers": ["vocabulary", "word", "english", "definition", "synonym", "antonym", "etymology", "pronunciation", "language learning"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "words", "label": "Words & Definitions", "type": "list"},
+    {"name": "examples", "label": "Example Sentences", "type": "list"},
+    {"name": "part_of_speech", "label": "Parts of Speech", "type": "list"},
+    {"name": "related_words", "label": "Related Words (Synonyms / Antonyms)", "type": "list"}
+  ],
+  "icon": "🔤",
+  "priority": 3,
+  "is_default": false
+}

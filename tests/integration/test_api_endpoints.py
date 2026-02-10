@@ -187,3 +187,82 @@ async def test_summary_response_schema(async_client):
     assert s["summary_text"] == "Schema test summary"
     assert s["keywords"] == ["test", "schema"]
     assert s["confidence"] == pytest.approx(0.9)
+
+
+# ---------------------------------------------------------------------------
+# Recording context field
+# ---------------------------------------------------------------------------
+
+
+async def test_create_recording_with_context(async_client):
+    """POST /recordings with context should persist and return it."""
+    resp = await async_client.post(
+        "/api/v1/recordings",
+        json={"title": "AI Lecture", "context": "LangChain, RAG, Agent"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["context"] == "LangChain, RAG, Agent"
+
+    # Verify GET returns context too
+    rec_id = body["id"]
+    resp = await async_client.get(f"/api/v1/recordings/{rec_id}")
+    assert resp.status_code == 200
+    assert resp.json()["context"] == "LangChain, RAG, Agent"
+
+
+async def test_create_recording_without_context(async_client):
+    """POST /recordings without context should return null."""
+    resp = await async_client.post("/api/v1/recordings", json={"title": "No Context"})
+    assert resp.status_code == 200
+    assert resp.json()["context"] is None
+
+
+# ---------------------------------------------------------------------------
+# Summary corrections field
+# ---------------------------------------------------------------------------
+
+
+async def test_summary_with_corrections(async_client):
+    """Summaries with corrections should include them in the API response."""
+    resp = await async_client.post("/api/v1/recordings")
+    rec_id = resp.json()["id"]
+
+    async with database.get_session() as session:
+        repo = RecordingRepository(session)
+        await repo.create_summary(
+            recording_id=rec_id,
+            minute_index=0,
+            summary_text="LangChain discussion",
+            corrections=[
+                {"original": "랭체인", "corrected": "LangChain", "reason": "STT error"},
+            ],
+        )
+
+    resp = await async_client.get(f"/api/v1/recordings/{rec_id}/summaries")
+    assert resp.status_code == 200
+    summaries = resp.json()
+    assert len(summaries) == 1
+    s = summaries[0]
+    assert isinstance(s["corrections"], list)
+    assert len(s["corrections"]) == 1
+    assert s["corrections"][0]["original"] == "랭체인"
+    assert s["corrections"][0]["corrected"] == "LangChain"
+
+
+async def test_summary_without_corrections(async_client):
+    """Summaries without corrections should return empty list."""
+    resp = await async_client.post("/api/v1/recordings")
+    rec_id = resp.json()["id"]
+
+    async with database.get_session() as session:
+        repo = RecordingRepository(session)
+        await repo.create_summary(
+            recording_id=rec_id,
+            minute_index=0,
+            summary_text="Normal summary",
+        )
+
+    resp = await async_client.get(f"/api/v1/recordings/{rec_id}/summaries")
+    assert resp.status_code == 200
+    assert resp.json()[0]["corrections"] == []

@@ -1,13 +1,13 @@
 {
   "name": "conversation",
-  "display_name": "대화 기록",
-  "triggers": ["대화", "친구", "잡담", "이야기", "conversation", "chat", "friend", "talk"],
+  "display_name": "Conversation Log",
+  "triggers": ["conversation", "chat", "friend", "talk", "casual", "catch up", "hangout", "social"],
   "output_format": "markdown",
   "fields": [
-    {"name": "summary", "label": "요약", "type": "text"},
-    {"name": "topics", "label": "주요 화제", "type": "list"},
-    {"name": "participants", "label": "참여자", "type": "list"},
-    {"name": "mood", "label": "분위기", "type": "text"}
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "topics", "label": "Topics Discussed", "type": "list"},
+    {"name": "participants", "label": "Participants", "type": "list"},
+    {"name": "mood", "label": "Mood / Tone", "type": "text"}
   ],
   "icon": "💬",
   "priority": 5,

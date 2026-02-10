@@ -69,9 +69,13 @@ class APIClient:
 
     # -- recordings --
 
-    def create_recording(self, title: str | None = None) -> dict:
-        body = {"title": title} if title else None
-        return self._request("post", "/api/v1/recordings", json=body).json()
+    def create_recording(self, title: str | None = None, context: str | None = None) -> dict:
+        body: dict = {}
+        if title:
+            body["title"] = title
+        if context:
+            body["context"] = context
+        return self._request("post", "/api/v1/recordings", json=body or None).json()
 
     def list_recordings(
         self,

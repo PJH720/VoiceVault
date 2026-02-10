@@ -1,0 +1,16 @@
+{
+  "name": "incident",
+  "display_name": "Incident / Event Note",
+  "triggers": ["incident", "event", "accident", "occurrence", "situation", "emergency", "report", "issue"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "description", "label": "Description", "type": "text"},
+    {"name": "date", "label": "Date", "type": "text"},
+    {"name": "attendees", "label": "People Involved", "type": "list"},
+    {"name": "follow_up", "label": "Follow-up Actions", "type": "list"}
+  ],
+  "icon": "⚡",
+  "priority": 7,
+  "is_default": false
+}
