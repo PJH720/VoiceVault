@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     whisper_provider: str = "local"
     whisper_model: str = "base"
     whisper_api_key: str = ""
+    whisper_default_language: str = ""  # empty = auto-detect; ISO code e.g. "ko", "en"
 
     # --- RAG & Embeddings ---
     embedding_provider: str = "local"
