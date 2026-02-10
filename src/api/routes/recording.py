@@ -9,14 +9,20 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
+from src.core.config import get_settings
+from src.core.exceptions import VoiceVaultError
 from src.core.models import (
     ClassificationResponse,
+    ConsistencyResponse,
+    DeleteRecordingResponse,
     ObsidianExportRequest,
     ObsidianExportResponse,
     RecordingCreate,
     RecordingResponse,
     RecordingStatus,
+    SyncResponse,
 )
 from src.services import orchestrator
 from src.services.storage.database import get_session
@@ -64,6 +70,118 @@ async def list_recordings(
         repo = RecordingRepository(session)
         recordings = await repo.list_recordings(status=status, limit=limit, offset=offset)
     return [_to_response(r) for r in recordings]
+
+
+@router.post("/sync", response_model=SyncResponse)
+async def sync_recordings():
+    """Scan recordings directory and import unregistered audio files."""
+    settings = get_settings()
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        result = await repo.sync_from_filesystem(settings.recordings_dir)
+    return result
+
+
+@router.get("/consistency", response_model=ConsistencyResponse)
+async def check_consistency():
+    """Check DB ↔ filesystem consistency for orphan records/files."""
+    settings = get_settings()
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        result = await repo.check_consistency(settings.recordings_dir)
+    return result
+
+
+class CleanupRequest(BaseModel):
+    """Request body for consistency cleanup actions."""
+
+    action: str
+    record_ids: list[int] = Field(default_factory=list)
+    file_paths: list[str] = Field(default_factory=list)
+
+
+class CleanupResponse(BaseModel):
+    """Response from consistency cleanup."""
+
+    processed: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
+@router.post("/consistency/cleanup", response_model=CleanupResponse)
+async def consistency_cleanup(body: CleanupRequest):
+    """Clean up orphan records or files discovered by consistency check."""
+    settings = get_settings()
+    rec_dir = Path(settings.recordings_dir).resolve()
+    processed = 0
+    errors: list[str] = []
+
+    if body.action == "delete_records":
+        async with get_session() as session:
+            repo = RecordingRepository(session)
+            for rid in body.record_ids:
+                try:
+                    await repo.delete_recording(rid)
+                    processed += 1
+                except Exception as exc:
+                    errors.append(f"Recording {rid}: {exc}")
+
+    elif body.action == "delete_files":
+        for fp in body.file_paths:
+            resolved = Path(fp).resolve()
+            if not str(resolved).startswith(str(rec_dir)):
+                errors.append(f"{fp}: path outside recordings directory")
+                continue
+            try:
+                resolved.unlink(missing_ok=True)
+                processed += 1
+            except OSError as exc:
+                errors.append(f"{fp}: {exc}")
+
+    elif body.action == "import_files":
+        async with get_session() as session:
+            repo = RecordingRepository(session)
+            result = await repo.sync_from_filesystem(settings.recordings_dir)
+            processed = result.get("new_imports", 0)
+            errors = result.get("errors", [])
+
+    else:
+        raise VoiceVaultError(
+            detail=f"Unknown cleanup action: {body.action}",
+            code="INVALID_ACTION",
+            status_code=400,
+        )
+
+    return CleanupResponse(processed=processed, errors=errors)
+
+
+@router.delete("/{recording_id}", response_model=DeleteRecordingResponse)
+async def delete_recording(recording_id: int):
+    """Delete a recording and clean up associated files and vectors."""
+    settings = get_settings()
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        result = await repo.delete_recording_with_cleanup(
+            recording_id=recording_id,
+            recordings_dir=settings.recordings_dir,
+            exports_dir=settings.exports_dir,
+        )
+
+    # Best-effort ChromaDB vector cleanup
+    minute_indices = result.pop("minute_indices", [])
+    vectors_deleted = 0
+    try:
+        from src.services.rag import create_vectorstore
+
+        vectorstore = create_vectorstore()
+        ids_to_delete = [f"summary-{recording_id}-{idx}" for idx in minute_indices]
+        if ids_to_delete:
+            vectorstore.delete(ids=ids_to_delete)
+            vectors_deleted = len(ids_to_delete)
+    except Exception:
+        logger.warning("Could not clean up vectors for recording %s", recording_id, exc_info=True)
+    result["vectors_deleted"] = vectors_deleted
+
+    return result
 
 
 @router.get("/{recording_id}", response_model=RecordingResponse)

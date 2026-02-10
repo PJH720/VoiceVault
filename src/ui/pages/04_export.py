@@ -16,7 +16,13 @@ from src.ui.api_client import get_api_client  # noqa: E402
 from src.ui.components.export_preview import render_export_preview  # noqa: E402
 from src.ui.utils import open_folder_in_explorer  # noqa: E402
 
-st.header("Obsidian Export")
+col_title, col_refresh = st.columns([6, 1])
+with col_title:
+    st.header("Obsidian Export")
+with col_refresh:
+    st.markdown("")  # vertical spacer
+    if st.button("Refresh", key="export_refresh"):
+        st.rerun()
 
 client = get_api_client()
 
