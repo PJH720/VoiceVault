@@ -21,6 +21,7 @@ class Recording(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    context: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
     ended_at: Mapped[datetime | None] = mapped_column(nullable=True)
     audio_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -86,6 +87,7 @@ class Summary(Base):
     speakers: Mapped[list] = mapped_column(JSON, default=list)
     confidence: Mapped[float] = mapped_column(default=0.0)
     model_used: Mapped[str] = mapped_column(String(100), default="")
+    corrections: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
     recording: Mapped["Recording"] = relationship(back_populates="summaries")

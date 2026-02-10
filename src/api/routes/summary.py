@@ -14,6 +14,7 @@ from src.core.models import (
     ExtractRangeResponse,
     HourSummaryResponse,
     SummaryResponse,
+    TranscriptionCorrection,
 )
 from src.services.llm import create_llm
 from src.services.storage.database import get_session
@@ -51,6 +52,11 @@ async def list_summaries(recording_id: int):
             summary_text=s.summary_text,
             keywords=s.keywords or [],
             confidence=s.confidence,
+            corrections=[
+                TranscriptionCorrection(**c)
+                for c in (s.corrections or [])
+                if isinstance(c, dict) and "original" in c and "corrected" in c
+            ],
             created_at=s.created_at,
         )
         for s in summaries

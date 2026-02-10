@@ -54,10 +54,12 @@ class RecordingSession:
         recording_id: int,
         notify: Callable[[dict], Awaitable[None]],
         summarization_interval: float = 60.0,
+        user_context: str | None = None,
     ) -> None:
         self.recording_id = recording_id
         self._notify = notify
         self._interval = summarization_interval
+        self._user_context = user_context
         self._queue: asyncio.Queue[PendingTranscript] = asyncio.Queue()
         self._stop_event = asyncio.Event()
         self._task: asyncio.Task | None = None
@@ -141,6 +143,7 @@ class RecordingSession:
                 transcript=item.text,
                 minute_index=item.minute_index,
                 previous_context=self._previous_summary,
+                user_context=self._user_context,
             )
 
             settings = get_settings()
@@ -152,6 +155,7 @@ class RecordingSession:
                     summary_text=result.summary_text,
                     keywords=result.keywords,
                     model_used=settings.llm_provider,
+                    corrections=[c.model_dump() for c in result.corrections],
                 )
 
             self._previous_summary = result.summary_text
@@ -169,6 +173,7 @@ class RecordingSession:
                 "summary_text": result.summary_text,
                 "keywords": result.keywords,
                 "topic": result.topic,
+                "corrections": [c.model_dump() for c in result.corrections],
             }
 
             try:
@@ -297,6 +302,7 @@ async def start_session(
     recording_id: int,
     notify: Callable[[dict], Awaitable[None]],
     summarization_interval: float = 60.0,
+    user_context: str | None = None,
 ) -> RecordingSession:
     """Create and start a new recording session.
 
@@ -311,6 +317,7 @@ async def start_session(
         recording_id=recording_id,
         notify=notify,
         summarization_interval=summarization_interval,
+        user_context=user_context,
     )
     session.start()
     _active_session = session

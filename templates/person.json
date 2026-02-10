@@ -1,0 +1,16 @@
+{
+  "name": "person",
+  "display_name": "Person Profile",
+  "triggers": ["person", "contact", "people", "someone", "introduce", "met", "colleague", "acquaintance"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "relationship", "label": "Relationship / Context", "type": "text"},
+    {"name": "topics_of_interest", "label": "Topics of Interest", "type": "list"},
+    {"name": "preferences", "label": "Preferences", "type": "list"},
+    {"name": "contact_info", "label": "Contact Info", "type": "text"}
+  ],
+  "icon": "👤",
+  "priority": 4,
+  "is_default": false
+}

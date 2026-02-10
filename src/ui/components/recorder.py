@@ -107,10 +107,11 @@ def _process_audio(audio_bytes: bytes) -> None:
     """Process captured audio: create recording, send via WS, stop recording."""
     client = get_api_client()
     title = st.session_state.recording_title or None
+    context = st.session_state.recording_context or None
 
     try:
         # 1. Create recording
-        rec = client.create_recording(title=title)
+        rec = client.create_recording(title=title, context=context)
         st.session_state.recording_id = rec["id"]
 
         # 2. Convert audio to PCM
@@ -187,6 +188,14 @@ def _render_idle() -> None:
         "Recording title (optional)",
         value=st.session_state.recording_title,
         placeholder="e.g. AI Lecture - Week 5",
+    )
+
+    st.session_state.recording_context = st.text_area(
+        "Recording context (optional)",
+        value=st.session_state.recording_context,
+        placeholder="e.g. Advanced AI class, key terms: LangChain, RAG, Agent",
+        max_chars=500,
+        help="Provide topic, key terms, or speaker names to help correct STT errors.",
     )
 
     lang_labels = [label for label, _ in _LANGUAGE_OPTIONS]
@@ -269,6 +278,7 @@ def _render_completed() -> None:
         st.session_state.recording_id = None
         st.session_state.recording_status = "idle"
         st.session_state.recording_title = ""
+        st.session_state.recording_context = ""
         st.session_state.transcripts = []
         st.session_state.transcript_text = ""
         st.session_state.summaries = []

@@ -1,12 +1,12 @@
 {
   "name": "memo",
-  "display_name": "개인 메모",
-  "triggers": ["메모", "노트", "기록", "공부", "memo", "note", "study", "personal"],
+  "display_name": "Personal Memo",
+  "triggers": ["memo", "note", "study", "personal", "thought", "idea", "reminder", "journal"],
   "output_format": "markdown",
   "fields": [
-    {"name": "summary", "label": "요약", "type": "text"},
-    {"name": "key_points", "label": "핵심 포인트", "type": "list"},
-    {"name": "references", "label": "참고 자료", "type": "list"}
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "key_points", "label": "Key Points", "type": "list"},
+    {"name": "references", "label": "References", "type": "list"}
   ],
   "icon": "💡",
   "priority": 1,

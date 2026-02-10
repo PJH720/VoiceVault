@@ -39,9 +39,10 @@ class RecordingRepository:
         self,
         title: str | None = None,
         audio_path: str | None = None,
+        context: str | None = None,
     ) -> Recording:
         """Create and return a new recording with status *active*."""
-        recording = Recording(title=title, audio_path=audio_path)
+        recording = Recording(title=title, audio_path=audio_path, context=context)
         self._session.add(recording)
         await self._session.flush()
         return recording
@@ -156,6 +157,7 @@ class RecordingRepository:
         speakers: list[str] | None = None,
         confidence: float = 0.0,
         model_used: str = "",
+        corrections: list[dict] | None = None,
     ) -> Summary:
         """Create and return a new summary row."""
         summary = Summary(
@@ -166,6 +168,7 @@ class RecordingRepository:
             speakers=speakers or [],
             confidence=confidence,
             model_used=model_used,
+            corrections=corrections or [],
         )
         self._session.add(summary)
         await self._session.flush()

@@ -38,6 +38,7 @@ _DEFAULTS = {
     "recording_id": None,
     "recording_status": "idle",
     "recording_title": "",
+    "recording_context": "",
     "transcripts": [],
     "transcript_text": "",
     "summaries": [],

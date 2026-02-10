@@ -1,13 +1,14 @@
 {
   "name": "meeting",
-  "display_name": "회의록",
-  "triggers": ["회의", "미팅", "프로젝트", "업무", "meeting", "project", "agenda", "action item"],
+  "display_name": "Meeting Minutes",
+  "triggers": ["meeting", "project", "agenda", "action item", "standup", "sprint", "review", "retrospective", "discussion"],
   "output_format": "markdown",
   "fields": [
-    {"name": "summary", "label": "요약", "type": "text"},
-    {"name": "decisions", "label": "결정 사항", "type": "list"},
-    {"name": "action_items", "label": "할 일", "type": "list"},
-    {"name": "participants", "label": "참석자", "type": "list"}
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "decisions", "label": "Decisions", "type": "list"},
+    {"name": "action_items", "label": "Action Items", "type": "list"},
+    {"name": "participants", "label": "Participants", "type": "list"},
+    {"name": "next_steps", "label": "Next Steps", "type": "list"}
   ],
   "icon": "🤝",
   "priority": 8,

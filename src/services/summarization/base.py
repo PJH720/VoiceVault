@@ -19,6 +19,7 @@ class BaseSummarizer(ABC):
         transcript: str,
         minute_index: int,
         previous_context: str | None = None,
+        user_context: str | None = None,
     ) -> MinuteSummaryResult:
         """Summarize a 1-minute transcript segment.
 
@@ -27,6 +28,8 @@ class BaseSummarizer(ABC):
             minute_index: Zero-based index of this minute in the recording.
             previous_context: Optional summary from the previous minute
                 for continuity across segments.
+            user_context: Optional user-provided context (topic, key terms)
+                for STT error correction.
 
         Returns:
             A MinuteSummaryResult with summary text, keywords, and topic.

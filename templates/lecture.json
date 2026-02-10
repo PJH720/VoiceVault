@@ -1,13 +1,15 @@
 {
   "name": "lecture",
-  "display_name": "강의 노트",
-  "triggers": ["강의", "수업", "교수", "시험", "과제", "lecture", "class", "professor", "exam", "assignment"],
+  "display_name": "Lecture Note",
+  "triggers": ["lecture", "class", "professor", "exam", "assignment", "course", "semester", "curriculum", "syllabus", "study"],
   "output_format": "markdown",
   "fields": [
-    {"name": "summary", "label": "요약", "type": "text"},
-    {"name": "key_concepts", "label": "핵심 개념", "type": "list"},
-    {"name": "examples", "label": "예시", "type": "list"},
-    {"name": "questions", "label": "질문", "type": "list"}
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "key_concepts", "label": "Key Concepts", "type": "list"},
+    {"name": "examples", "label": "Examples", "type": "list"},
+    {"name": "questions", "label": "Questions", "type": "list"},
+    {"name": "instructor", "label": "Instructor", "type": "text"},
+    {"name": "subject", "label": "Subject / Course", "type": "text"}
   ],
   "icon": "📚",
   "priority": 10,

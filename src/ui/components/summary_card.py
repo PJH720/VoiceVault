@@ -43,6 +43,14 @@ def render_summary_card(
             tags = " ".join(f"`{kw}`" for kw in keywords)
             st.markdown(tags)
 
+        corrections = summary.get("corrections", [])
+        if corrections:
+            with st.expander(f"Corrections ({len(corrections)})"):
+                for c in corrections:
+                    st.markdown(f"~~{c['original']}~~ -> **{c['corrected']}**")
+                    if c.get("reason"):
+                        st.caption(c["reason"])
+
 
 def render_summary_list(
     summaries: list[dict],

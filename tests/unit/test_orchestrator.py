@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.core.exceptions import RecordingAlreadyActiveError
-from src.core.models import ClassificationResult, MinuteSummaryResult
+from src.core.models import ClassificationResult, MinuteSummaryResult, TranscriptionCorrection
 from src.services import orchestrator
 from src.services.orchestrator import RecordingSession
 
@@ -33,6 +33,7 @@ def _make_session(
     summarizer=None,
     interval=0.1,
     recording_id=1,
+    user_context=None,
 ):
     """Create a RecordingSession with mocked internals (no DB)."""
     session = RecordingSession.__new__(RecordingSession)
@@ -43,6 +44,7 @@ def _make_session(
     session._stop_event = asyncio.Event()
     session._task = None
     session._previous_summary = None
+    session._user_context = user_context
     session._summarizer = summarizer or _mock_summarizer()
     session._embedding = None
     session._vectorstore = None
@@ -341,6 +343,61 @@ async def test_cleanup_stops_active(
 
     mock_stop.assert_called_once()
     assert orchestrator.get_active_session() is None
+
+
+# ---------------------------------------------------------------------------
+# User context forwarding
+# ---------------------------------------------------------------------------
+
+
+async def test_user_context_forwarded_to_summarizer(mock_notify, mock_db):
+    """user_context should be passed to summarize_minute() calls."""
+    summarizer = _mock_summarizer()
+    session = _make_session(
+        mock_notify, summarizer=summarizer, user_context="AI class: LangChain, RAG"
+    )
+
+    session.start()
+    session.enqueue_transcript(0, "Some transcript text")
+
+    await asyncio.sleep(0.3)
+    session._stop_event.set()
+    if session._task:
+        await session._task
+
+    summarizer.summarize_minute.assert_called_once()
+    call_kwargs = summarizer.summarize_minute.call_args[1]
+    assert call_kwargs["user_context"] == "AI class: LangChain, RAG"
+
+
+async def test_corrections_in_notify_data(mock_notify, mock_db):
+    """Corrections from summarizer should appear in notify callback data."""
+    summarizer = _mock_summarizer()
+    summarizer.summarize_minute.return_value = MinuteSummaryResult(
+        minute_index=0,
+        summary_text="LangChain discussion",
+        keywords=["LangChain"],
+        topic="AI",
+        corrections=[
+            TranscriptionCorrection(original="랭체인", corrected="LangChain", reason="STT error")
+        ],
+    )
+    session = _make_session(mock_notify, summarizer=summarizer, user_context="LangChain class")
+
+    session.start()
+    session.enqueue_transcript(0, "랭체인에 대해 배웠습니다")
+
+    await asyncio.sleep(0.3)
+    session._stop_event.set()
+    if session._task:
+        await session._task
+
+    mock_notify.assert_called()
+    call_data = mock_notify.call_args[0][0]
+    assert "corrections" in call_data
+    assert len(call_data["corrections"]) == 1
+    assert call_data["corrections"][0]["original"] == "랭체인"
+    assert call_data["corrections"][0]["corrected"] == "LangChain"
 
 
 # ---------------------------------------------------------------------------

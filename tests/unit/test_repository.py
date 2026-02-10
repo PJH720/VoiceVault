@@ -236,6 +236,42 @@ class TestListSummariesInRange:
         assert result[0].minute_index == 3
 
 
+class TestCreateRecordingContext:
+    async def test_with_context(self, repository: RecordingRepository) -> None:
+        rec = await repository.create_recording(
+            title="AI Lecture", context="Advanced AI class, LangChain, RAG"
+        )
+        assert rec.context == "Advanced AI class, LangChain, RAG"
+
+    async def test_context_default_none(self, repository: RecordingRepository) -> None:
+        rec = await repository.create_recording()
+        assert rec.context is None
+
+    async def test_context_persists_on_get(self, repository: RecordingRepository) -> None:
+        rec = await repository.create_recording(context="Test context")
+        fetched = await repository.get_recording(rec.id)
+        assert fetched.context == "Test context"
+
+
+class TestCreateSummaryCorrections:
+    async def test_with_corrections(self, repository: RecordingRepository) -> None:
+        rec = await repository.create_recording()
+        s = await repository.create_summary(
+            rec.id,
+            0,
+            "LangChain discussion",
+            corrections=[{"original": "랭체인", "corrected": "LangChain", "reason": "STT error"}],
+        )
+        assert isinstance(s.corrections, list)
+        assert len(s.corrections) == 1
+        assert s.corrections[0]["original"] == "랭체인"
+
+    async def test_corrections_default_empty(self, repository: RecordingRepository) -> None:
+        rec = await repository.create_recording()
+        s = await repository.create_summary(rec.id, 0, "text")
+        assert s.corrections == []
+
+
 class TestGetSummary:
     async def test_existing(self, repository: RecordingRepository) -> None:
         rec = await _make_recording(repository)
