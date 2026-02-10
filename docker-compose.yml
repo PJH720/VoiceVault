@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # FastAPI Backend
   api:
@@ -9,8 +7,8 @@ services:
     container_name: voicevault-api
     ports:
       - "8000:8000"
+    env_file: .env
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
       - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/voicevault.db}
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OLLAMA_BASE_URL=http://ollama:11434
@@ -23,12 +21,25 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MAX_RECORDING_DURATION=${MAX_RECORDING_DURATION:-3600}
       - ALLOWED_AUDIO_FORMATS=${ALLOWED_AUDIO_FORMATS:-wav,mp3,m4a,ogg}
+      # RAG & Embeddings
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-local}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      - CHROMA_PERSIST_DIR=${CHROMA_PERSIST_DIR:-data/chroma_db}
+      - RAG_TOP_K=${RAG_TOP_K:-5}
+      - RAG_MIN_SIMILARITY=${RAG_MIN_SIMILARITY:-0.3}
+      # Storage
+      - RECORDINGS_DIR=${RECORDINGS_DIR:-data/recordings}
+      - EXPORTS_DIR=${EXPORTS_DIR:-data/exports}
     volumes:
       - ./data:/app/data
-      - ./src:/app/src:ro  # Read-only mount for hot reload
-    depends_on:
-      ollama:
-        condition: service_healthy
+      - ./src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - voicevault
     command: uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
@@ -49,18 +60,21 @@ services:
       - STREAMLIT_SERVER_HEADLESS=true
       - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
     volumes:
-      - ./src:/app/src:ro  # Read-only mount for hot reload
+      - ./src:/app/src:ro
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - voicevault
     command: streamlit run src/ui/app.py --server.port 8501 --server.address 0.0.0.0
     restart: unless-stopped
 
-  # Ollama LLM Server
+  # Ollama LLM Server (optional — start with: docker compose --profile ollama up)
   ollama:
     image: ollama/ollama:latest
     container_name: voicevault-ollama
+    profiles:
+      - ollama
     ports:
       - "11434:11434"
     volumes:
