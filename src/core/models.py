@@ -171,6 +171,17 @@ class HourSummaryResponse(BaseModel):
     created_at: datetime
 
 
+class HourSummaryResult(BaseModel):
+    """Internal service result from hour-level summarization."""
+
+    hour_index: int
+    summary_text: str
+    keywords: list[str] = Field(default_factory=list)
+    topic_segments: list[dict] = Field(default_factory=list)
+    token_count: int = 0
+    model_used: str = ""
+
+
 # ---------------------------------------------------------------------------
 # v0.2.0 — Classification
 # ---------------------------------------------------------------------------
