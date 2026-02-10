@@ -4,6 +4,18 @@ VoiceVault Streamlit UI — main entry point.
 Run with: ``streamlit run src/ui/app.py``
 """
 
+# ---------------------------------------------------------------------------
+# Ensure project root is on sys.path so ``from src.xxx`` imports work.
+# Streamlit replaces sys.path[0] with the script directory (src/ui/),
+# which removes the project root needed for absolute ``src.*`` imports.
+# ---------------------------------------------------------------------------
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+_project_root = str(Path(__file__).resolve().parent.parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 import streamlit as st
 
 # ---------------------------------------------------------------------------
@@ -26,9 +38,6 @@ _DEFAULTS = {
     "transcripts": [],
     "transcript_text": "",
     "summaries": [],
-    "transcription_language": None,
-    "detected_language": None,
-    "detected_language_prob": 0.0,
     "rag_query": "",
     "rag_results": None,
     "rag_search_history": [],
