@@ -20,8 +20,17 @@ def _make_mock_session():
 
 def test_websocket_connection(test_client: TestClient):
     """Connect to WS and receive initial 'connected' message."""
+    mock_stt = AsyncMock()
+
+    async def empty_transcribe_stream(audio_chunks, **kwargs):
+        """Async generator that yields nothing — avoids unawaited coroutine warning."""
+        return
+        yield  # pragma: no cover  # makes this an async generator
+
+    mock_stt.transcribe_stream = empty_transcribe_stream
+
     with (
-        patch("src.api.websocket.create_stt", return_value=AsyncMock()),
+        patch("src.api.websocket.create_stt", return_value=mock_stt),
         patch(
             "src.api.websocket.orchestrator.start_session",
             new_callable=AsyncMock,
