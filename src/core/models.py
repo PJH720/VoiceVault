@@ -52,6 +52,7 @@ class RecordingResponse(BaseModel):
     started_at: datetime
     ended_at: datetime | None = None
     total_minutes: int = 0
+    audio_path: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +169,17 @@ class HourSummaryResponse(BaseModel):
     token_count: int = 0
     model_used: str = ""
     created_at: datetime
+
+
+class HourSummaryResult(BaseModel):
+    """Internal service result from hour-level summarization."""
+
+    hour_index: int
+    summary_text: str
+    keywords: list[str] = Field(default_factory=list)
+    topic_segments: list[dict] = Field(default_factory=list)
+    token_count: int = 0
+    model_used: str = ""
 
 
 # ---------------------------------------------------------------------------

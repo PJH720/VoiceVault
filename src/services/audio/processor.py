@@ -3,6 +3,9 @@
 Converts raw PCM bytes to numpy arrays and provides silence detection.
 """
 
+import wave
+from pathlib import Path
+
 import numpy as np
 
 
@@ -37,6 +40,30 @@ class AudioProcessor:
                 f"PCM data length ({len(pcm_data)}) is not aligned to frame size ({frame_size})"
             )
         return np.frombuffer(pcm_data, dtype=np.int16).astype(np.float32) / 32768.0
+
+    def save_wav(self, pcm_data: bytes, file_path: str | Path) -> str:
+        """Write raw PCM bytes to a WAV file.
+
+        Args:
+            pcm_data: Raw PCM bytes (16-bit, mono).
+            file_path: Destination path for the WAV file.
+
+        Returns:
+            The absolute path to the saved file.
+
+        Raises:
+            ValueError: If pcm_data is empty.
+        """
+        if not pcm_data:
+            raise ValueError("Cannot save empty PCM data to WAV")
+        path = Path(file_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(path), "wb") as wf:
+            wf.setnchannels(self.channels)
+            wf.setsampwidth(self.sample_width)
+            wf.setframerate(self.sample_rate)
+            wf.writeframes(pcm_data)
+        return str(path.resolve())
 
     def is_silent(self, audio: np.ndarray, threshold: float = 0.01) -> bool:
         """Check if an audio segment is silence based on RMS energy.
