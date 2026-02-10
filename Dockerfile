@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Base - Common system dependencies
 # =============================================================================
-FROM python:3.11-slim-bookworm AS base
+FROM python:3.12-slim-bookworm AS base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -50,8 +50,8 @@ COPY templates/ ./templates/
 COPY scripts/ ./scripts/
 
 # Create data directories
-RUN mkdir -p /app/data/recordings /app/data/exports && \
-    chmod 755 /app/data/recordings /app/data/exports
+RUN mkdir -p /app/data/recordings /app/data/exports /app/data/chroma_db /app/data/logs && \
+    chmod 755 /app/data/recordings /app/data/exports /app/data/chroma_db /app/data/logs
 
 # Expose ports
 EXPOSE 8000 8501

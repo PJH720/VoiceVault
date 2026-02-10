@@ -103,9 +103,7 @@ class HourSummary(Base):
     """Hierarchical hour-level summary aggregated from 1-minute summaries."""
 
     __tablename__ = "hour_summaries"
-    __table_args__ = (
-        Index("ix_hour_summaries_recording_hour", "recording_id", "hour_index"),
-    )
+    __table_args__ = (Index("ix_hour_summaries_recording_hour", "recording_id", "hour_index"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     recording_id: Mapped[int] = mapped_column(ForeignKey("recordings.id"))
@@ -120,10 +118,7 @@ class HourSummary(Base):
     recording: Mapped["Recording"] = relationship(back_populates="hour_summaries")
 
     def __repr__(self) -> str:
-        return (
-            f"<HourSummary id={self.id} recording={self.recording_id}"
-            f" hour={self.hour_index}>"
-        )
+        return f"<HourSummary id={self.id} recording={self.recording_id} hour={self.hour_index}>"
 
 
 class Template(Base):
@@ -155,9 +150,7 @@ class Classification(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     recording_id: Mapped[int] = mapped_column(ForeignKey("recordings.id"))
-    template_id: Mapped[int | None] = mapped_column(
-        ForeignKey("templates.id"), nullable=True
-    )
+    template_id: Mapped[int | None] = mapped_column(ForeignKey("templates.id"), nullable=True)
     template_name: Mapped[str] = mapped_column(String(100), default="")
     start_minute: Mapped[int] = mapped_column(default=0)
     end_minute: Mapped[int] = mapped_column(default=0)

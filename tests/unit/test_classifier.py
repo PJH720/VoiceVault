@@ -17,11 +17,13 @@ from src.services.llm.base import BaseLLM
 @pytest.fixture
 def mock_llm():
     llm = AsyncMock(spec=BaseLLM)
-    llm.classify.return_value = json.dumps({
-        "category": "lecture",
-        "confidence": 0.92,
-        "reason": "Content discusses academic topics and professor lectures.",
-    })
+    llm.classify.return_value = json.dumps(
+        {
+            "category": "lecture",
+            "confidence": 0.92,
+            "reason": "Content discusses academic topics and professor lectures.",
+        }
+    )
     return llm
 
 
@@ -57,11 +59,13 @@ class TestZeroShotClassifier:
     async def test_custom_categories(self, classifier, mock_llm):
         """Custom categories are passed through to the LLM."""
         custom = ["interview", "podcast"]
-        mock_llm.classify.return_value = json.dumps({
-            "category": "interview",
-            "confidence": 0.8,
-            "reason": "Interview content.",
-        })
+        mock_llm.classify.return_value = json.dumps(
+            {
+                "category": "interview",
+                "confidence": 0.8,
+                "reason": "Interview content.",
+            }
+        )
         result = await classifier.classify("Some text", categories=custom)
         call_args = mock_llm.classify.call_args[0]
         assert call_args[1] == custom
@@ -84,33 +88,39 @@ class TestZeroShotClassifier:
     @pytest.mark.asyncio
     async def test_confidence_clamped_high(self, classifier, mock_llm):
         """Confidence > 1.0 is clamped to 1.0."""
-        mock_llm.classify.return_value = json.dumps({
-            "category": "memo",
-            "confidence": 1.5,
-            "reason": "Very confident.",
-        })
+        mock_llm.classify.return_value = json.dumps(
+            {
+                "category": "memo",
+                "confidence": 1.5,
+                "reason": "Very confident.",
+            }
+        )
         result = await classifier.classify("Some text")
         assert result.confidence == 1.0
 
     @pytest.mark.asyncio
     async def test_confidence_clamped_low(self, classifier, mock_llm):
         """Confidence < 0.0 is clamped to 0.0."""
-        mock_llm.classify.return_value = json.dumps({
-            "category": "memo",
-            "confidence": -0.5,
-            "reason": "Negative.",
-        })
+        mock_llm.classify.return_value = json.dumps(
+            {
+                "category": "memo",
+                "confidence": -0.5,
+                "reason": "Negative.",
+            }
+        )
         result = await classifier.classify("Some text")
         assert result.confidence == 0.0
 
     @pytest.mark.asyncio
     async def test_confidence_non_numeric_defaults_zero(self, classifier, mock_llm):
         """Non-numeric confidence defaults to 0.0."""
-        mock_llm.classify.return_value = json.dumps({
-            "category": "memo",
-            "confidence": "high",
-            "reason": "Text confidence.",
-        })
+        mock_llm.classify.return_value = json.dumps(
+            {
+                "category": "memo",
+                "confidence": "high",
+                "reason": "Text confidence.",
+            }
+        )
         result = await classifier.classify("Some text")
         assert result.confidence == 0.0
 
@@ -131,11 +141,13 @@ class TestZeroShotClassifier:
     @pytest.mark.asyncio
     async def test_unknown_category_falls_back_to_memo(self, classifier, mock_llm):
         """LLM returning unknown category falls back to memo."""
-        mock_llm.classify.return_value = json.dumps({
-            "category": "unknown_thing",
-            "confidence": 0.7,
-            "reason": "Not a real category.",
-        })
+        mock_llm.classify.return_value = json.dumps(
+            {
+                "category": "unknown_thing",
+                "confidence": 0.7,
+                "reason": "Not a real category.",
+            }
+        )
         result = await classifier.classify("Some text")
         assert result.category == "memo"
 

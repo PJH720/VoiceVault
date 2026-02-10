@@ -45,9 +45,7 @@ def app():
     return_value=_make_mock_session(),
 )
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
-def test_websocket_connects_and_sends_connected_message(
-    _mock_stt, _mock_start, _mock_stop, app
-):
+def test_websocket_connects_and_sends_connected_message(_mock_stt, _mock_start, _mock_stop, app):
     client = TestClient(app)
     with client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
         msg = ws.receive_json()

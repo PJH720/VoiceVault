@@ -233,6 +233,8 @@ class WhisperSTT(BaseSTT):
                         "text": result.text,
                         "is_final": True,
                         "confidence": result.confidence,
+                        "language": result.language,
+                        "language_probability": result.language_probability,
                         "segments": [s.model_dump() for s in result.segments],
                     }
 
@@ -249,5 +251,7 @@ class WhisperSTT(BaseSTT):
                     "text": result.text,
                     "is_final": True,
                     "confidence": result.confidence,
+                    "language": result.language,
+                    "language_probability": result.language_probability,
                     "segments": [s.model_dump() for s in result.segments],
                 }

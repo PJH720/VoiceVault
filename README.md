@@ -32,7 +32,7 @@ All of this runs **locally on your machine** — no cloud, no subscription, no d
 
 ### Real-Time Transcription
 
-Record and see your words appear as text instantly. VoiceVault uses [Whisper](https://github.com/openai/whisper) to transcribe audio as you speak — no internet required.
+Record and see your words appear as text instantly. VoiceVault uses [faster-whisper](https://github.com/SYSTRAN/faster-whisper) to transcribe audio as you speak — no internet required.
 
 ### Smart Summaries
 
