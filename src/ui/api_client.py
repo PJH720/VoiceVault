@@ -94,6 +94,28 @@ class APIClient:
     def stop_recording(self, recording_id: int) -> dict:
         return self._request("patch", f"/api/v1/recordings/{recording_id}/stop").json()
 
+    def sync_recordings(self) -> dict:
+        return self._request("post", "/api/v1/recordings/sync").json()
+
+    def check_consistency(self) -> dict:
+        return self._request("get", "/api/v1/recordings/consistency").json()
+
+    def delete_recording(self, recording_id: int) -> dict:
+        return self._request("delete", f"/api/v1/recordings/{recording_id}").json()
+
+    def consistency_cleanup(
+        self,
+        action: str,
+        record_ids: list[int] | None = None,
+        file_paths: list[str] | None = None,
+    ) -> dict:
+        body = {
+            "action": action,
+            "record_ids": record_ids or [],
+            "file_paths": file_paths or [],
+        }
+        return self._request("post", "/api/v1/recordings/consistency/cleanup", json=body).json()
+
     # -- audio --
 
     def download_audio(self, recording_id: int) -> bytes | None:

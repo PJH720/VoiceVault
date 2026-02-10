@@ -35,6 +35,7 @@ class RecordingStatus(StrEnum):
     processing = "processing"
     completed = "completed"
     failed = "failed"
+    imported = "imported"
 
 
 class RecordingCreate(BaseModel):
@@ -55,6 +56,59 @@ class RecordingResponse(BaseModel):
     ended_at: datetime | None = None
     total_minutes: int = 0
     audio_path: str | None = None
+
+
+class SyncResponse(BaseModel):
+    """Response from filesystem → DB sync operation."""
+
+    scanned: int = 0
+    new_imports: int = 0
+    already_exists: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Consistency Check & Delete
+# ---------------------------------------------------------------------------
+
+
+class OrphanRecord(BaseModel):
+    """A DB recording whose audio file is missing from disk."""
+
+    id: int
+    title: str | None = None
+    status: str
+    audio_path: str | None = None
+    started_at: datetime
+
+
+class OrphanFile(BaseModel):
+    """An audio file on disk with no matching DB record."""
+
+    file_path: str
+    file_name: str
+    size_bytes: int = 0
+    modified_at: datetime | None = None
+
+
+class ConsistencyResponse(BaseModel):
+    """Response from DB ↔ filesystem consistency check."""
+
+    total_db_records: int = 0
+    total_fs_files: int = 0
+    orphan_records: list[OrphanRecord] = Field(default_factory=list)
+    orphan_files: list[OrphanFile] = Field(default_factory=list)
+    healthy_count: int = 0
+
+
+class DeleteRecordingResponse(BaseModel):
+    """Response from recording deletion with file cleanup."""
+
+    recording_id: int
+    db_deleted: bool = True
+    audio_deleted: bool = False
+    exports_deleted: int = 0
+    vectors_deleted: int = 0
 
 
 # ---------------------------------------------------------------------------
