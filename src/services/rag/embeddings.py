@@ -12,6 +12,7 @@ import logging
 from ollama import AsyncClient
 
 from src.core.config import get_settings
+from src.core.exceptions import RAGError
 from src.services.rag.base import BaseEmbedding
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,14 @@ class SentenceTransformerEmbedding(BaseEmbedding):
     def _load_model(self):
         """Lazily load the sentence-transformers model."""
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
+            try:
+                from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self._model_name)
+                self._model = SentenceTransformer(self._model_name)
+            except Exception as exc:
+                raise RAGError(
+                    f"Failed to load embedding model '{self._model_name}': {exc}"
+                ) from exc
             logger.info("Loaded sentence-transformers model: %s", self._model_name)
         return self._model
 
@@ -88,7 +94,7 @@ class OllamaEmbedding(BaseEmbedding):
             return response.embedding
         except Exception as exc:
             logger.error("Ollama embedding error: %s", exc)
-            raise RuntimeError(f"Ollama embedding error: {exc}") from exc
+            raise RAGError(f"Ollama embedding error: {exc}") from exc
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for multiple texts (sequential calls)."""

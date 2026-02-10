@@ -261,7 +261,7 @@ class RAGSource(BaseModel):
 class RAGQueryRequest(BaseModel):
     """POST /rag/query request body."""
 
-    query: str
+    query: str = Field(max_length=2000)
     top_k: int = 5
     min_similarity: float = 0.3
     date_from: str | None = None

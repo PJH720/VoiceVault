@@ -5,6 +5,8 @@ Factory functions for creating embedding and vector store instances
 based on provider configuration.
 """
 
+from src.core.exceptions import RAGError
+
 from .base import BaseEmbedding, BaseVectorStore
 from .retriever import RAGRetriever
 
@@ -28,7 +30,7 @@ def create_embedding(provider: str, **kwargs) -> BaseEmbedding:
         BaseEmbedding implementation instance
 
     Raises:
-        ValueError: If provider is unknown
+        RAGError: If provider is unknown
     """
     if provider == "local":
         from .embeddings import SentenceTransformerEmbedding
@@ -39,7 +41,7 @@ def create_embedding(provider: str, **kwargs) -> BaseEmbedding:
 
         return OllamaEmbedding(**kwargs)
     else:
-        raise ValueError(f"Unknown embedding provider: {provider}")
+        raise RAGError(f"Unknown embedding provider: {provider}")
 
 
 def create_vectorstore(**kwargs) -> BaseVectorStore:
