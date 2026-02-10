@@ -107,5 +107,27 @@ templates_page = st.Page(
     icon="\U0001f4c4",
 )
 
+
+@st.dialog("녹음 처리 중입니다")
+def _confirm_navigation():
+    st.warning(
+        "현재 오디오가 처리 중입니다. 페이지를 이동하면 처리가 중단되고 녹음 데이터가 유실됩니다."
+    )
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("계속 처리", type="primary", use_container_width=True):
+            st.switch_page(recording_page)
+    with col2:
+        if st.button("이동", use_container_width=True):
+            st.session_state.recording_status = "idle"
+            st.session_state.pop("_pending_audio", None)
+            st.rerun()
+
+
 nav = st.navigation([recording_page, summaries_page, rag_search_page, export_page, templates_page])
-nav.run()
+
+if st.session_state.recording_status == "processing" and nav != recording_page:
+    _confirm_navigation()
+    recording_page.run()
+else:
+    nav.run()
