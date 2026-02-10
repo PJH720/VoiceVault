@@ -11,6 +11,8 @@ Pipeline: Audio → STT → Transcript (DB) → Orchestrator queue → (async) S
 """
 
 import logging
+from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
@@ -38,10 +40,12 @@ class _PipelineState:
         self.current_minute: int = 0
         self.text_buffer: str = ""
         self.total_audio_bytes: int = 0
+        self.pcm_buffer: bytearray = bytearray()
 
-    def add_audio_bytes(self, n: int) -> None:
-        """Increment the total audio byte counter."""
-        self.total_audio_bytes += n
+    def add_audio_bytes(self, data: bytes) -> None:
+        """Append PCM data to the buffer and update the byte counter."""
+        self.total_audio_bytes += len(data)
+        self.pcm_buffer.extend(data)
 
     def accumulate_text(self, text: str) -> None:
         """Append transcribed text to the current minute buffer."""
@@ -63,9 +67,7 @@ class _PipelineState:
         return minute_index, text
 
 
-async def _save_transcript(
-    recording_id: int, minute_index: int, text: str
-) -> None:
+async def _save_transcript(recording_id: int, minute_index: int, text: str) -> None:
     """Save a transcript row in its own transaction."""
     async with get_session() as session:
         repo = RecordingRepository(session)
@@ -136,7 +138,7 @@ async def transcribe_ws(
         try:
             while True:
                 data = await websocket.receive_bytes()
-                state.add_audio_bytes(len(data))
+                state.add_audio_bytes(data)
                 yield data
         except WebSocketDisconnect:
             return
@@ -167,9 +169,7 @@ async def transcribe_ws(
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected for recording_id=%s", recording_id)
     except Exception:
-        logger.exception(
-            "Error during transcription for recording_id=%s", recording_id
-        )
+        logger.exception("Error during transcription for recording_id=%s", recording_id)
         try:
             error_msg = WebSocketMessage(
                 type=WebSocketMessageType.error,
@@ -189,6 +189,23 @@ async def transcribe_ws(
         )
         await _save_transcript(recording_id, minute_index, minute_text)
         session.enqueue_transcript(minute_index, minute_text)
+
+    # ── Save accumulated audio as WAV ──
+    if state.pcm_buffer:
+        try:
+            from src.services.audio.processor import AudioProcessor
+
+            timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            filename = f"recording-{recording_id}-{timestamp}.wav"
+            wav_path = Path(settings.recordings_dir) / filename
+            processor = AudioProcessor()
+            saved_path = processor.save_wav(bytes(state.pcm_buffer), wav_path)
+            async with get_session() as session:
+                repo = RecordingRepository(session)
+                await repo.update_audio_path(recording_id, saved_path)
+            logger.info("Saved audio: recording_id=%s path=%s", recording_id, saved_path)
+        except Exception:
+            logger.exception("Failed to save audio for recording_id=%s", recording_id)
 
     # ── Stop orchestrator (drains queue + finalizes recording) ──
     await orchestrator.stop_session()

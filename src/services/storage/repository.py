@@ -89,6 +89,13 @@ class RecordingRepository:
         await self._session.flush()
         return recording
 
+    async def update_audio_path(self, recording_id: int, audio_path: str) -> Recording:
+        """Set the audio_path for a recording after WAV file is saved."""
+        recording = await self.get_recording(recording_id)
+        recording.audio_path = audio_path
+        await self._session.flush()
+        return recording
+
     async def update_recording_status(self, recording_id: int, status: str) -> Recording:
         """Update only the status field of a recording."""
         recording = await self.get_recording(recording_id)
@@ -329,9 +336,7 @@ class RecordingRepository:
         await self._session.flush()
         return classification
 
-    async def list_classifications(
-        self, recording_id: int
-    ) -> list[Classification]:
+    async def list_classifications(self, recording_id: int) -> list[Classification]:
         """Return classifications for a recording ordered by *start_minute*."""
         stmt = (
             select(Classification)
@@ -367,10 +372,6 @@ class RecordingRepository:
 
     async def list_rag_queries(self, limit: int = 50) -> list[RAGQuery]:
         """Return RAG queries ordered by *created_at* descending."""
-        stmt = (
-            select(RAGQuery)
-            .order_by(RAGQuery.created_at.desc())
-            .limit(limit)
-        )
+        stmt = select(RAGQuery).order_by(RAGQuery.created_at.desc()).limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

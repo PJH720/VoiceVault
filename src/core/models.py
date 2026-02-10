@@ -52,6 +52,7 @@ class RecordingResponse(BaseModel):
     started_at: datetime
     ended_at: datetime | None = None
     total_minutes: int = 0
+    audio_path: str | None = None
 
 
 # ---------------------------------------------------------------------------
