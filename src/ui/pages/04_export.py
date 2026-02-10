@@ -16,15 +16,26 @@ from src.ui.api_client import get_api_client  # noqa: E402
 from src.ui.components.export_preview import render_export_preview  # noqa: E402
 from src.ui.utils import open_folder_in_explorer  # noqa: E402
 
+client = get_api_client()
+
 col_title, col_refresh = st.columns([6, 1])
 with col_title:
     st.header("Obsidian Export")
 with col_refresh:
     st.markdown("")  # vertical spacer
     if st.button("Refresh", key="export_refresh"):
+        with st.spinner("Syncing recordings..."):
+            try:
+                result = client.sync_recordings()
+                new = result.get("new_imports", 0)
+                if new > 0:
+                    st.session_state["_sync_toast"] = f"Imported {new} new recording(s)!"
+            except Exception:
+                pass  # sync failure shouldn't block refresh
         st.rerun()
 
-client = get_api_client()
+if "_sync_toast" in st.session_state:
+    st.success(st.session_state.pop("_sync_toast"))
 
 PAGE_SIZE = 10
 
@@ -54,6 +65,26 @@ with st.sidebar:
         key="export_transcript_check",
     )
 
+    st.divider()
+    st.subheader("Folder Sync")
+    if st.button("Sync from folder", key="export_sync"):
+        with st.spinner("Scanning recordings folder..."):
+            try:
+                result = client.sync_recordings()
+                new = result.get("new_imports", 0)
+                scanned = result.get("scanned", 0)
+                if new > 0:
+                    st.success(f"Imported {new} new recording(s) (scanned {scanned} files)")
+                else:
+                    st.info(f"No new files found (scanned {scanned} files)")
+                if result.get("errors"):
+                    for err in result["errors"]:
+                        st.warning(err)
+                if new > 0:
+                    st.rerun()
+            except Exception as exc:
+                st.error(f"Sync failed: {exc}")
+
 # ---------------------------------------------------------------------------
 # Persistent selection set
 # ---------------------------------------------------------------------------
@@ -61,13 +92,26 @@ if "export_selected_all" not in st.session_state:
     st.session_state["export_selected_all"] = set()
 
 # ---------------------------------------------------------------------------
-# Fetch completed recordings (paginated)
+# Fetch recordings (paginated, with status filter)
 # ---------------------------------------------------------------------------
+status_filter = st.selectbox(
+    "Filter by status",
+    options=["all", "active", "completed", "imported", "failed"],
+    index=0,
+    key="export_status_filter",
+)
+
+# Reset page when filter changes
+if st.session_state.get("_export_last_filter") != status_filter:
+    st.session_state["_export_page"] = 0
+    st.session_state["_export_last_filter"] = status_filter
+
 page = st.session_state.get("_export_page", 0)
 
 try:
+    status_param = None if status_filter == "all" else status_filter
     recordings = client.list_recordings(
-        status="completed",
+        status=status_param,
         limit=PAGE_SIZE,
         offset=page * PAGE_SIZE,
     )
@@ -77,7 +121,7 @@ except Exception as exc:
 
 if not recordings:
     if page == 0:
-        st.info("No completed recordings found. Complete a recording first.")
+        st.info("No recordings found.")
     else:
         st.info("No more recordings.")
     st.stop()

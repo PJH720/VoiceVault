@@ -14,15 +14,26 @@ import streamlit as st  # noqa: E402
 from src.ui.api_client import get_api_client  # noqa: E402
 from src.ui.components.summary_card import render_summary_list  # noqa: E402
 
+client = get_api_client()
+
 col_title, col_refresh = st.columns([6, 1])
 with col_title:
     st.header("Summaries")
 with col_refresh:
     st.markdown("")  # vertical spacer
     if st.button("Refresh", key="summaries_refresh"):
+        with st.spinner("Syncing recordings..."):
+            try:
+                result = client.sync_recordings()
+                new = result.get("new_imports", 0)
+                if new > 0:
+                    st.session_state["_sync_toast"] = f"Imported {new} new recording(s)!"
+            except Exception:
+                pass  # sync failure shouldn't block refresh
         st.rerun()
 
-client = get_api_client()
+if "_sync_toast" in st.session_state:
+    st.success(st.session_state.pop("_sync_toast"))
 
 PAGE_SIZE = 10
 
