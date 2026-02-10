@@ -1,21 +1,24 @@
 """
 Summary REST endpoints.
 
-Implements list-summaries and hour-summaries endpoints.
-The extract stub remains as ``NotImplementedYetError``.
+Implements list-summaries, hour-summaries, and cross-boundary extraction.
 """
 
 from collections import defaultdict
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from src.core.config import get_settings
-from src.core.exceptions import NotImplementedYetError
-from src.core.models import HourSummaryResponse, SummaryResponse
+from src.core.models import (
+    ExtractRangeRequest,
+    ExtractRangeResponse,
+    HourSummaryResponse,
+    SummaryResponse,
+)
 from src.services.llm import create_llm
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
-from src.services.summarization import HourSummarizer
+from src.services.summarization import HourSummarizer, RangeExtractor
 
 router = APIRouter(prefix="/recordings", tags=["summaries"])
 
@@ -115,7 +118,47 @@ async def list_hour_summaries(recording_id: int):
     ]
 
 
-@router.post("/{recording_id}/extract")
-async def extract_range(recording_id: int):
+@router.post(
+    "/{recording_id}/extract",
+    response_model=ExtractRangeResponse,
+)
+async def extract_range(recording_id: int, body: ExtractRangeRequest):
     """Cross-boundary range extraction and re-summarization."""
-    raise NotImplementedYetError("Extract range")
+    if body.start_minute >= body.end_minute:
+        raise HTTPException(
+            status_code=422,
+            detail="start_minute must be less than end_minute",
+        )
+
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        await repo.get_recording(recording_id)
+
+        summaries = await repo.list_summaries_in_range(
+            recording_id=recording_id,
+            start_minute=body.start_minute,
+            end_minute=body.end_minute,
+        )
+
+    if not summaries:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No summaries found in range "
+                f"[{body.start_minute}, {body.end_minute}]"
+            ),
+        )
+
+    settings = get_settings()
+    llm = create_llm(provider=settings.llm_provider)
+    extractor = RangeExtractor(llm)
+
+    summary_tuples = [
+        (s.minute_index, s.summary_text) for s in summaries
+    ]
+    return await extractor.extract_range(
+        recording_id=recording_id,
+        start_minute=body.start_minute,
+        end_minute=body.end_minute,
+        summaries=summary_tuples,
+    )

@@ -140,9 +140,9 @@ async def test_list_hour_summaries_not_found(client):
     assert resp.status_code == 404
 
 
-async def test_extract_range_returns_501(client):
+async def test_extract_range_requires_body(client):
     resp = await client.post("/api/v1/recordings/1/extract")
-    assert resp.status_code == 501
+    assert resp.status_code == 422
 
 
 async def test_get_classifications_not_found(client):
