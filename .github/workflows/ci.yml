@@ -89,7 +89,7 @@ jobs:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
         run: |
           source .venv/bin/activate
-          pytest --cov=src --cov-report=xml --cov-report=term-missing -v
+          pytest tests/unit/ tests/integration/ tests/e2e/ --cov=src --cov-report=xml --cov-report=term-missing -v
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
