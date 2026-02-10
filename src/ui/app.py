@@ -16,7 +16,7 @@ _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Page config (must be first Streamlit call)
@@ -72,8 +72,9 @@ with st.sidebar:
     st.caption("Record your day, let AI organize it")
     st.divider()
     st.session_state.api_base_url = st.text_input(
-        "API URL",
+        "Backend API URL",
         value=st.session_state.api_base_url,
+        help="VoiceVault FastAPI 백엔드 서버의 URL (기본값: http://localhost:8000)",
     )
 
 # ---------------------------------------------------------------------------
