@@ -3,12 +3,12 @@ RAG Search page — query past recordings with natural language.
 """
 
 # Ensure project root is on sys.path (Streamlit page files need this).
-import sys as _sys; from pathlib import Path as _Path; _r = str(_Path(__file__).resolve().parents[3]); _r in _sys.path or _sys.path.insert(0, _r)  # noqa: E702
+import sys as _sys; from pathlib import Path as _Path; _r = str(_Path(__file__).resolve().parents[3]); _r in _sys.path or _sys.path.insert(0, _r)  # noqa: E702,I001
 
-import streamlit as st
+import streamlit as st  # noqa: E402
 
-from src.ui.api_client import get_api_client
-from src.ui.components.rag_result import render_rag_result
+from src.ui.api_client import get_api_client  # noqa: E402
+from src.ui.components.rag_result import render_rag_result  # noqa: E402
 
 st.header("RAG Search")
 
