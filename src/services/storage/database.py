@@ -8,6 +8,8 @@ All database access goes through ``get_session()`` which yields an
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -63,11 +65,27 @@ async def get_session() -> AsyncIterator[AsyncSession]:
             raise
 
 
+_COLUMN_MIGRATIONS = [
+    ("recordings", "context", "TEXT"),
+    ("summaries", "corrections", "JSON DEFAULT '[]'"),
+]
+
+
+async def _apply_migrations(conn) -> None:
+    """Add missing columns to existing tables (idempotent)."""
+    for table, column, col_type in _COLUMN_MIGRATIONS:
+        try:
+            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+        except OperationalError:
+            pass  # column already exists
+
+
 async def init_db(engine: AsyncEngine | None = None) -> None:
-    """Create all tables defined by :class:`Base` metadata."""
+    """Create all tables, then apply pending column migrations."""
     eng = engine or get_engine()
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _apply_migrations(conn)
 
 
 async def close_db() -> None:
