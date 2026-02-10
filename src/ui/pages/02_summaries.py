@@ -11,7 +11,7 @@ _r in _sys.path or _sys.path.insert(0, _r)  # noqa: E702,I001
 
 import streamlit as st  # noqa: E402
 
-from src.ui.api_client import get_api_client  # noqa: E402
+from src.ui.api_client import APIError, get_api_client  # noqa: E402
 from src.ui.components.summary_card import render_summary_list  # noqa: E402
 
 client = get_api_client()
@@ -34,6 +34,9 @@ with col_refresh:
 
 if "_sync_toast" in st.session_state:
     st.success(st.session_state.pop("_sync_toast"))
+
+if "_process_toast" in st.session_state:
+    st.success(st.session_state.pop("_process_toast"))
 
 PAGE_SIZE = 10
 
@@ -121,19 +124,26 @@ for rec in recordings:
     status = rec.get("status", "unknown")
     minutes = rec.get("total_minutes", 0)
 
-    with st.expander(f"{label}  |  {status}  |  {started}  |  {minutes} min"):
+    # 5c: Human-friendly duration
+    if minutes >= 60:
+        duration_str = f"{minutes // 60}h {minutes % 60}m"
+    elif minutes > 0:
+        duration_str = f"{minutes} min"
+    else:
+        duration_str = "unknown duration"
+
+    with st.expander(f"{label}  |  {status}  |  {started}  |  {duration_str}"):
         # -- Lazy audio loading --
         if rec.get("audio_path"):
             audio_key = f"audio_bytes_{rec_id}"
             if audio_key in st.session_state and st.session_state[audio_key]:
                 audio_bytes = st.session_state[audio_key]
                 start_time = st.session_state.get(f"audio_start_{rec_id}", 0)
-                st.audio(audio_bytes, format="audio/wav", start_time=start_time)
+                st.audio(audio_bytes, start_time=start_time)
                 st.download_button(
-                    "Download WAV",
+                    "Download audio",
                     data=audio_bytes,
-                    file_name=f"recording-{rec_id}.wav",
-                    mime="audio/wav",
+                    file_name=f"recording-{rec_id}",
                     key=f"dl_{rec_id}",
                 )
             else:
@@ -146,13 +156,11 @@ for rec in recordings:
         with col1:
             st.markdown(f"**ID**: {rec_id}  \n**Status**: {status}")
         with col2:
+            # 5a: Store summaries in session_state so they persist across reruns
             if st.button("Load summaries", key=f"load_{rec_id}"):
                 try:
                     summaries = client.list_summaries(rec_id)
-                    if summaries:
-                        render_summary_list(summaries, recording_id=rec_id)
-                    else:
-                        st.info("No summaries yet for this recording.")
+                    st.session_state[f"summaries_{rec_id}"] = summaries
                 except Exception as exc:
                     st.error(f"Failed to load summaries: {exc}")
         with col3:
@@ -191,6 +199,35 @@ for rec in recordings:
                 elif st.button("Delete", key=f"del_{rec_id}"):
                     st.session_state[confirm_key] = True
                     st.rerun()
+
+        # 5b: Process button for imported recordings
+        if status == "imported":
+            if st.button(
+                "Process (transcribe + summarize)", key=f"process_{rec_id}", type="primary"
+            ):
+                with st.spinner(f"Processing recording #{rec_id}... This may take a few minutes."):
+                    try:
+                        result = client.process_recording(rec_id)
+                        t = result.get("transcripts_created", 0)
+                        s = result.get("summaries_created", 0)
+                        st.session_state["_process_toast"] = (
+                            f"Recording #{rec_id} processed: "
+                            f"{t} transcript(s), {s} summary(ies) created."
+                        )
+                        st.session_state.pop(f"summaries_{rec_id}", None)
+                        st.rerun()
+                    except APIError as exc:
+                        st.error(f"Processing failed: {exc.message}")
+                    except Exception as exc:
+                        st.error(f"Processing failed: {exc}")
+
+        # 5a: Render cached summaries outside button handler
+        cached_summaries = st.session_state.get(f"summaries_{rec_id}")
+        if cached_summaries is not None:
+            if cached_summaries:
+                render_summary_list(cached_summaries, recording_id=rec_id)
+            else:
+                st.info("No summaries yet for this recording.")
 
 # -- Orphan management (shown when consistency check found issues) --
 cr = st.session_state.get("consistency_result")

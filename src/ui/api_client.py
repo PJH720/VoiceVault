@@ -116,6 +116,11 @@ class APIClient:
         }
         return self._request("post", "/api/v1/recordings/consistency/cleanup", json=body).json()
 
+    def process_recording(self, recording_id: int) -> dict:
+        return self._request(
+            "post", f"/api/v1/recordings/{recording_id}/process", timeout=300.0
+        ).json()
+
     # -- audio --
 
     def download_audio(self, recording_id: int) -> bytes | None:

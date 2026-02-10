@@ -67,6 +67,17 @@ class SyncResponse(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class ProcessRecordingResponse(BaseModel):
+    """Response from processing an imported recording."""
+
+    recording_id: int
+    status: str = "completed"
+    total_minutes: int = 0
+    transcripts_created: int = 0
+    summaries_created: int = 0
+    embeddings_created: int = 0
+
+
 # ---------------------------------------------------------------------------
 # Consistency Check & Delete
 # ---------------------------------------------------------------------------

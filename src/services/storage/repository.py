@@ -11,6 +11,7 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
+from pydub import AudioSegment
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,6 +28,15 @@ from src.services.storage.models_db import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _get_audio_duration_minutes(file_path: Path) -> int:
+    """Return audio duration in minutes (minimum 1) using pydub."""
+    try:
+        audio = AudioSegment.from_file(str(file_path))
+        return max(int(len(audio) / 1000 / 60), 1)
+    except Exception:
+        return 0
 
 
 class RecordingRepository:
@@ -157,7 +167,7 @@ class RecordingRepository:
                     audio_path=abs_path,
                     status="imported",
                     started_at=mtime,
-                    total_minutes=0,
+                    total_minutes=_get_audio_duration_minutes(entry),
                 )
                 self._session.add(recording)
                 new_imports += 1

@@ -5,6 +5,8 @@ Implements CRUD operations for recording sessions and Obsidian export.
 """
 
 import logging
+from collections import defaultdict
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Query
@@ -19,6 +21,7 @@ from src.core.models import (
     DeleteRecordingResponse,
     ObsidianExportRequest,
     ObsidianExportResponse,
+    ProcessRecordingResponse,
     RecordingCreate,
     RecordingResponse,
     RecordingStatus,
@@ -219,10 +222,194 @@ async def get_recording_audio(recording_id: int):
             status_code=404,
         )
 
+    ext = audio_path.suffix.lower()
+    media_types = {
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".m4a": "audio/mp4",
+        ".ogg": "audio/ogg",
+        ".flac": "audio/flac",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+
     return FileResponse(
         path=audio_path,
-        media_type="audio/wav",
-        filename=f"recording-{recording_id}.wav",
+        media_type=media_type,
+        filename=f"recording-{recording_id}{ext}",
+    )
+
+
+@router.post("/{recording_id}/process", response_model=ProcessRecordingResponse)
+async def process_recording(recording_id: int):
+    """Process an imported recording: transcribe, summarize, and embed."""
+    # 1. Validate recording
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        recording = await repo.get_recording(recording_id)
+
+    if recording.status == "active":
+        raise VoiceVaultError(
+            detail="Cannot process an active recording. Stop it first.",
+            code="RECORDING_ACTIVE",
+            status_code=409,
+        )
+
+    # 2. Guard: reject if already has summaries
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        existing = await repo.list_summaries(recording_id)
+    if existing:
+        raise VoiceVaultError(
+            detail="Recording already has summaries. Delete them first to reprocess.",
+            code="ALREADY_PROCESSED",
+            status_code=409,
+        )
+
+    if not recording.audio_path:
+        raise VoiceVaultError(
+            detail="No audio file for this recording.",
+            code="AUDIO_NOT_FOUND",
+            status_code=404,
+        )
+
+    audio_path = Path(recording.audio_path)
+    if not audio_path.is_file():
+        raise VoiceVaultError(
+            detail=f"Audio file not found on disk: {recording.audio_path}",
+            code="AUDIO_NOT_FOUND",
+            status_code=404,
+        )
+
+    # 3. Transcribe entire file
+    from src.services.transcription.whisper import WhisperSTT
+
+    stt = WhisperSTT()
+    settings = get_settings()
+    language = settings.whisper_default_language or None
+    result = await stt.transcribe(str(audio_path), language=language)
+    segments = result.get("segments", [])
+    detected_language = result.get("language", "unknown")
+    avg_confidence = result.get("confidence", 0.0)
+
+    if not segments:
+        raise VoiceVaultError(
+            detail="Transcription produced no segments.",
+            code="TRANSCRIPTION_EMPTY",
+            status_code=422,
+        )
+
+    # 4. Group segments by minute
+    minutes: dict[int, list[dict]] = defaultdict(list)
+    for seg in segments:
+        minute_index = int(seg["start"] // 60)
+        minutes[minute_index].append(seg)
+
+    # 5. Initialize summarizer and RAG pipeline
+    from src.services.llm import create_llm
+    from src.services.rag import create_embedding, create_vectorstore
+    from src.services.summarization.minute_summarizer import MinuteSummarizer
+
+    llm = create_llm(provider=settings.llm_provider)
+    summarizer = MinuteSummarizer(llm)
+
+    try:
+        embedding = create_embedding(provider=settings.embedding_provider)
+        vectorstore = create_vectorstore()
+    except Exception:
+        logger.warning("Failed to initialize RAG pipeline; embedding will be skipped")
+        embedding = None
+        vectorstore = None
+
+    transcripts_created = 0
+    summaries_created = 0
+    embeddings_created = 0
+    previous_context: str | None = None
+
+    # 6. Process each minute
+    for minute_index in sorted(minutes.keys()):
+        segs = minutes[minute_index]
+        text = " ".join(s["text"] for s in segs if s.get("text"))
+
+        if not text.strip():
+            continue
+
+        # Create transcript
+        async with get_session() as session:
+            repo = RecordingRepository(session)
+            await repo.create_transcript(
+                recording_id=recording_id,
+                minute_index=minute_index,
+                text=text,
+                confidence=avg_confidence,
+                language=detected_language,
+            )
+        transcripts_created += 1
+
+        # Summarize
+        summary_result = await summarizer.summarize_minute(
+            transcript=text,
+            minute_index=minute_index,
+            previous_context=previous_context,
+            user_context=recording.context,
+        )
+
+        async with get_session() as session:
+            repo = RecordingRepository(session)
+            await repo.create_summary(
+                recording_id=recording_id,
+                minute_index=minute_index,
+                summary_text=summary_result.summary_text,
+                keywords=summary_result.keywords,
+                model_used=settings.llm_provider,
+                corrections=[c.model_dump() for c in summary_result.corrections],
+            )
+        summaries_created += 1
+        previous_context = summary_result.summary_text
+
+        # Embed into ChromaDB (non-fatal)
+        if embedding is not None and vectorstore is not None:
+            try:
+                vector = await embedding.embed(summary_result.summary_text)
+                doc_id = f"summary-{recording_id}-{minute_index}"
+                metadata = {
+                    "recording_id": recording_id,
+                    "minute_index": minute_index,
+                    "date": datetime.now(UTC).isoformat(),
+                    "keywords": ",".join(summary_result.keywords)
+                    if summary_result.keywords
+                    else "",
+                }
+                await vectorstore.add(
+                    doc_id=doc_id,
+                    text=summary_result.summary_text,
+                    embedding=vector,
+                    metadata=metadata,
+                )
+                embeddings_created += 1
+            except Exception:
+                logger.warning(
+                    "Failed to embed summary for recording=%s minute=%s (non-fatal)",
+                    recording_id,
+                    minute_index,
+                )
+
+    # 7. Finalize recording
+    total_minutes = max(sorted(minutes.keys())[-1] + 1, 1) if minutes else 0
+    async with get_session() as session:
+        repo = RecordingRepository(session)
+        rec = await repo.get_recording(recording_id)
+        rec.total_minutes = total_minutes
+        rec.status = "completed"
+        rec.ended_at = datetime.now(UTC)
+        await session.flush()
+
+    return ProcessRecordingResponse(
+        recording_id=recording_id,
+        status="completed",
+        total_minutes=total_minutes,
+        transcripts_created=transcripts_created,
+        summaries_created=summaries_created,
+        embeddings_created=embeddings_created,
     )
 
 
