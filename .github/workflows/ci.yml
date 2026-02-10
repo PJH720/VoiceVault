@@ -29,19 +29,16 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
-        run: uv pip install --system ruff mypy
-
       - name: Run Ruff (linting)
-        run: ruff check src/ tests/
+        run: uvx ruff check src/ tests/
 
       - name: Run Ruff (formatting check)
-        run: ruff format --check src/ tests/
+        run: uvx ruff format --check src/ tests/
 
       - name: Run MyPy (type checking)
         # Continue on error for hackathon context
         continue-on-error: true
-        run: mypy src/ --ignore-missing-imports
+        run: uvx mypy src/ --ignore-missing-imports
 
   # ===========================================================================
   # Testing
@@ -150,11 +147,8 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Install Bandit
-        run: uv pip install --system "bandit[toml]"
-
       - name: Run Bandit security scan
-        run: bandit -r src/ -f json -o bandit-report.json || true
+        run: uvx --with "bandit[toml]" bandit -r src/ -f json -o bandit-report.json || true
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v4
