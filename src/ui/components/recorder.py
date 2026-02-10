@@ -42,14 +42,38 @@ async def _stream_audio_ws(
     pcm_bytes: bytes,
     chunk_size: int = 32000,  # 1 second of 16kHz 16-bit mono
 ) -> list[dict]:
-    """Send PCM audio over WebSocket and collect transcript messages."""
+    """Send PCM audio over WebSocket and collect transcript messages.
+
+    Runs a sender (audio upload) and receiver (message collection)
+    concurrently so that transcripts/summaries arriving mid-stream
+    are captured instead of being lost.
+    """
+    import json
+
     import websockets
+    from websockets.exceptions import ConnectionClosedOK
 
     transcripts: list[dict] = []
+
+    async def _receiver(ws) -> None:  # noqa: ANN001
+        """Collect all JSON messages until the connection closes."""
+        try:
+            async for raw in ws:
+                try:
+                    msg = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                transcripts.append(msg)
+        except ConnectionClosedOK:
+            pass
+
     try:
         async with websockets.connect(ws_url) as ws:
-            # Read the connected message
+            # Consume the initial "connected" message
             await ws.recv()
+
+            # Start background receiver
+            recv_task = asyncio.create_task(_receiver(ws))
 
             # Send audio in chunks
             offset = 0
@@ -58,8 +82,17 @@ async def _stream_audio_ws(
                 await ws.send(chunk)
                 offset += chunk_size
 
-            # Close write side to signal end of audio
+            # Grace period for the server to flush its last STT result
+            await asyncio.sleep(0.5)
+
+            # Close the connection — receiver will exit via ConnectionClosedOK
             await ws.close()
+
+            # Wait for receiver to finish (safety net)
+            try:
+                await asyncio.wait_for(recv_task, timeout=3.0)
+            except TimeoutError:
+                recv_task.cancel()
 
     except Exception as exc:
         logger.warning("WebSocket error: %s", exc)
@@ -90,12 +123,17 @@ def _process_audio(audio_bytes: bytes) -> None:
         transcripts = asyncio.run(_stream_audio_ws(ws_url, pcm_bytes))
         st.session_state.transcripts = transcripts
 
-        # Build full transcript text from received messages
+        # Build full transcript text and collect summaries from received messages
         text_parts = []
+        summary_list = []
         for msg in transcripts:
-            if msg.get("type") == "transcript":
+            msg_type = msg.get("type")
+            if msg_type == "transcript":
                 text_parts.append(msg.get("data", {}).get("text", ""))
+            elif msg_type == "summary":
+                summary_list.append(msg.get("data", {}))
         st.session_state.transcript_text = " ".join(text_parts)
+        st.session_state.summaries = summary_list
 
         # 4. Stop recording
         client.stop_recording(rec["id"])
