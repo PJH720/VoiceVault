@@ -291,6 +291,19 @@ class ExtractRangeRequest(BaseModel):
     end_minute: int
 
 
+class ExtractRangeResponse(BaseModel):
+    """Response from cross-boundary range extraction."""
+
+    recording_id: int
+    start_minute: int
+    end_minute: int
+    summary_text: str
+    keywords: list[str] = Field(default_factory=list)
+    included_minutes: list[int] = Field(default_factory=list)
+    source_count: int = 0
+    model_used: str = ""
+
+
 class ObsidianExportRequest(BaseModel):
     """POST /recordings/{id}/export request body."""
 
