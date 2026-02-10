@@ -11,8 +11,10 @@ _r in _sys.path or _sys.path.insert(0, _r)  # noqa: E702,I001
 
 import streamlit as st  # noqa: E402
 
+from src.core.config import get_settings  # noqa: E402
 from src.ui.api_client import get_api_client  # noqa: E402
 from src.ui.components.export_preview import render_export_preview  # noqa: E402
+from src.ui.utils import open_folder_in_explorer  # noqa: E402
 
 st.header("Obsidian Export")
 
@@ -138,6 +140,8 @@ with col_export:
             st.success(f"Successfully exported {len(results)} recording(s).")
             for r in results:
                 st.caption(f"  {r.get('file_path', '')}")
+            if st.button("Open Exports Folder"):
+                open_folder_in_explorer(get_settings().exports_dir)
         if errors:
             st.warning(f"{len(errors)} export(s) failed:")
             for e in errors:
