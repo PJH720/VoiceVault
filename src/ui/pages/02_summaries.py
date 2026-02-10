@@ -18,6 +18,8 @@ st.header("Summaries")
 
 client = get_api_client()
 
+PAGE_SIZE = 10
+
 # -- Filters --
 status_filter = st.selectbox(
     "Filter by status",
@@ -25,19 +27,33 @@ status_filter = st.selectbox(
     index=0,
 )
 
-# -- Fetch recordings --
+# Reset page when filter changes
+if st.session_state.get("_summaries_last_filter") != status_filter:
+    st.session_state["_summaries_page"] = 0
+    st.session_state["_summaries_last_filter"] = status_filter
+
+page = st.session_state.get("_summaries_page", 0)
+
+# -- Fetch recordings (paginated) --
 try:
     status_param = None if status_filter == "all" else status_filter
-    recordings = client.list_recordings(status=status_param)
+    recordings = client.list_recordings(
+        status=status_param,
+        limit=PAGE_SIZE,
+        offset=page * PAGE_SIZE,
+    )
 except Exception as exc:
     st.error(f"Could not fetch recordings: {exc}")
     recordings = []
 
 if not recordings:
-    st.info("No recordings found. Go to the Recording page to create one.")
+    if page == 0:
+        st.info("No recordings found. Go to the Recording page to create one.")
+    else:
+        st.info("No more recordings.")
     st.stop()
 
-st.caption(f"{len(recordings)} recording(s)")
+st.caption(f"Showing {len(recordings)} recording(s) (page {page + 1})")
 
 for rec in recordings:
     rec_id = rec["id"]
@@ -47,14 +63,11 @@ for rec in recordings:
     minutes = rec.get("total_minutes", 0)
 
     with st.expander(f"{label}  |  {status}  |  {started}  |  {minutes} min"):
-        # -- Audio player & download --
+        # -- Lazy audio loading --
         if rec.get("audio_path"):
             audio_key = f"audio_bytes_{rec_id}"
-            if audio_key not in st.session_state:
-                st.session_state[audio_key] = client.download_audio(rec_id)
-
-            audio_bytes = st.session_state[audio_key]
-            if audio_bytes:
+            if audio_key in st.session_state and st.session_state[audio_key]:
+                audio_bytes = st.session_state[audio_key]
                 start_time = st.session_state.get(f"audio_start_{rec_id}", 0)
                 st.audio(audio_bytes, format="audio/wav", start_time=start_time)
                 st.download_button(
@@ -64,6 +77,11 @@ for rec in recordings:
                     mime="audio/wav",
                     key=f"dl_{rec_id}",
                 )
+            else:
+                if st.button("Load audio", key=f"load_audio_{rec_id}"):
+                    audio_bytes = client.download_audio(rec_id)
+                    st.session_state[audio_key] = audio_bytes
+                    st.rerun()
 
         col1, col2, col3 = st.columns([3, 1, 1])
         with col1:
@@ -95,3 +113,16 @@ for rec in recordings:
                         st.info("No similar recordings found.")
                 except Exception as exc:
                     st.error(f"Failed to find similar: {exc}")
+
+# -- Pagination controls --
+col_prev, col_info, col_next = st.columns([1, 2, 1])
+with col_prev:
+    if page > 0:
+        if st.button("Previous"):
+            st.session_state["_summaries_page"] = page - 1
+            st.rerun()
+with col_next:
+    if len(recordings) == PAGE_SIZE:
+        if st.button("Next"):
+            st.session_state["_summaries_page"] = page + 1
+            st.rerun()

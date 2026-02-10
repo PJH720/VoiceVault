@@ -150,6 +150,7 @@ def _process_audio(audio_bytes: bytes) -> None:
         # 4. Stop recording
         client.stop_recording(rec["id"])
         st.session_state.recording_status = "completed"
+        st.session_state.pop("_pending_audio", None)
 
     except Exception as exc:
         st.error(f"Processing failed: {exc}")
@@ -210,9 +211,10 @@ def _render_idle() -> None:
 
 def _render_processing() -> None:
     """Process the captured audio with a spinner."""
-    audio_bytes = st.session_state.pop("_pending_audio", None)
+    audio_bytes = st.session_state.get("_pending_audio")
     if audio_bytes is None:
-        st.session_state.recording_status = "idle"
+        if st.session_state.recording_status != "completed":
+            st.session_state.recording_status = "idle"
         st.rerun()
         return
 

@@ -12,6 +12,15 @@ import streamlit as st
 logger = logging.getLogger(__name__)
 
 
+class APIError(Exception):
+    """User-friendly API error with categorized message."""
+
+    def __init__(self, message: str, category: str = "unknown") -> None:
+        self.message = message
+        self.category = category
+        super().__init__(message)
+
+
 class APIClient:
     """Thin wrapper around httpx for calling the FastAPI backend."""
 
@@ -19,20 +28,50 @@ class APIClient:
         self._base_url = base_url.rstrip("/")
         self._client = httpx.Client(base_url=self._base_url, timeout=30.0)
 
+    def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
+        """Execute an HTTP request with user-friendly error handling."""
+        try:
+            resp = getattr(self._client, method)(path, **kwargs)
+            resp.raise_for_status()
+            return resp
+        except httpx.ConnectError:
+            raise APIError(
+                "Backend server is not running. "
+                "Start it with: `uvicorn src.api.app:app --reload --port 8000`",
+                category="connection",
+            ) from None
+        except httpx.TimeoutException:
+            raise APIError(
+                "Request timed out. The server may be overloaded.",
+                category="timeout",
+            ) from None
+        except httpx.HTTPStatusError as exc:
+            try:
+                detail = exc.response.json().get("detail", exc.response.text)
+            except Exception:
+                detail = exc.response.text or str(exc)
+            raise APIError(str(detail), category="http") from None
+        except httpx.HTTPError as exc:
+            raise APIError(f"Network error: {exc}", category="network") from None
+
     # -- health --
 
     def health_check(self) -> dict:
-        resp = self._client.get("/health")
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("get", "/health").json()
+
+    def check_connection(self) -> tuple[bool, str]:
+        """Check if the backend is reachable. Returns (ok, message)."""
+        try:
+            self.health_check()
+            return True, "Connected"
+        except APIError as exc:
+            return False, exc.message
 
     # -- recordings --
 
     def create_recording(self, title: str | None = None) -> dict:
         body = {"title": title} if title else None
-        resp = self._client.post("/api/v1/recordings", json=body)
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("post", "/api/v1/recordings", json=body).json()
 
     def list_recordings(
         self,
@@ -43,37 +82,28 @@ class APIClient:
         params: dict = {"limit": limit, "offset": offset}
         if status:
             params["status"] = status
-        resp = self._client.get("/api/v1/recordings", params=params)
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("get", "/api/v1/recordings", params=params).json()
 
     def get_recording(self, recording_id: int) -> dict:
-        resp = self._client.get(f"/api/v1/recordings/{recording_id}")
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("get", f"/api/v1/recordings/{recording_id}").json()
 
     def stop_recording(self, recording_id: int) -> dict:
-        resp = self._client.patch(f"/api/v1/recordings/{recording_id}/stop")
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("patch", f"/api/v1/recordings/{recording_id}/stop").json()
 
     # -- audio --
 
     def download_audio(self, recording_id: int) -> bytes | None:
         """Fetch raw audio bytes for a recording. Returns None on error."""
         try:
-            resp = self._client.get(f"/api/v1/recordings/{recording_id}/audio")
-            resp.raise_for_status()
+            resp = self._request("get", f"/api/v1/recordings/{recording_id}/audio")
             return resp.content
-        except httpx.HTTPStatusError:
+        except APIError:
             return None
 
     # -- summaries --
 
     def list_summaries(self, recording_id: int) -> list[dict]:
-        resp = self._client.get(f"/api/v1/recordings/{recording_id}/summaries")
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("get", f"/api/v1/recordings/{recording_id}/summaries").json()
 
     # -- RAG --
 
@@ -100,21 +130,18 @@ class APIClient:
             body["category"] = category
         if keywords is not None:
             body["keywords"] = keywords
-        resp = self._client.post("/api/v1/rag/query", json=body)
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("post", "/api/v1/rag/query", json=body).json()
 
     def rag_similar(
         self,
         recording_id: int,
         top_k: int = 5,
     ) -> list[dict]:
-        resp = self._client.get(
+        return self._request(
+            "get",
             f"/api/v1/rag/similar/{recording_id}",
             params={"top_k": top_k},
-        )
-        resp.raise_for_status()
-        return resp.json()
+        ).json()
 
     # -- export --
 
@@ -131,34 +158,25 @@ class APIClient:
         }
         if vault_path:
             body["vault_path"] = vault_path
-        resp = self._client.post(
+        return self._request(
+            "post",
             f"/api/v1/recordings/{recording_id}/export",
             json=body,
-        )
-        resp.raise_for_status()
-        return resp.json()
+        ).json()
 
     # -- templates --
 
     def list_templates(self) -> list[dict]:
-        resp = self._client.get("/api/v1/templates")
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("get", "/api/v1/templates").json()
 
     def create_template(self, data: dict) -> dict:
-        resp = self._client.post("/api/v1/templates", json=data)
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("post", "/api/v1/templates", json=data).json()
 
     def update_template(self, template_id: int, data: dict) -> dict:
-        resp = self._client.patch(f"/api/v1/templates/{template_id}", json=data)
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("patch", f"/api/v1/templates/{template_id}", json=data).json()
 
     def delete_template(self, template_id: int) -> dict:
-        resp = self._client.delete(f"/api/v1/templates/{template_id}")
-        resp.raise_for_status()
-        return resp.json()
+        return self._request("delete", f"/api/v1/templates/{template_id}").json()
 
 
 @st.cache_resource

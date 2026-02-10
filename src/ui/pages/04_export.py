@@ -20,6 +20,8 @@ st.header("Obsidian Export")
 
 client = get_api_client()
 
+PAGE_SIZE = 10
+
 # ---------------------------------------------------------------------------
 # Sidebar settings
 # ---------------------------------------------------------------------------
@@ -47,16 +49,31 @@ with st.sidebar:
     )
 
 # ---------------------------------------------------------------------------
-# Fetch completed recordings
+# Persistent selection set
 # ---------------------------------------------------------------------------
+if "export_selected_all" not in st.session_state:
+    st.session_state["export_selected_all"] = set()
+
+# ---------------------------------------------------------------------------
+# Fetch completed recordings (paginated)
+# ---------------------------------------------------------------------------
+page = st.session_state.get("_export_page", 0)
+
 try:
-    recordings = client.list_recordings(status="completed")
+    recordings = client.list_recordings(
+        status="completed",
+        limit=PAGE_SIZE,
+        offset=page * PAGE_SIZE,
+    )
 except Exception as exc:
     st.error(f"Could not fetch recordings: {exc}")
     recordings = []
 
 if not recordings:
-    st.info("No completed recordings found. Complete a recording first.")
+    if page == 0:
+        st.info("No completed recordings found. Complete a recording first.")
+    else:
+        st.info("No more recordings.")
     st.stop()
 
 # ---------------------------------------------------------------------------
@@ -64,19 +81,41 @@ if not recordings:
 # ---------------------------------------------------------------------------
 st.subheader("Select recordings to export")
 
-selected_ids: list[int] = []
+selected_all: set = st.session_state["export_selected_all"]
+
 for rec in recordings:
-    label = rec.get("title") or f"Recording #{rec['id']}"
+    rec_id = rec["id"]
+    label = rec.get("title") or f"Recording #{rec_id}"
     started = rec.get("started_at", "")[:19].replace("T", " ")
     minutes = rec.get("total_minutes", 0)
     checked = st.checkbox(
         f"{label}  |  {started}  |  {minutes} min",
-        key=f"export_sel_{rec['id']}",
+        value=rec_id in selected_all,
+        key=f"export_sel_{rec_id}",
     )
     if checked:
-        selected_ids.append(rec["id"])
+        selected_all.add(rec_id)
+    else:
+        selected_all.discard(rec_id)
+
+selected_ids = sorted(selected_all)
 
 st.caption(f"{len(selected_ids)} recording(s) selected")
+
+# -- Pagination controls --
+col_prev, col_info, col_next = st.columns([1, 2, 1])
+with col_prev:
+    if page > 0:
+        if st.button("Previous", key="export_prev"):
+            st.session_state["_export_page"] = page - 1
+            st.rerun()
+with col_info:
+    st.caption(f"Page {page + 1}")
+with col_next:
+    if len(recordings) == PAGE_SIZE:
+        if st.button("Next", key="export_next"):
+            st.session_state["_export_page"] = page + 1
+            st.rerun()
 
 # ---------------------------------------------------------------------------
 # Preview
