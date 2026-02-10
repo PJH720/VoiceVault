@@ -96,15 +96,11 @@ with st.sidebar:
     st.subheader("Storage Folders")
     _settings = get_settings()
 
-    _rec_path = str(Path(_settings.recordings_dir).resolve())
     if st.button("Open Recordings Folder", use_container_width=True):
         open_folder_in_explorer(_settings.recordings_dir)
-    st.caption(_rec_path)
 
-    _exp_path = str(Path(_settings.exports_dir).resolve())
     if st.button("Open Exports Folder", use_container_width=True):
         open_folder_in_explorer(_settings.exports_dir)
-    st.caption(_exp_path)
 
 # ---------------------------------------------------------------------------
 # Navigation (multipage)
