@@ -35,6 +35,7 @@ def _to_response(recording) -> RecordingResponse:
         started_at=recording.started_at,
         ended_at=recording.ended_at,
         total_minutes=recording.total_minutes,
+        audio_path=recording.audio_path,
     )
 
 
