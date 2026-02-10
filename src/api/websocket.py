@@ -82,11 +82,13 @@ async def _save_transcript(recording_id: int, minute_index: int, text: str) -> N
 async def transcribe_ws(
     websocket: WebSocket,
     recording_id: int = Query(...),
+    language: str | None = Query(None),
 ) -> None:
     """Real-time audio-to-text streaming endpoint with background summarization.
 
     Query params:
         recording_id: ID of the recording session to attach to.
+        language: ISO language code (e.g. "ko", "en") or None for auto-detect.
 
     Protocol:
         - Client sends: raw PCM bytes (16-bit, 16 kHz, mono).
@@ -100,7 +102,7 @@ async def transcribe_ws(
         4. Stop orchestrator session (final drain + DB update)
     """
     await websocket.accept()
-    logger.info("WebSocket connected for recording_id=%s", recording_id)
+    logger.info("WebSocket connected for recording_id=%s, language=%s", recording_id, language)
 
     # Send initial connection confirmation
     connected_msg = WebSocketMessage(
@@ -112,6 +114,9 @@ async def transcribe_ws(
     settings = get_settings()
     stt = create_stt(provider=settings.whisper_provider)
     state = _PipelineState(recording_id)
+
+    # Resolve language: explicit param > config default > None (auto-detect)
+    resolved_language = language or settings.whisper_default_language or None
 
     # --- Start orchestrator session ---
     async def _notify(data: dict) -> None:
@@ -144,7 +149,7 @@ async def transcribe_ws(
             return
 
     try:
-        async for result in stt.transcribe_stream(audio_stream()):
+        async for result in stt.transcribe_stream(audio_stream(), language=resolved_language):
             # Send transcript to client
             msg = WebSocketMessage(
                 type=WebSocketMessageType.transcript,
