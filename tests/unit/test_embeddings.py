@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
+from src.core.exceptions import RAGError
 from src.services.rag.base import BaseEmbedding
 from src.services.rag.embeddings import OllamaEmbedding, SentenceTransformerEmbedding
 
@@ -180,12 +181,12 @@ class TestOllamaEmbedding:
 
         assert result == []
 
-    async def test_embed_raises_runtime_error_on_failure(
+    async def test_embed_raises_rag_error_on_failure(
         self, embedding, mock_ollama_client
     ):
         mock_ollama_client.embeddings.side_effect = Exception("connection refused")
 
-        with pytest.raises(RuntimeError, match="Ollama embedding error"):
+        with pytest.raises(RAGError, match="Ollama embedding error"):
             await embedding.embed("test")
 
     def test_dimension_known_model(self):
@@ -257,8 +258,8 @@ class TestCreateEmbedding:
 
         assert isinstance(instance, OllamaEmbedding)
 
-    def test_unknown_provider_raises_value_error(self):
+    def test_unknown_provider_raises_rag_error(self):
         from src.services.rag import create_embedding
 
-        with pytest.raises(ValueError, match="Unknown embedding provider"):
+        with pytest.raises(RAGError, match="Unknown embedding provider"):
             create_embedding("unknown_provider")

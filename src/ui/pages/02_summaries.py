@@ -33,29 +33,48 @@ if not recordings:
 st.caption(f"{len(recordings)} recording(s)")
 
 for rec in recordings:
-    label = rec.get("title") or f"Recording #{rec['id']}"
+    rec_id = rec["id"]
+    label = rec.get("title") or f"Recording #{rec_id}"
     started = rec.get("started_at", "")[:19].replace("T", " ")
     status = rec.get("status", "unknown")
     minutes = rec.get("total_minutes", 0)
 
     with st.expander(f"{label}  |  {status}  |  {started}  |  {minutes} min"):
+        # -- Audio player & download --
+        if rec.get("audio_path"):
+            audio_key = f"audio_bytes_{rec_id}"
+            if audio_key not in st.session_state:
+                st.session_state[audio_key] = client.download_audio(rec_id)
+
+            audio_bytes = st.session_state[audio_key]
+            if audio_bytes:
+                start_time = st.session_state.get(f"audio_start_{rec_id}", 0)
+                st.audio(audio_bytes, format="audio/wav", start_time=start_time)
+                st.download_button(
+                    "Download WAV",
+                    data=audio_bytes,
+                    file_name=f"recording-{rec_id}.wav",
+                    mime="audio/wav",
+                    key=f"dl_{rec_id}",
+                )
+
         col1, col2, col3 = st.columns([3, 1, 1])
         with col1:
-            st.markdown(f"**ID**: {rec['id']}  \n**Status**: {status}")
+            st.markdown(f"**ID**: {rec_id}  \n**Status**: {status}")
         with col2:
-            if st.button("Load summaries", key=f"load_{rec['id']}"):
+            if st.button("Load summaries", key=f"load_{rec_id}"):
                 try:
-                    summaries = client.list_summaries(rec["id"])
+                    summaries = client.list_summaries(rec_id)
                     if summaries:
-                        render_summary_list(summaries)
+                        render_summary_list(summaries, recording_id=rec_id)
                     else:
                         st.info("No summaries yet for this recording.")
                 except Exception as exc:
                     st.error(f"Failed to load summaries: {exc}")
         with col3:
-            if st.button("Find similar", key=f"similar_{rec['id']}"):
+            if st.button("Find similar", key=f"similar_{rec_id}"):
                 try:
-                    similar = client.rag_similar(rec["id"])
+                    similar = client.rag_similar(rec_id)
                     if similar:
                         st.markdown("**Similar recordings**")
                         for item in similar:

@@ -57,6 +57,17 @@ class APIClient:
         resp.raise_for_status()
         return resp.json()
 
+    # -- audio --
+
+    def download_audio(self, recording_id: int) -> bytes | None:
+        """Fetch raw audio bytes for a recording. Returns None on error."""
+        try:
+            resp = self._client.get(f"/api/v1/recordings/{recording_id}/audio")
+            resp.raise_for_status()
+            return resp.content
+        except httpx.HTTPStatusError:
+            return None
+
     # -- summaries --
 
     def list_summaries(self, recording_id: int) -> list[dict]:
@@ -131,6 +142,21 @@ class APIClient:
 
     def list_templates(self) -> list[dict]:
         resp = self._client.get("/api/v1/templates")
+        resp.raise_for_status()
+        return resp.json()
+
+    def create_template(self, data: dict) -> dict:
+        resp = self._client.post("/api/v1/templates", json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def update_template(self, template_id: int, data: dict) -> dict:
+        resp = self._client.patch(f"/api/v1/templates/{template_id}", json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+    def delete_template(self, template_id: int) -> dict:
+        resp = self._client.delete(f"/api/v1/templates/{template_id}")
         resp.raise_for_status()
         return resp.json()
 

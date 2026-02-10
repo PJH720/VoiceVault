@@ -261,7 +261,7 @@ class RAGSource(BaseModel):
 class RAGQueryRequest(BaseModel):
     """POST /rag/query request body."""
 
-    query: str
+    query: str = Field(max_length=2000)
     top_k: int = 5
     min_similarity: float = 0.3
     date_from: str | None = None
@@ -289,6 +289,19 @@ class ExtractRangeRequest(BaseModel):
 
     start_minute: int
     end_minute: int
+
+
+class ExtractRangeResponse(BaseModel):
+    """Response from cross-boundary range extraction."""
+
+    recording_id: int
+    start_minute: int
+    end_minute: int
+    summary_text: str
+    keywords: list[str] = Field(default_factory=list)
+    included_minutes: list[int] = Field(default_factory=list)
+    source_count: int = 0
+    model_used: str = ""
 
 
 class ObsidianExportRequest(BaseModel):
