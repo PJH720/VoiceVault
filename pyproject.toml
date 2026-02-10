@@ -67,6 +67,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-env>=1.1.0",
     "pytest-mock>=3.14.0",
+    "psutil>=6.0.0",
     "httpx>=0.28.0",
 
     # Linting & Formatting
@@ -136,6 +137,8 @@ addopts = [
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "stress: Stress tests (long-running simulations)",
     "slow: Slow-running tests",
     "gpu: Tests requiring GPU",
 ]
