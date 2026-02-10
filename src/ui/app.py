@@ -85,6 +85,11 @@ export_page = st.Page(
     title="Export",
     icon="\U0001f4e4",
 )
+templates_page = st.Page(
+    "pages/05_templates.py",
+    title="Templates",
+    icon="\U0001f4c4",
+)
 
-nav = st.navigation([recording_page, summaries_page, rag_search_page, export_page])
+nav = st.navigation([recording_page, summaries_page, rag_search_page, export_page, templates_page])
 nav.run()
