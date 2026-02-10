@@ -12,7 +12,9 @@ import numpy as np
 import soundfile as sf
 import streamlit as st
 
+from src.core.config import get_settings
 from src.ui.api_client import get_api_client
+from src.ui.utils import open_folder_in_explorer
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +257,10 @@ def _render_completed() -> None:
             st.info("No summaries generated yet.")
     except Exception:
         pass
+
+    # Open recordings folder
+    if st.button("Open Recordings Folder"):
+        open_folder_in_explorer(get_settings().recordings_dir)
 
     # Reset button
     if st.button("New Recording"):

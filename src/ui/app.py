@@ -18,6 +18,9 @@ if _project_root not in sys.path:
 
 import streamlit as st  # noqa: E402
 
+from src.core.config import get_settings  # noqa: E402
+from src.ui.utils import open_folder_in_explorer  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Page config (must be first Streamlit call)
 # ---------------------------------------------------------------------------
@@ -76,6 +79,21 @@ with st.sidebar:
         value=st.session_state.api_base_url,
         help="VoiceVault FastAPI 백엔드 서버의 URL (기본값: http://localhost:8000)",
     )
+
+    # Storage folder shortcuts
+    st.divider()
+    st.subheader("Storage Folders")
+    _settings = get_settings()
+
+    _rec_path = str(Path(_settings.recordings_dir).resolve())
+    if st.button("Open Recordings Folder", use_container_width=True):
+        open_folder_in_explorer(_settings.recordings_dir)
+    st.caption(_rec_path)
+
+    _exp_path = str(Path(_settings.exports_dir).resolve())
+    if st.button("Open Exports Folder", use_container_width=True):
+        open_folder_in_explorer(_settings.exports_dir)
+    st.caption(_exp_path)
 
 # ---------------------------------------------------------------------------
 # Navigation (multipage)
