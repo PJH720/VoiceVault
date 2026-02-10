@@ -234,9 +234,7 @@ def test_build_where_filter_single_date(retriever):
 
 
 @pytest.mark.asyncio
-async def test_find_similar_excludes_same_recording(
-    retriever, mock_vectorstore, mock_embedding
-):
+async def test_find_similar_excludes_same_recording(retriever, mock_vectorstore, mock_embedding):
     """Results from the same recording_id are excluded."""
     mock_vectorstore.search.side_effect = [
         # First call: get own recording's summaries

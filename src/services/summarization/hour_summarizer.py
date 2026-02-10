@@ -95,9 +95,7 @@ class HourSummarizer:
         Returns:
             Parsed dict with summary, keywords, topics.
         """
-        numbered = "\n".join(
-            f"[Minute {i + 1}] {s}" for i, s in enumerate(chunk)
-        )
+        numbered = "\n".join(f"[Minute {i + 1}] {s}" for i, s in enumerate(chunk))
         user_prompt = f"One-minute summaries to integrate:\n{numbered}"
         full_prompt = f"{TEN_MINUTE_SYSTEM_PROMPT}\n\n{user_prompt}"
 
@@ -114,10 +112,7 @@ class HourSummarizer:
             return data
         except json.JSONDecodeError as exc:
             raise SummarizationError(
-                detail=(
-                    f"Invalid JSON from LLM for 10-min chunk "
-                    f"{chunk_index}: {raw[:200]}"
-                )
+                detail=(f"Invalid JSON from LLM for 10-min chunk {chunk_index}: {raw[:200]}")
             ) from exc
 
     async def summarize_hour(
@@ -150,27 +145,20 @@ class HourSummarizer:
         input_tokens = sum(_estimate_tokens(s) for s in minute_summaries)
 
         # --- Level 1: 10-min chunks ---
-        chunks = [
-            minute_summaries[i : i + 10]
-            for i in range(0, len(minute_summaries), 10)
-        ]
+        chunks = [minute_summaries[i : i + 10] for i in range(0, len(minute_summaries), 10)]
 
         if len(chunks) == 1:
             # Skip Level 1 grouping — go straight to hour summary
             ten_min_texts = minute_summaries
         else:
             ten_min_results = await asyncio.gather(
-                *(
-                    self._summarize_ten_minutes(chunk, idx)
-                    for idx, chunk in enumerate(chunks)
-                )
+                *(self._summarize_ten_minutes(chunk, idx) for idx, chunk in enumerate(chunks))
             )
             ten_min_texts = [r.get("summary", "") for r in ten_min_results]
 
         # --- Level 2: 1-hr summary ---
         numbered = "\n".join(
-            f"[Minutes {i * 10}-{(i + 1) * 10}] {s}"
-            for i, s in enumerate(ten_min_texts)
+            f"[Minutes {i * 10}-{(i + 1) * 10}] {s}" for i, s in enumerate(ten_min_texts)
         )
         user_prompt = f"Ten-minute summaries to integrate:\n{numbered}"
         full_prompt = f"{HOUR_SYSTEM_PROMPT}\n\n{user_prompt}"
@@ -179,10 +167,7 @@ class HourSummarizer:
             raw = await self._call_llm_limited(full_prompt)
         except Exception as exc:
             raise SummarizationError(
-                detail=(
-                    f"LLM call failed for hour {hour_index} "
-                    f"of recording {recording_id}: {exc}"
-                )
+                detail=(f"LLM call failed for hour {hour_index} of recording {recording_id}: {exc}")
             ) from exc
 
         try:
@@ -190,18 +175,14 @@ class HourSummarizer:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise SummarizationError(
-                detail=(
-                    f"Invalid JSON from LLM for hour {hour_index}: "
-                    f"{raw[:200]}"
-                )
+                detail=(f"Invalid JSON from LLM for hour {hour_index}: {raw[:200]}")
             ) from exc
 
         summary_text = data.get("summary", "")
         output_tokens = _estimate_tokens(summary_text)
 
         logger.info(
-            "Hour %d summary: %d input tokens -> %d output tokens "
-            "(%.0f%% reduction)",
+            "Hour %d summary: %d input tokens -> %d output tokens (%.0f%% reduction)",
             hour_index,
             input_tokens,
             output_tokens,

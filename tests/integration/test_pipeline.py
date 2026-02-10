@@ -218,9 +218,7 @@ def test_ws_pipeline_saves_transcript_and_enqueues(
         ),
         patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
     ):
-        with test_client.websocket_connect(
-            f"/ws/transcribe?recording_id={recording_id}"
-        ) as ws:
+        with test_client.websocket_connect(f"/ws/transcribe?recording_id={recording_id}") as ws:
             connected = ws.receive_json()
             assert connected["type"] == "connected"
 
@@ -236,9 +234,7 @@ def test_ws_pipeline_saves_transcript_and_enqueues(
             assert followup["type"] == "transcript"
 
     # Verify transcript enqueued to orchestrator
-    mock_session.enqueue_transcript.assert_called_once_with(
-        0, "오늘 강의에서 중요한 내용"
-    )
+    mock_session.enqueue_transcript.assert_called_once_with(0, "오늘 강의에서 중요한 내용")
 
 
 # ---------------------------------------------------------------------------
@@ -268,9 +264,7 @@ def test_ws_pipeline_flushes_on_disconnect(
         patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
         patch("src.api.websocket._save_transcript", mock_save_transcript),
     ):
-        with test_client.websocket_connect(
-            f"/ws/transcribe?recording_id={recording_id}"
-        ) as ws:
+        with test_client.websocket_connect(f"/ws/transcribe?recording_id={recording_id}") as ws:
             ws.receive_json()  # connected
             ws.send_bytes(small_chunk)
             ws.receive_json()  # transcript
@@ -308,9 +302,7 @@ def test_ws_pipeline_starts_orchestrator_session(
         patch("src.api.websocket.orchestrator.start_session", mock_start),
         patch("src.api.websocket.orchestrator.stop_session", new_callable=AsyncMock),
     ):
-        with test_client.websocket_connect(
-            f"/ws/transcribe?recording_id={recording_id}"
-        ) as ws:
+        with test_client.websocket_connect(f"/ws/transcribe?recording_id={recording_id}") as ws:
             ws.receive_json()  # connected
             ws.send_bytes(small_chunk)
             ws.receive_json()  # transcript

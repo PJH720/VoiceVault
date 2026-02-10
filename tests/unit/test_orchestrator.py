@@ -353,7 +353,10 @@ async def test_cleanup_stops_active(
 @patch("src.services.orchestrator.create_llm")
 @patch("src.services.orchestrator.get_settings")
 async def test_rag_init_failure_falls_back_gracefully(
-    mock_settings, mock_create_llm, mock_create_embed, mock_create_vs,
+    mock_settings,
+    mock_create_llm,
+    mock_create_embed,
+    mock_create_vs,
 ):
     """If RAG init fails, session should still work with embedding disabled."""
     mock_settings.return_value.llm_provider = "ollama"
@@ -636,7 +639,7 @@ async def test_classify_recording_happy_path(mock_notify):
         patch("src.services.orchestrator.get_session", side_effect=fake_get_session),
         patch("src.services.orchestrator.RecordingRepository", return_value=mock_repo),
         patch("src.services.orchestrator.get_settings", return_value=mock_settings),
-        patch("src.services.orchestrator.create_llm") as mock_create_llm,
+        patch("src.services.orchestrator.create_llm"),
         patch("src.services.orchestrator.create_classifier", return_value=mock_classifier),
         patch("src.services.orchestrator.TemplateMatcher", return_value=mock_matcher_instance),
     ):

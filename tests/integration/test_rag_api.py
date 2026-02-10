@@ -114,9 +114,7 @@ async def test_rag_query_saves_to_db(async_client, patch_rag_providers):
     assert latest.model_used == "test-model"
 
 
-async def test_rag_query_empty_store(
-    async_client, mock_rag_vectorstore, patch_rag_providers
-):
+async def test_rag_query_empty_store(async_client, mock_rag_vectorstore, patch_rag_providers):
     """Empty vector store returns graceful fallback response."""
     mock_rag_vectorstore.search.return_value = []
 
@@ -136,9 +134,7 @@ async def test_rag_query_empty_store(
 # ---------------------------------------------------------------------------
 
 
-async def test_rag_similar_endpoint(
-    async_client, mock_rag_vectorstore, patch_rag_providers
-):
+async def test_rag_similar_endpoint(async_client, mock_rag_vectorstore, patch_rag_providers):
     """GET /rag/similar/{id} returns list of similar sources."""
     # First call returns own recording docs, second call returns similar results
     mock_rag_vectorstore.search.side_effect = [
@@ -178,9 +174,7 @@ async def test_rag_similar_endpoint(
     assert body[0]["recording_id"] == 2
 
 
-async def test_rag_similar_empty(
-    async_client, mock_rag_vectorstore, patch_rag_providers
-):
+async def test_rag_similar_empty(async_client, mock_rag_vectorstore, patch_rag_providers):
     """No summaries for recording returns empty list."""
     mock_rag_vectorstore.search.return_value = []
 

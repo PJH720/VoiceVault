@@ -26,7 +26,6 @@ def test_full_happy_path_pipeline(
 ):
     """Full pipeline: record → transcribe → summarize → classify → embed → RAG → export."""
     client = e2e_client
-    tmp_path: Path = e2e_pipeline["tmp_path"]
 
     # ── Setup: Seed a "lecture" template in the DB ──
     resp = client.post(
@@ -57,9 +56,7 @@ def test_full_happy_path_pipeline(
     # ══════════════════════════════════════════════════════════════════════
     # Steps 2–3: WebSocket audio streaming + real-time transcription
     # ══════════════════════════════════════════════════════════════════════
-    with client.websocket_connect(
-        f"/ws/transcribe?recording_id={recording_id}"
-    ) as ws:
+    with client.websocket_connect(f"/ws/transcribe?recording_id={recording_id}") as ws:
         # Verify connection confirmation
         connected_msg = ws.receive_json()
         assert connected_msg["type"] == "connected"

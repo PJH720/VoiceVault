@@ -143,19 +143,14 @@ async def extract_range(recording_id: int, body: ExtractRangeRequest):
     if not summaries:
         raise HTTPException(
             status_code=404,
-            detail=(
-                f"No summaries found in range "
-                f"[{body.start_minute}, {body.end_minute}]"
-            ),
+            detail=(f"No summaries found in range [{body.start_minute}, {body.end_minute}]"),
         )
 
     settings = get_settings()
     llm = create_llm(provider=settings.llm_provider)
     extractor = RangeExtractor(llm)
 
-    summary_tuples = [
-        (s.minute_index, s.summary_text) for s in summaries
-    ]
+    summary_tuples = [(s.minute_index, s.summary_text) for s in summaries]
     return await extractor.extract_range(
         recording_id=recording_id,
         start_minute=body.start_minute,
