@@ -98,37 +98,27 @@ class RecordingSession:
                 await repo.stop_recording(self.recording_id)
             logger.info("Recording %s finalized as completed", self.recording_id)
         except Exception:
-            logger.exception(
-                "Failed to finalize recording %s", self.recording_id
-            )
+            logger.exception("Failed to finalize recording %s", self.recording_id)
 
         # Auto-classify recording (non-fatal)
         await self._classify_recording()
 
     async def _summarization_loop(self) -> None:
         """Background loop: drain queue every interval or on stop signal."""
-        logger.info(
-            "Summarization loop started for recording %s", self.recording_id
-        )
+        logger.info("Summarization loop started for recording %s", self.recording_id)
         try:
             while not self._stop_event.is_set():
                 try:
-                    await asyncio.wait_for(
-                        self._stop_event.wait(), timeout=self._interval
-                    )
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=self._interval)
                 except TimeoutError:
                     pass  # Timer fired — drain pending transcripts
                 await self._drain_and_summarize()
         except Exception:
-            logger.exception(
-                "Summarization loop crashed for recording %s", self.recording_id
-            )
+            logger.exception("Summarization loop crashed for recording %s", self.recording_id)
         finally:
             # Final drain to process any remaining transcripts
             await self._drain_and_summarize()
-            logger.info(
-                "Summarization loop ended for recording %s", self.recording_id
-            )
+            logger.info("Summarization loop ended for recording %s", self.recording_id)
 
     async def _drain_and_summarize(self) -> None:
         """Process all pending transcripts from the queue."""
@@ -139,9 +129,7 @@ class RecordingSession:
                 break
 
             if not item.text or not item.text.strip():
-                logger.debug(
-                    "Skipping empty transcript for minute %s", item.minute_index
-                )
+                logger.debug("Skipping empty transcript for minute %s", item.minute_index)
                 continue
 
             await self._process_one(item)
@@ -233,9 +221,7 @@ class RecordingSession:
                 embedding=vector,
                 metadata=metadata,
             )
-            logger.debug(
-                "Embedded summary %s into vector store", doc_id
-            )
+            logger.debug("Embedded summary %s into vector store", doc_id)
         except Exception:
             logger.warning(
                 "Failed to embed summary for recording=%s minute=%s (non-fatal)",
@@ -257,9 +243,7 @@ class RecordingSession:
                     )
                     return
 
-                combined_text = "\n".join(
-                    s.summary_text for s in summaries if s.summary_text
-                )
+                combined_text = "\n".join(s.summary_text for s in summaries if s.summary_text)
                 if not combined_text.strip():
                     return
 

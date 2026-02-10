@@ -21,7 +21,6 @@ from src.services.storage import database
 from src.services.storage.database import Base
 from src.services.transcription.base import BaseSTT
 
-
 # ---------------------------------------------------------------------------
 # FakeVectorStore — in-memory implementation for cross-service sharing
 # ---------------------------------------------------------------------------
@@ -58,12 +57,14 @@ class FakeVectorStore(BaseVectorStore):
     ) -> list[dict]:
         results = []
         for doc_id, data in self._store.items():
-            results.append({
-                "id": doc_id,
-                "text": data["text"],
-                "metadata": data["metadata"],
-                "distance": 0.2,
-            })
+            results.append(
+                {
+                    "id": doc_id,
+                    "text": data["text"],
+                    "metadata": data["metadata"],
+                    "distance": 0.2,
+                }
+            )
         return results[:top_k]
 
     async def delete(self, doc_id: str) -> None:
@@ -141,16 +142,20 @@ def e2e_orch_llm():
     """Mock LLM for orchestrator: handles summarization (.generate) and classification (.classify)."""
     llm = AsyncMock(spec=BaseLLM)
     llm.model = "mock-e2e"
-    llm.generate.return_value = json.dumps({
-        "summary": "LangChain과 Agent 설계 패턴에 대한 강의 내용 요약",
-        "keywords": ["LangChain", "Agent", "AI"],
-        "topic": "AI 강의",
-    })
-    llm.classify.return_value = json.dumps({
-        "category": "lecture",
-        "confidence": 0.92,
-        "reason": "Academic lecture content about AI and LangChain framework",
-    })
+    llm.generate.return_value = json.dumps(
+        {
+            "summary": "LangChain과 Agent 설계 패턴에 대한 강의 내용 요약",
+            "keywords": ["LangChain", "Agent", "AI"],
+            "topic": "AI 강의",
+        }
+    )
+    llm.classify.return_value = json.dumps(
+        {
+            "category": "lecture",
+            "confidence": 0.92,
+            "reason": "Academic lecture content about AI and LangChain framework",
+        }
+    )
     return llm
 
 
@@ -159,10 +164,12 @@ def e2e_rag_llm():
     """Mock LLM for RAG retriever: generates answers with citations."""
     llm = AsyncMock(spec=BaseLLM)
     llm.model = "mock-e2e"
-    llm.generate.return_value = json.dumps({
-        "answer": "LangChain은 LLM 기반 애플리케이션 개발 프레임워크입니다.",
-        "source_indices": [0],
-    })
+    llm.generate.return_value = json.dumps(
+        {
+            "answer": "LangChain은 LLM 기반 애플리케이션 개발 프레임워크입니다.",
+            "source_indices": [0],
+        }
+    )
     return llm
 
 

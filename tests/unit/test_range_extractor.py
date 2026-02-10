@@ -19,10 +19,12 @@ def _make_range_response(
     summary: str = "Unified summary of the selected range.",
     keywords: list[str] | None = None,
 ) -> str:
-    return json.dumps({
-        "summary": summary,
-        "keywords": keywords or ["AI", "ML", "project"],
-    })
+    return json.dumps(
+        {
+            "summary": summary,
+            "keywords": keywords or ["AI", "ML", "project"],
+        }
+    )
 
 
 def _make_summaries(start: int, end: int) -> list[tuple[int, str]]:
@@ -33,9 +35,7 @@ def _make_summaries(start: int, end: int) -> list[tuple[int, str]]:
 class TestHappyPath:
     """Tests for successful range extraction."""
 
-    async def test_basic_range_extraction(
-        self, range_extractor, mock_llm
-    ):
+    async def test_basic_range_extraction(self, range_extractor, mock_llm):
         """40-80 minute range with mock summaries returns valid response."""
         mock_llm.generate.return_value = _make_range_response()
         summaries = _make_summaries(40, 80)
@@ -56,9 +56,7 @@ class TestHappyPath:
         assert result.source_count == 41
         assert result.included_minutes == list(range(40, 81))
 
-    async def test_cross_boundary_range(
-        self, range_extractor, mock_llm
-    ):
+    async def test_cross_boundary_range(self, range_extractor, mock_llm):
         """Range spanning hour boundary (50-70) works correctly."""
         mock_llm.generate.return_value = _make_range_response(
             summary="Cross-boundary summary spanning hours.",
@@ -79,9 +77,7 @@ class TestHappyPath:
         assert 60 in result.included_minutes
         assert 70 in result.included_minutes
 
-    async def test_single_summary_in_range(
-        self, range_extractor, mock_llm
-    ):
+    async def test_single_summary_in_range(self, range_extractor, mock_llm):
         """Only 1 minute in range still produces valid result."""
         mock_llm.generate.return_value = _make_range_response(
             summary="Single minute content.",
@@ -100,9 +96,7 @@ class TestHappyPath:
         assert result.included_minutes == [5]
         mock_llm.generate.assert_called_once()
 
-    async def test_llm_called_once(
-        self, range_extractor, mock_llm
-    ):
+    async def test_llm_called_once(self, range_extractor, mock_llm):
         """Should make exactly 1 LLM call regardless of range size."""
         mock_llm.generate.return_value = _make_range_response()
         summaries = _make_summaries(0, 119)
@@ -120,9 +114,7 @@ class TestHappyPath:
 class TestPromptContent:
     """Tests that the LLM prompt is correctly constructed."""
 
-    async def test_prompt_contains_minute_labels(
-        self, range_extractor, mock_llm
-    ):
+    async def test_prompt_contains_minute_labels(self, range_extractor, mock_llm):
         """Verify prompt includes [Minute N] labels."""
         mock_llm.generate.return_value = _make_range_response()
         summaries = _make_summaries(40, 42)
@@ -139,9 +131,7 @@ class TestPromptContent:
         assert "[Minute 41]" in prompt
         assert "[Minute 42]" in prompt
 
-    async def test_prompt_contains_range_info(
-        self, range_extractor, mock_llm
-    ):
+    async def test_prompt_contains_range_info(self, range_extractor, mock_llm):
         """Verify prompt includes the time range context."""
         mock_llm.generate.return_value = _make_range_response()
         summaries = _make_summaries(10, 20)
@@ -160,9 +150,7 @@ class TestPromptContent:
 class TestEmptySummaries:
     """Tests for empty summaries list."""
 
-    async def test_empty_summaries_raises_error(
-        self, range_extractor, mock_llm
-    ):
+    async def test_empty_summaries_raises_error(self, range_extractor, mock_llm):
         """No summaries in range raises SummarizationError."""
         with pytest.raises(SummarizationError, match="No summaries found"):
             await range_extractor.extract_range(
@@ -178,9 +166,7 @@ class TestEmptySummaries:
 class TestErrorHandling:
     """Tests for LLM failures and invalid responses."""
 
-    async def test_llm_failure_raises_summarization_error(
-        self, range_extractor, mock_llm
-    ):
+    async def test_llm_failure_raises_summarization_error(self, range_extractor, mock_llm):
         """Mock LLM raises exception -> SummarizationError propagated."""
         mock_llm.generate.side_effect = RuntimeError("LLM down")
         summaries = _make_summaries(0, 5)
@@ -193,9 +179,7 @@ class TestErrorHandling:
                 summaries=summaries,
             )
 
-    async def test_invalid_json_raises_summarization_error(
-        self, range_extractor, mock_llm
-    ):
+    async def test_invalid_json_raises_summarization_error(self, range_extractor, mock_llm):
         """Invalid JSON from LLM raises SummarizationError."""
         mock_llm.generate.return_value = "not valid json"
         summaries = _make_summaries(0, 5)
@@ -208,9 +192,7 @@ class TestErrorHandling:
                 summaries=summaries,
             )
 
-    async def test_connection_error_retried(
-        self, range_extractor, mock_llm
-    ):
+    async def test_connection_error_retried(self, range_extractor, mock_llm):
         """ConnectionError triggers retry then succeeds."""
         mock_llm.generate.side_effect = [
             ConnectionError("timeout"),
@@ -232,9 +214,7 @@ class TestErrorHandling:
 class TestCodeFenceHandling:
     """Tests that JSON wrapped in code fences is handled correctly."""
 
-    async def test_json_with_code_fences(
-        self, range_extractor, mock_llm
-    ):
+    async def test_json_with_code_fences(self, range_extractor, mock_llm):
         """LLM response wrapped in ```json fences is parsed correctly."""
         fenced = "```json\n" + _make_range_response() + "\n```"
         mock_llm.generate.return_value = fenced

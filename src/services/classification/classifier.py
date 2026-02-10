@@ -90,9 +90,7 @@ class ZeroShotClassifier:
         try:
             raw_response = await self._call_llm(text, cats)
         except Exception as exc:
-            raise ClassificationError(
-                detail=f"LLM classification call failed: {exc}"
-            ) from exc
+            raise ClassificationError(detail=f"LLM classification call failed: {exc}") from exc
 
         try:
             raw_response = _strip_code_fences(raw_response)
@@ -104,9 +102,7 @@ class ZeroShotClassifier:
 
         category = data.get("category", "memo")
         if category not in cats:
-            logger.warning(
-                "LLM returned unknown category %r, falling back to memo", category
-            )
+            logger.warning("LLM returned unknown category %r, falling back to memo", category)
             category = "memo"
 
         confidence = data.get("confidence", 0.0)

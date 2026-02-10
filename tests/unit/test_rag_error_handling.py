@@ -10,10 +10,10 @@ Verifies that:
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from src.core.exceptions import RAGError
 from src.services.rag import create_embedding
-
 
 # ---------------------------------------------------------------------------
 # Bug 1: RAG query max_length validation
@@ -24,7 +24,7 @@ def test_rag_query_rejects_long_query():
     """POST /rag/query with >2000 char query should fail Pydantic validation."""
     from src.core.models import RAGQueryRequest
 
-    with pytest.raises(Exception):  # ValidationError
+    with pytest.raises(ValidationError):
         RAGQueryRequest(query="x" * 2001)
 
 

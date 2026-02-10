@@ -68,9 +68,7 @@ class TestSentenceTransformerEmbedding:
 
         await embedding.embed("hello world")
 
-        mock_st_model.encode.assert_called_once_with(
-            "hello world", normalize_embeddings=True
-        )
+        mock_st_model.encode.assert_called_once_with("hello world", normalize_embeddings=True)
 
     async def test_embed_batch_returns_list_of_vectors(self, embedding, mock_st_model):
         mock_st_model.encode.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
@@ -127,9 +125,7 @@ class TestOllamaEmbedding:
     def mock_ollama_client(self):
         """Return a mock Ollama AsyncClient."""
         client = AsyncMock()
-        client.embeddings = AsyncMock(
-            return_value=SimpleNamespace(embedding=[0.1, 0.2, 0.3])
-        )
+        client.embeddings = AsyncMock(return_value=SimpleNamespace(embedding=[0.1, 0.2, 0.3]))
         return client
 
     @pytest.fixture
@@ -147,17 +143,13 @@ class TestOllamaEmbedding:
         return instance
 
     async def test_embed_returns_list_of_floats(self, embedding, mock_ollama_client):
-        mock_ollama_client.embeddings.return_value = SimpleNamespace(
-            embedding=[0.1, 0.2, 0.3]
-        )
+        mock_ollama_client.embeddings.return_value = SimpleNamespace(embedding=[0.1, 0.2, 0.3])
 
         result = await embedding.embed("test text")
 
         assert result == [0.1, 0.2, 0.3]
 
-    async def test_embed_calls_ollama_with_correct_params(
-        self, embedding, mock_ollama_client
-    ):
+    async def test_embed_calls_ollama_with_correct_params(self, embedding, mock_ollama_client):
         mock_ollama_client.embeddings.return_value = SimpleNamespace(embedding=[0.5])
 
         await embedding.embed("hello")
@@ -167,9 +159,7 @@ class TestOllamaEmbedding:
         )
 
     async def test_embed_batch_calls_each_text(self, embedding, mock_ollama_client):
-        mock_ollama_client.embeddings.return_value = SimpleNamespace(
-            embedding=[0.1, 0.2]
-        )
+        mock_ollama_client.embeddings.return_value = SimpleNamespace(embedding=[0.1, 0.2])
 
         result = await embedding.embed_batch(["a", "b", "c"])
 
@@ -181,9 +171,7 @@ class TestOllamaEmbedding:
 
         assert result == []
 
-    async def test_embed_raises_rag_error_on_failure(
-        self, embedding, mock_ollama_client
-    ):
+    async def test_embed_raises_rag_error_on_failure(self, embedding, mock_ollama_client):
         mock_ollama_client.embeddings.side_effect = Exception("connection refused")
 
         with pytest.raises(RAGError, match="Ollama embedding error"):

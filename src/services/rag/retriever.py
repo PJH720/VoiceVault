@@ -132,9 +132,7 @@ class RAGRetriever:
         try:
             combined_embedding = await self._embedding.embed(combined_text)
         except Exception as exc:
-            raise RAGError(
-                detail=f"Failed to embed combined text: {exc}"
-            ) from exc
+            raise RAGError(detail=f"Failed to embed combined text: {exc}") from exc
 
         search_results = await self._vectorstore.search(
             embedding=combined_embedding,
@@ -142,8 +140,7 @@ class RAGRetriever:
         )
 
         filtered = [
-            r for r in search_results
-            if r.get("metadata", {}).get("recording_id") != recording_id
+            r for r in search_results if r.get("metadata", {}).get("recording_id") != recording_id
         ]
 
         return self._results_to_sources(filtered[:top_k], min_similarity=0.0)
@@ -253,11 +250,7 @@ class RAGRetriever:
             )
         context = "\n".join(context_lines)
 
-        prompt = (
-            f"{RAG_SYSTEM_PROMPT}\n\n"
-            f"Context:\n{context}\n\n"
-            f"Question: {query}"
-        )
+        prompt = f"{RAG_SYSTEM_PROMPT}\n\nContext:\n{context}\n\nQuestion: {query}"
 
         try:
             raw = await self._call_llm(prompt)

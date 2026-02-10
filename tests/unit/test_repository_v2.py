@@ -76,9 +76,7 @@ class TestCreateHourSummary:
 
 
 class TestListHourSummaries:
-    async def test_ordered_by_hour_index(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_ordered_by_hour_index(self, repository: RecordingRepository) -> None:
         rec = await _make_recording(repository)
         await repository.create_hour_summary(rec.id, 2, "c")
         await repository.create_hour_summary(rec.id, 0, "a")
@@ -151,17 +149,13 @@ class TestGetTemplateByName:
         assert fetched is not None
         assert fetched.name == "lecture"
 
-    async def test_nonexistent_returns_none(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_nonexistent_returns_none(self, repository: RecordingRepository) -> None:
         result = await repository.get_template_by_name("nonexistent")
         assert result is None
 
 
 class TestListTemplates:
-    async def test_returns_active_only_by_default(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_returns_active_only_by_default(self, repository: RecordingRepository) -> None:
         await _make_template(repository, name="active-one")
         t2 = await _make_template(repository, name="inactive-one")
         await repository.update_template(t2.id, is_active=False)
@@ -176,9 +170,7 @@ class TestListTemplates:
         result = await repository.list_templates(active_only=False)
         assert len(result) == 2
 
-    async def test_ordered_by_priority_desc(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_ordered_by_priority_desc(self, repository: RecordingRepository) -> None:
         await _make_template(repository, name="low", priority=1)
         await _make_template(repository, name="high", priority=10)
         await _make_template(repository, name="mid", priority=5)
@@ -189,9 +181,7 @@ class TestListTemplates:
 class TestUpdateTemplate:
     async def test_field_update(self, repository: RecordingRepository) -> None:
         t = await _make_template(repository)
-        updated = await repository.update_template(
-            t.id, display_name="Updated Name", priority=99
-        )
+        updated = await repository.update_template(t.id, display_name="Updated Name", priority=99)
         assert updated.display_name == "Updated Name"
         assert updated.priority == 99
 
@@ -209,9 +199,7 @@ class TestDeleteTemplate:
 
 
 class TestTemplateUniqueName:
-    async def test_duplicate_name_raises(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_duplicate_name_raises(self, repository: RecordingRepository) -> None:
         await _make_template(repository, name="unique-name")
         with pytest.raises(IntegrityError):
             await _make_template(repository, name="unique-name")
@@ -261,9 +249,7 @@ class TestCreateClassification:
         assert c.template_id is None
         assert c.export_path is None
 
-    async def test_nullable_template_id(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_nullable_template_id(self, repository: RecordingRepository) -> None:
         rec = await _make_recording(repository)
         c = await repository.create_classification(
             recording_id=rec.id,
@@ -276,9 +262,7 @@ class TestCreateClassification:
 
 
 class TestListClassifications:
-    async def test_ordered_by_start_minute(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_ordered_by_start_minute(self, repository: RecordingRepository) -> None:
         rec = await _make_recording(repository)
         await repository.create_classification(rec.id, "b", 10, 20)
         await repository.create_classification(rec.id, "a", 0, 9)
@@ -324,9 +308,7 @@ class TestCreateRAGQuery:
 
 
 class TestListRAGQueries:
-    async def test_ordered_by_created_at_desc(
-        self, repository: RecordingRepository
-    ) -> None:
+    async def test_ordered_by_created_at_desc(self, repository: RecordingRepository) -> None:
         await repository.create_rag_query(query_text="first")
         await repository.create_rag_query(query_text="second")
         await repository.create_rag_query(query_text="third")
