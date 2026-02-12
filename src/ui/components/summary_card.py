@@ -1,5 +1,8 @@
 """
 Summary card display components.
+
+Provides reusable Streamlit components for rendering 1-minute summaries
+as bordered cards with keywords, confidence badges, and STT corrections.
 """
 
 import streamlit as st
@@ -57,7 +60,16 @@ def render_summary_list(
     recording_id: int | None = None,
     page_size: int = 10,
 ) -> None:
-    """Render a list of summaries with a count header and pagination."""
+    """Render a list of summaries with a count header and pagination.
+
+    For recordings with many summaries (>page_size), provides Previous/Next
+    navigation buttons with page state stored in ``st.session_state``.
+
+    Args:
+        summaries: List of summary dicts from the API.
+        recording_id: Optional recording ID for "Play from here" buttons.
+        page_size: Number of summaries per page (default: 10).
+    """
     st.caption(f"{len(summaries)} summary(ies)")
 
     if len(summaries) <= page_size:

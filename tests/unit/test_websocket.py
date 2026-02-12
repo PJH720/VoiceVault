@@ -1,4 +1,9 @@
-"""Tests for the WebSocket transcription endpoint."""
+"""Tests for the WebSocket transcription endpoint.
+
+Uses Starlette's sync TestClient (required for WebSocket testing) with
+mocked STT and orchestrator to verify connection handshake, audio byte
+acceptance, and parameter validation.
+"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -30,6 +35,7 @@ def _make_mock_session():
 
 @pytest.fixture
 def app():
+    """Create a fresh FastAPI application instance."""
     return create_app()
 
 
@@ -46,6 +52,7 @@ def app():
 )
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
 def test_websocket_connects_and_sends_connected_message(_mock_stt, _mock_start, _mock_stop, app):
+    """Server sends a 'connected' JSON message immediately after handshake."""
     client = TestClient(app)
     with client.websocket_connect("/ws/transcribe?recording_id=1") as ws:
         msg = ws.receive_json()
@@ -61,6 +68,7 @@ def test_websocket_connects_and_sends_connected_message(_mock_stt, _mock_start, 
 )
 @patch("src.api.websocket.create_stt", return_value=_make_mock_stt())
 def test_websocket_receives_audio_bytes(_mock_stt, _mock_start, _mock_stop, app):
+    """Server accepts binary audio frames without raising errors."""
     client = TestClient(app)
     with client.websocket_connect("/ws/transcribe?recording_id=42") as ws:
         # Consume the initial connected message

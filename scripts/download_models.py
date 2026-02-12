@@ -107,7 +107,11 @@ def download_model(
 
 
 def download_all_models(cache_dir: Optional[Path] = None):
-    """Download all available Whisper models."""
+    """Download all available Whisper models sequentially.
+
+    Args:
+        cache_dir: Directory to cache models. Defaults to HuggingFace hub cache.
+    """
     print("\nDownloading all Whisper models...")
     print("This will download approximately 6.5 GB of data.\n")
 
@@ -122,7 +126,7 @@ def download_all_models(cache_dir: Optional[Path] = None):
 
 
 def main():
-    """Main entry point."""
+    """Parse CLI arguments and dispatch to the appropriate download action."""
     parser = argparse.ArgumentParser(
         description="Download Whisper models for VoiceVault",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -172,17 +176,17 @@ def main():
 
     args = parser.parse_args()
 
-    # List models and exit
+    # --list: display model catalog then exit immediately
     if args.list:
         print_models()
         return
 
-    # Download all models
+    # --all: download every model in the catalog sequentially
     if args.all:
         download_all_models(args.cache_dir)
         return
 
-    # Download specific model
+    # Default: download the single requested model
     success = download_model(
         args.model,
         args.cache_dir,

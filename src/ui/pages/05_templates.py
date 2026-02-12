@@ -1,5 +1,9 @@
 """
 Template management page — view, create, edit, and delete classification templates.
+
+Templates define the structure of Obsidian exports for each recording category.
+Each template has trigger keywords for matching, priority for ordering, and
+configurable output fields (summary, key_concepts, action_items, etc.).
 """
 
 # Ensure project root is on sys.path (Streamlit page files need this).

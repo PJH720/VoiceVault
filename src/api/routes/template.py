@@ -15,7 +15,14 @@ router = APIRouter(prefix="/templates", tags=["templates"])
 
 
 def _to_response(template) -> TemplateResponse:
-    """Convert an ORM Template to a TemplateResponse."""
+    """Convert an ORM Template object to its API response model.
+
+    Args:
+        template: SQLAlchemy ORM ``Template`` instance.
+
+    Returns:
+        TemplateResponse: Pydantic model suitable for JSON serialization.
+    """
     return TemplateResponse(
         id=template.id,
         name=template.name,

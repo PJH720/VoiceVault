@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaLLM(BaseLLM):
-    """Ollama local LLM provider with retry logic."""
+    """Ollama local LLM provider with retry logic.
+
+    Connects to a locally running Ollama server via its REST API.
+    Retries transient connection failures up to 3 times with exponential backoff.
+    """
 
     def __init__(
         self,
@@ -31,6 +35,13 @@ class OllamaLLM(BaseLLM):
         model: str | None = None,
         temperature: float = 0.7,
     ) -> None:
+        """Initialize the Ollama LLM provider.
+
+        Args:
+            base_url: Ollama server URL (falls back to settings if not provided).
+            model: Model name to use (e.g. "llama3.2").
+            temperature: Sampling temperature for text generation (0.0–1.0).
+        """
         settings = get_settings()
         self._base_url = base_url or settings.ollama_base_url
         self._model = model or settings.ollama_model

@@ -17,6 +17,7 @@ from src.services.storage.repository import RecordingRepository
 
 @pytest.fixture
 def mock_rag_embedding():
+    """Create a mock embedding provider returning 384-dim vectors."""
     emb = AsyncMock(spec=BaseEmbedding)
     emb.embed.return_value = [0.1] * 384
     emb.dimension.return_value = 384
@@ -25,6 +26,7 @@ def mock_rag_embedding():
 
 @pytest.fixture
 def mock_rag_vectorstore():
+    """Create a mock vector store pre-loaded with one lecture summary result."""
     vs = AsyncMock(spec=BaseVectorStore)
     vs.search.return_value = [
         {
@@ -46,6 +48,7 @@ def mock_rag_vectorstore():
 
 @pytest.fixture
 def mock_rag_llm():
+    """Create a mock LLM that returns a JSON answer with source indices."""
     llm = AsyncMock(spec=BaseLLM)
     llm.model = "test-model"
     llm.generate.return_value = json.dumps(

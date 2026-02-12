@@ -1,5 +1,8 @@
 """
 Template card display component.
+
+Renders classification templates as bordered cards showing name, icon,
+triggers, fields, priority, and edit/delete action buttons.
 """
 
 import streamlit as st
@@ -10,7 +13,13 @@ def render_template_card(
     on_edit_key: str,
     on_delete_key: str,
 ) -> None:
-    """Render a single template as a bordered card with edit/delete actions."""
+    """Render a single template as a bordered card with edit/delete actions.
+
+    Args:
+        template: Template dict from the API.
+        on_edit_key: Streamlit widget key for the Edit button.
+        on_delete_key: Streamlit widget key for the Delete button.
+    """
     name = template.get("name", "")
     display_name = template.get("display_name") or name
     icon = template.get("icon", "")

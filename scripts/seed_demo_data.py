@@ -46,7 +46,15 @@ DEMO_PREFIX = "[DEMO]"
 # ------------------------------------------------------------------
 
 async def _ensure_templates(repo: RecordingRepository) -> None:
-    """Ensure default templates exist in the DB."""
+    """Load default classification templates from JSON files into the DB.
+
+    Iterates over ``templates/*.json`` and inserts any template whose name
+    does not already exist. This avoids a subprocess call to
+    ``seed_templates.py`` while achieving the same result.
+
+    Args:
+        repo: Active repository instance bound to a DB session.
+    """
     import json
 
     templates_dir = PROJECT_ROOT / "templates"
@@ -58,6 +66,7 @@ async def _ensure_templates(repo: RecordingRepository) -> None:
         with open(path) as f:
             data = json.load(f)
         name = data["name"]
+        # Skip templates that already exist (idempotent)
         existing = await repo.get_template_by_name(name)
         if existing is not None:
             continue
@@ -70,6 +79,7 @@ async def _ensure_templates(repo: RecordingRepository) -> None:
             icon=data.get("icon", ""),
             priority=data.get("priority", 0),
         )
+        # Mark as the fallback template when no other template matches
         if data.get("is_default", False):
             template.is_default = True
         print(f"  TEMPLATE  {name} (id={template.id})")
@@ -80,14 +90,23 @@ async def _ensure_templates(repo: RecordingRepository) -> None:
 # ------------------------------------------------------------------
 
 async def _clean_demo_data() -> int:
-    """Delete all [DEMO] recordings and related data. Returns count deleted."""
+    """Delete all ``[DEMO]`` recordings, their ChromaDB embeddings, and export files.
+
+    Cleanup order:
+        1. Remove embeddings from ChromaDB (best-effort, non-fatal on failure).
+        2. Delete DB rows — cascade removes transcripts, summaries, classifications.
+        3. Remove Obsidian Markdown export files whose names contain ``[DEMO]``.
+
+    Returns:
+        Number of recording rows deleted from the database.
+    """
     settings = get_settings()
     deleted = 0
 
     async with get_session() as session:
         repo = RecordingRepository(session)
 
-        # Find [DEMO] recordings
+        # Query all recordings whose title starts with the demo prefix
         stmt = select(Recording).where(Recording.title.like(f"{DEMO_PREFIX}%"))
         result = await session.execute(stmt)
         demo_recordings = list(result.scalars().all())
@@ -96,7 +115,7 @@ async def _clean_demo_data() -> int:
             print("  No existing demo data to clean.")
             return 0
 
-        # Try to clean ChromaDB entries
+        # Step 1: remove vector embeddings (best-effort)
         try:
             from src.services.rag import create_vectorstore
 
@@ -104,22 +123,23 @@ async def _clean_demo_data() -> int:
             for rec in demo_recordings:
                 summaries = await repo.list_summaries(rec.id)
                 for s in summaries:
+                    # doc_id mirrors the format used during embedding
                     doc_id = f"summary-{rec.id}-{s.minute_index}"
                     try:
                         await vectorstore.delete(doc_id)
                     except Exception:
-                        pass
+                        pass  # Individual deletion failures are non-critical
             print(f"  ChromaDB  cleaned embeddings for {len(demo_recordings)} recordings")
         except Exception as exc:
             print(f"  WARN  ChromaDB cleanup skipped: {exc}")
 
-        # Delete DB records (cascade handles transcripts/summaries/etc.)
+        # Step 2: delete DB records (cascade handles child rows)
         for rec in demo_recordings:
             await repo.delete_recording(rec.id)
             print(f"  DELETE  {rec.title} (id={rec.id})")
             deleted += 1
 
-    # Clean export files
+    # Step 3: remove exported Markdown files containing the demo prefix
     exports_dir = Path(settings.exports_dir)
     if exports_dir.is_dir():
         for f in exports_dir.iterdir():
@@ -139,24 +159,36 @@ async def _seed_scenario(
     index: int,
     total: int,
 ) -> int:
-    """Seed a single scenario into DB. Returns recording_id."""
-    label = f"[{index + 1}/{total}]"
+    """Insert a single demo scenario into the database.
+
+    Creates the recording row plus all child data (transcripts, summaries,
+    hour summaries, and classification) in one session.
+
+    Args:
+        scenario: Scenario dict from ``SCENARIOS`` containing metadata and content.
+        index: Zero-based position of this scenario in the batch (for progress display).
+        total: Total number of scenarios being seeded.
+
+    Returns:
+        The auto-generated ``recording.id`` for the newly inserted recording.
+    """
+    label = f"[{index + 1}/{total}]"  # e.g. "[1/4]" for progress output
     title = scenario["title"]
 
     async with get_session() as session:
         repo = RecordingRepository(session)
 
-        # 1. Create recording
+        # 1. Create the parent recording row and set its timestamps
         recording = await repo.create_recording(title=title)
         recording.started_at = datetime.fromisoformat(scenario["started_at"])
         recording.ended_at = datetime.fromisoformat(scenario["ended_at"])
         recording.status = "completed"
         recording.total_minutes = scenario["total_minutes"]
-        await session.flush()
+        await session.flush()  # Flush to generate the recording.id
         rec_id = recording.id
         print(f"  {label} Recording: {title} (id={rec_id})")
 
-        # 2. Transcripts
+        # 2. Generate per-minute transcripts (key + interpolated filler)
         all_transcripts = generate_all_transcripts(scenario)
         for t in all_transcripts:
             await repo.create_transcript(
@@ -168,7 +200,7 @@ async def _seed_scenario(
             )
         print(f"  {label} Transcripts: {len(all_transcripts)}")
 
-        # 3. Summaries
+        # 3. Generate per-minute summaries (key + interpolated filler)
         all_summaries = generate_all_summaries(scenario)
         for s in all_summaries:
             await repo.create_summary(
@@ -182,7 +214,7 @@ async def _seed_scenario(
             )
         print(f"  {label} Summaries: {len(all_summaries)}")
 
-        # 4. Hour summaries
+        # 4. Hour summaries (only present for long recordings like the 5-hour study session)
         for hs in scenario.get("hour_summaries", []):
             await repo.create_hour_summary(
                 recording_id=rec_id,
@@ -197,7 +229,7 @@ async def _seed_scenario(
         if hour_count:
             print(f"  {label} Hour summaries: {hour_count}")
 
-        # 5. Classification
+        # 5. Classify the recording against its designated template
         template = await repo.get_template_by_name(scenario["template_name"])
         template_id = template.id if template else None
         await repo.create_classification(
@@ -220,13 +252,25 @@ async def _seed_scenario(
 # ------------------------------------------------------------------
 
 async def _embed_summaries(recording_ids: list[int]) -> int:
-    """Embed all summaries for the given recordings into ChromaDB."""
+    """Embed all per-minute summaries into ChromaDB for RAG retrieval.
+
+    For each recording, every summary is converted to a vector embedding and
+    stored with metadata (recording_id, minute_index, category, keywords, etc.)
+    so that the RAG pipeline can perform similarity search across demo data.
+
+    Args:
+        recording_ids: List of recording IDs whose summaries should be embedded.
+
+    Returns:
+        Total number of summaries successfully embedded.
+    """
     try:
         from src.services.rag import create_embedding, create_vectorstore
     except ImportError as exc:
         print(f"  WARN  RAG modules not available, skipping embeddings: {exc}")
         return 0
 
+    # First-time model download may be slow; notify the user
     print("\n  Loading embedding model (first run may download)...")
     settings = get_settings()
     embedder = create_embedding(settings.embedding_provider)
@@ -235,12 +279,14 @@ async def _embed_summaries(recording_ids: list[int]) -> int:
     embedded = 0
 
     for rec_id in recording_ids:
+        # Fetch summaries and parent recording in a single session
         async with get_session() as session:
             repo = RecordingRepository(session)
             summaries = await repo.list_summaries(rec_id)
             recording = await repo.get_recording(rec_id)
 
         for s in summaries:
+            # Unique document ID mirrors the cleanup logic in _clean_demo_data
             doc_id = f"summary-{rec_id}-{s.minute_index}"
             text = s.summary_text
             if not text:
@@ -248,6 +294,7 @@ async def _embed_summaries(recording_ids: list[int]) -> int:
 
             embedding = await embedder.embed(text)
 
+            # Build metadata for filtered retrieval and citation display
             metadata = {
                 "recording_id": rec_id,
                 "minute_index": s.minute_index,
@@ -258,7 +305,7 @@ async def _embed_summaries(recording_ids: list[int]) -> int:
                 "date": recording.started_at.isoformat() if recording.started_at else "",
             }
 
-            # Get category from classifications
+            # Attach the classification template name as the category
             async with get_session() as session:
                 repo = RecordingRepository(session)
                 classifications = await repo.list_classifications(rec_id)
@@ -280,7 +327,17 @@ async def _embed_summaries(recording_ids: list[int]) -> int:
 # ------------------------------------------------------------------
 
 async def _export_recordings(recording_ids: list[int]) -> int:
-    """Export recordings as Obsidian-compatible Markdown."""
+    """Export demo recordings as Obsidian-compatible Markdown files.
+
+    Each recording is rendered to a ``.md`` file in the configured exports
+    directory. Failures are logged but do not abort the remaining exports.
+
+    Args:
+        recording_ids: List of recording IDs to export.
+
+    Returns:
+        Number of recordings successfully exported.
+    """
     from src.services.storage.export import export_recording_to_markdown
 
     exported = 0
@@ -306,7 +363,22 @@ async def _export_recordings(recording_ids: list[int]) -> int:
 # ------------------------------------------------------------------
 
 async def seed(clean: bool = False) -> int:
-    """Run the full demo data seeding pipeline."""
+    """Run the full 6-step demo data seeding pipeline.
+
+    Steps:
+        1. Initialize the database schema.
+        2. Ensure classification templates are loaded.
+        3. Optionally clean existing ``[DEMO]`` data (``--clean``).
+        4. Insert all scenario recordings with transcripts and summaries.
+        5. Embed summaries into ChromaDB for RAG.
+        6. Export recordings as Obsidian Markdown.
+
+    Args:
+        clean: If True, delete existing demo data before re-seeding.
+
+    Returns:
+        Exit code (0 = success).
+    """
     print("=" * 60)
     print("VoiceVault Demo Data Seeder")
     print("=" * 60)
@@ -375,7 +447,7 @@ async def seed(clean: bool = False) -> int:
 
 
 def main() -> int:
-    """Entry point with CLI argument parsing."""
+    """CLI entry point — parse ``--clean`` flag and run the async seed pipeline."""
     parser = argparse.ArgumentParser(
         description="Seed VoiceVault demo data (8-hour simulation)"
     )

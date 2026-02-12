@@ -29,13 +29,17 @@ class HealthResponse(BaseModel):
 
 
 class RecordingStatus(StrEnum):
-    """Possible states for a recording session."""
+    """Possible states for a recording session.
 
-    active = "active"
-    processing = "processing"
-    completed = "completed"
-    failed = "failed"
-    imported = "imported"
+    Lifecycle: active -> processing -> completed | failed
+    Imported recordings start directly as "imported".
+    """
+
+    active = "active"  # Currently recording audio
+    processing = "processing"  # Post-recording summarization in progress
+    completed = "completed"  # All summaries and classification finished
+    failed = "failed"  # An error occurred during processing
+    imported = "imported"  # Created from an imported audio file, not live recording
 
 
 class RecordingCreate(BaseModel):
@@ -136,13 +140,17 @@ class TranscriptionCorrection(BaseModel):
 
 
 class MinuteSummaryResult(BaseModel):
-    """Internal service result from 1-minute summarization."""
+    """Internal service result from 1-minute summarization.
 
-    minute_index: int
-    summary_text: str
-    keywords: list[str] = Field(default_factory=list)
-    topic: str = ""
-    model_used: str = ""
+    Produced by ``MinuteSummarizer`` and consumed by the orchestrator to
+    persist summaries and queue embedding creation.
+    """
+
+    minute_index: int  # Zero-based minute offset within the recording
+    summary_text: str  # Concise summary (~50 tokens target)
+    keywords: list[str] = Field(default_factory=list)  # Extracted key terms
+    topic: str = ""  # Short topic label
+    model_used: str = ""  # LLM model identifier for provenance tracking
     corrections: list[TranscriptionCorrection] = Field(default_factory=list)
 
 
@@ -200,13 +208,17 @@ class StreamingTranscriptionResult(BaseModel):
 
 
 class WebSocketMessageType(StrEnum):
-    """Discriminator for messages sent over the transcription WebSocket."""
+    """Discriminator for messages sent over the transcription WebSocket.
 
-    connected = "connected"
-    transcript = "transcript"
-    summary = "summary"
-    status = "status"
-    error = "error"
+    Used as the ``type`` field in ``WebSocketMessage`` to let the client
+    route incoming server-push messages to the correct UI handler.
+    """
+
+    connected = "connected"  # Initial handshake confirmation
+    transcript = "transcript"  # Real-time STT text segment
+    summary = "summary"  # 1-minute summary just produced
+    status = "status"  # Recording state change (e.g. processing → completed)
+    error = "error"  # Error during transcription or summarization
 
 
 class WebSocketMessage(BaseModel):
@@ -249,13 +261,18 @@ class HourSummaryResponse(BaseModel):
 
 
 class HourSummaryResult(BaseModel):
-    """Internal service result from hour-level summarization."""
+    """Internal service result from hour-level summarization.
 
-    hour_index: int
-    summary_text: str
+    Produced by the 3-level hierarchical compression pipeline:
+    60 one-minute summaries -> 6 ten-minute groups -> 1 hour summary.
+    Achieves ~95% token reduction compared to raw transcripts.
+    """
+
+    hour_index: int  # Zero-based hour offset within the recording
+    summary_text: str  # Compressed hour-level summary
     keywords: list[str] = Field(default_factory=list)
-    topic_segments: list[dict] = Field(default_factory=list)
-    token_count: int = 0
+    topic_segments: list[dict] = Field(default_factory=list)  # Topic shifts within the hour
+    token_count: int = 0  # Approximate token count for cost tracking
     model_used: str = ""
 
 
@@ -336,15 +353,19 @@ class RAGSource(BaseModel):
 
 
 class RAGQueryRequest(BaseModel):
-    """POST /rag/query request body."""
+    """POST /rag/query request body.
 
-    query: str = Field(max_length=2000)
-    top_k: int = 5
-    min_similarity: float = 0.3
-    date_from: str | None = None
-    date_to: str | None = None
-    category: str | None = None
-    keywords: list[str] | None = None
+    Supports natural-language queries with optional metadata filters
+    for date range, category, and keyword narrowing.
+    """
+
+    query: str = Field(max_length=2000)  # Natural-language search question
+    top_k: int = 5  # Max number of similar summaries to retrieve
+    min_similarity: float = 0.3  # Cosine similarity cutoff (0.0–1.0)
+    date_from: str | None = None  # ISO date string for range start (inclusive)
+    date_to: str | None = None  # ISO date string for range end (inclusive)
+    category: str | None = None  # Filter by classification category
+    keywords: list[str] | None = None  # Required keywords in source summaries
 
 
 class RAGQueryResponse(BaseModel):
@@ -362,10 +383,14 @@ class RAGQueryResponse(BaseModel):
 
 
 class ExtractRangeRequest(BaseModel):
-    """POST /recordings/{id}/extract request body."""
+    """POST /recordings/{id}/extract request body.
 
-    start_minute: int
-    end_minute: int
+    Allows users to select any arbitrary minute range for re-summarization.
+    The range can span hour boundaries transparently.
+    """
+
+    start_minute: int  # Inclusive start minute (zero-based)
+    end_minute: int  # Inclusive end minute
 
 
 class ExtractRangeResponse(BaseModel):

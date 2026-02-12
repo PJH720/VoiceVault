@@ -13,7 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class APIError(Exception):
-    """User-friendly API error with categorized message."""
+    """User-friendly API error with categorized message.
+
+    Categories: "connection", "timeout", "http", "network", "unknown".
+    Used by the UI to display appropriate error messages.
+    """
 
     def __init__(self, message: str, category: str = "unknown") -> None:
         self.message = message
@@ -22,14 +26,36 @@ class APIError(Exception):
 
 
 class APIClient:
-    """Thin wrapper around httpx for calling the FastAPI backend."""
+    """Thin synchronous wrapper around httpx for calling the FastAPI backend.
+
+    Uses synchronous HTTP because Streamlit scripts run on a single thread.
+    All methods return parsed JSON dicts or raise ``APIError`` with
+    user-friendly messages for display in the UI.
+    """
 
     def __init__(self, base_url: str = "http://localhost:8000") -> None:
+        """Initialize the HTTP client.
+
+        Args:
+            base_url: Base URL of the VoiceVault FastAPI backend.
+        """
         self._base_url = base_url.rstrip("/")
         self._client = httpx.Client(base_url=self._base_url, timeout=30.0)
 
     def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
-        """Execute an HTTP request with user-friendly error handling."""
+        """Execute an HTTP request with user-friendly error handling.
+
+        Args:
+            method: HTTP method name ("get", "post", "patch", "delete").
+            path: API endpoint path (e.g. "/api/v1/recordings").
+            **kwargs: Passed through to httpx (json, params, timeout, etc.).
+
+        Returns:
+            The httpx Response object with a successful status code.
+
+        Raises:
+            APIError: On connection, timeout, HTTP status, or network errors.
+        """
         try:
             resp = getattr(self._client, method)(path, **kwargs)
             resp.raise_for_status()
@@ -148,6 +174,7 @@ class APIClient:
         category: str | None = None,
         keywords: list[str] | None = None,
     ) -> dict:
+        """Send a natural-language RAG query with optional filters."""
         body: dict = {
             "query": query,
             "top_k": top_k,
@@ -183,6 +210,7 @@ class APIClient:
         include_transcript: bool = False,
         vault_path: str | None = None,
     ) -> dict:
+        """Export a recording as Obsidian-compatible Markdown."""
         body: dict = {
             "format": format,
             "include_transcript": include_transcript,
@@ -212,5 +240,8 @@ class APIClient:
 
 @st.cache_resource
 def get_api_client() -> APIClient:
-    """Return a cached APIClient singleton."""
+    """Return a cached APIClient singleton.
+
+    Uses Streamlit's ``cache_resource`` to persist the client across reruns.
+    """
     return APIClient(base_url=st.session_state.get("api_base_url", "http://localhost:8000"))

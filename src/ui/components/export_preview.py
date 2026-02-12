@@ -1,5 +1,8 @@
 """
 Obsidian export preview components.
+
+Provides tabbed preview of exported Markdown: rendered view, raw source,
+and frontmatter key-value table.
 """
 
 import streamlit as st
@@ -20,7 +23,15 @@ def render_frontmatter_table(frontmatter: dict) -> None:
 
 
 def render_export_preview(export_result: dict) -> None:
-    """Render a tabbed preview of the Markdown export."""
+    """Render a tabbed preview of the Markdown export.
+
+    Tabs: "Rendered" (markdown display), "Raw Markdown" (code block),
+    "Frontmatter" (key-value table).
+
+    Args:
+        export_result: Dict from the export API with ``markdown_content``,
+            ``frontmatter``, and ``file_path`` keys.
+    """
     markdown_content = export_result.get("markdown_content", "")
     frontmatter = export_result.get("frontmatter", {})
     file_path = export_result.get("file_path", "")

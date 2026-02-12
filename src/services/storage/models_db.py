@@ -15,7 +15,12 @@ from src.services.storage.database import Base
 
 
 class Recording(Base):
-    """A single recording session."""
+    """A single recording session.
+
+    Central entity in the data model. Has one-to-many relationships with
+    transcripts, summaries, hour summaries, and classifications.
+    Cascade delete ensures all child records are removed when a recording is deleted.
+    """
 
     __tablename__ = "recordings"
 
@@ -124,7 +129,12 @@ class HourSummary(Base):
 
 
 class Template(Base):
-    """A user-defined classification template."""
+    """A user-defined classification template.
+
+    Templates define the structure of Obsidian exports for each category.
+    ``triggers`` are keywords used for template matching, ``fields`` define
+    the output sections (e.g. summary, key_concepts, action_items).
+    """
 
     __tablename__ = "templates"
 
@@ -171,7 +181,11 @@ class Classification(Base):
 
 
 class RAGQuery(Base):
-    """A logged RAG search query and its results."""
+    """A logged RAG search query and its results.
+
+    Persisted for usage analytics and debugging. Records the query text,
+    the LLM-generated answer, and the source summaries used.
+    """
 
     __tablename__ = "rag_queries"
     __table_args__ = (Index("ix_rag_queries_created_at", "created_at"),)
