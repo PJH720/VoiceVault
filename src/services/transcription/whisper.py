@@ -22,11 +22,20 @@ from src.services.transcription.base import BaseSTT
 
 logger = logging.getLogger(__name__)
 
+# Module-level model cache: loaded once on first use, reused across requests
 _model_cache: WhisperModel | None = None
 
 
 class WhisperSTT(BaseSTT):
     """Speech-to-text provider using faster-whisper (CTranslate2).
+
+    Supports two modes of operation:
+    - **File-based**: Transcribes a complete audio file (``transcribe``).
+    - **Streaming**: Processes real-time PCM chunks via ``AudioBuffer``
+      with overlap to prevent word-boundary cuts (``transcribe_stream``).
+
+    The underlying ``WhisperModel`` is loaded lazily and cached at module
+    level to avoid the ~2s initialization cost on every request.
 
     Args:
         model_size: Whisper model size (tiny, base, small, medium, large-v3).
@@ -101,12 +110,20 @@ class WhisperSTT(BaseSTT):
 
     @staticmethod
     def _logprob_to_confidence(avg_logprob: float) -> float:
-        """Convert average log probability to a 0-1 confidence score."""
+        """Convert average log probability to a 0–1 confidence score.
+
+        Uses ``exp(logprob)`` which naturally maps (-inf, 0] -> (0, 1],
+        then clamps to [0, 1] for safety.
+        """
         return max(0.0, min(1.0, math.exp(avg_logprob)))
 
     @staticmethod
     def _segments_to_models(segments) -> list[TranscriptionSegment]:
-        """Convert faster-whisper segment objects to Pydantic models."""
+        """Convert faster-whisper segment objects to Pydantic models.
+
+        Filters out empty segments (whitespace-only text) that can occur
+        in low-confidence or silence regions.
+        """
         return [
             TranscriptionSegment(
                 text=seg.text.strip(),
@@ -209,16 +226,19 @@ class WhisperSTT(BaseSTT):
         Yields:
             Dicts with text, is_final, confidence, segments.
         """
+        # 3-second chunks with 0.5s overlap to prevent word cuts at boundaries
         buffer = AudioBuffer(chunk_duration=3.0, overlap_duration=0.5)
 
         async for chunk_bytes in audio_chunks:
             buffer.add_bytes(chunk_bytes)
 
+            # Process all complete chunks available in the buffer
             while buffer.has_chunk():
                 audio_array = buffer.get_chunk()
                 if audio_array is None:
                     continue
 
+                # Skip silent chunks to reduce unnecessary STT calls
                 if self._processor.is_silent(audio_array):
                     continue
 

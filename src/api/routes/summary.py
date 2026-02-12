@@ -2,6 +2,7 @@
 Summary REST endpoints.
 
 Implements list-summaries, hour-summaries, and cross-boundary extraction.
+Hour summaries are generated lazily on first request and cached in the DB.
 """
 
 from collections import defaultdict
@@ -25,13 +26,20 @@ router = APIRouter(prefix="/recordings", tags=["summaries"])
 
 
 def _group_by_hour(summaries) -> dict[int, list[str]]:
-    """Group minute summaries into hour buckets.
+    """Group minute summaries into hour-keyed buckets.
 
-    minute_index 0-59 -> hour 0, 60-119 -> hour 1, etc.
+    Mapping: minute_index 0–59 -> hour 0, 60–119 -> hour 1, etc.
+
+    Args:
+        summaries: List of ORM Summary objects with ``minute_index`` and
+            ``summary_text`` attributes.
+
+    Returns:
+        Dict mapping hour index to a list of summary text strings.
     """
     hours: dict[int, list[str]] = defaultdict(list)
     for s in summaries:
-        hour_idx = s.minute_index // 60
+        hour_idx = s.minute_index // 60  # Integer division to get hour bucket
         hours[hour_idx].append(s.summary_text)
     return dict(hours)
 
@@ -129,7 +137,16 @@ async def list_hour_summaries(recording_id: int):
     response_model=ExtractRangeResponse,
 )
 async def extract_range(recording_id: int, body: ExtractRangeRequest):
-    """Cross-boundary range extraction and re-summarization."""
+    """Cross-boundary range extraction and re-summarization.
+
+    Allows users to select any time range (e.g., minute 40–80) spanning
+    hour boundaries. Fetches 1-min summaries in that range and produces
+    a single unified summary via the LLM.
+
+    Args:
+        recording_id: ID of the recording.
+        body: Start and end minute for the range to extract.
+    """
     if body.start_minute >= body.end_minute:
         raise HTTPException(
             status_code=422,

@@ -1,5 +1,8 @@
 """
 RAG search result display components.
+
+Provides Streamlit components for rendering RAG query answers with
+source citations, similarity progress bars, and metadata.
 """
 
 import streamlit as st

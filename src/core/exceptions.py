@@ -9,7 +9,16 @@ from datetime import UTC, datetime
 
 
 class VoiceVaultError(Exception):
-    """Base exception for all VoiceVault errors."""
+    """Base exception for all VoiceVault errors.
+
+    Carries structured metadata (code, status_code, timestamp) so the
+    API error-handler middleware can build a consistent JSON error envelope.
+
+    Args:
+        detail: Human-readable error description.
+        code: Machine-readable error code for client-side handling.
+        status_code: HTTP status code to return in the API response.
+    """
 
     def __init__(
         self,
@@ -20,6 +29,7 @@ class VoiceVaultError(Exception):
         self.detail = detail
         self.code = code
         self.status_code = status_code
+        # ISO-8601 timestamp for error traceability in logs and responses
         self.timestamp = datetime.now(UTC).isoformat()
         super().__init__(detail)
 

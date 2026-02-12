@@ -1,7 +1,9 @@
 """
 Recording REST endpoints.
 
-Implements CRUD operations for recording sessions and Obsidian export.
+Implements CRUD operations for recording sessions, filesystem sync,
+consistency checks, imported-recording processing, and Obsidian export.
+All endpoints delegate to ``RecordingRepository`` — no business logic here.
 """
 
 import logging
@@ -38,7 +40,14 @@ router = APIRouter(prefix="/recordings", tags=["recordings"])
 
 
 def _to_response(recording) -> RecordingResponse:
-    """Convert an ORM Recording to a RecordingResponse."""
+    """Convert an ORM Recording object to its API response model.
+
+    Args:
+        recording: SQLAlchemy ORM ``Recording`` instance.
+
+    Returns:
+        RecordingResponse: Pydantic model suitable for JSON serialization.
+    """
     return RecordingResponse(
         id=recording.id,
         title=recording.title,
@@ -112,8 +121,18 @@ class CleanupResponse(BaseModel):
 
 @router.post("/consistency/cleanup", response_model=CleanupResponse)
 async def consistency_cleanup(body: CleanupRequest):
-    """Clean up orphan records or files discovered by consistency check."""
+    """Clean up orphan records or files discovered by consistency check.
+
+    Supported actions:
+    - ``delete_records``: Remove DB records with no audio file on disk.
+    - ``delete_files``: Remove audio files with no matching DB record.
+    - ``import_files``: Import orphan files into the DB via filesystem sync.
+
+    Args:
+        body: Action type and the record IDs or file paths to process.
+    """
     settings = get_settings()
+    # Resolve recordings dir for path-traversal prevention in delete_files
     rec_dir = Path(settings.recordings_dir).resolve()
     processed = 0
     errors: list[str] = []
@@ -131,6 +150,7 @@ async def consistency_cleanup(body: CleanupRequest):
     elif body.action == "delete_files":
         for fp in body.file_paths:
             resolved = Path(fp).resolve()
+            # Prevent path traversal: only allow deleting files inside recordings_dir
             if not str(resolved).startswith(str(rec_dir)):
                 errors.append(f"{fp}: path outside recordings directory")
                 continue
@@ -169,7 +189,7 @@ async def delete_recording(recording_id: int):
             exports_dir=settings.exports_dir,
         )
 
-    # Best-effort ChromaDB vector cleanup
+    # Best-effort ChromaDB vector cleanup (non-fatal if ChromaDB is unavailable)
     minute_indices = result.pop("minute_indices", [])
     vectors_deleted = 0
     try:
@@ -241,7 +261,22 @@ async def get_recording_audio(recording_id: int):
 
 @router.post("/{recording_id}/process", response_model=ProcessRecordingResponse)
 async def process_recording(recording_id: int):
-    """Process an imported recording: transcribe, summarize, and embed."""
+    """Process an imported recording: transcribe, summarize, and embed.
+
+    Runs the full offline pipeline for recordings imported via filesystem sync
+    (as opposed to live WebSocket recording). Steps:
+    1. Validate the recording exists and has an audio file.
+    2. Transcribe the entire audio file via faster-whisper.
+    3. Group segments by minute and create per-minute transcripts.
+    4. Summarize each minute and embed into ChromaDB.
+    5. Finalize the recording status to "completed".
+
+    Args:
+        recording_id: ID of the imported recording to process.
+
+    Raises:
+        VoiceVaultError: If the recording is active, already processed, or missing audio.
+    """
     # 1. Validate recording
     async with get_session() as session:
         repo = RecordingRepository(session)
@@ -458,8 +493,16 @@ async def export_recording(
     recording_id: int,
     body: ObsidianExportRequest | None = None,
 ):
-    """Export recording as Obsidian-compatible Markdown."""
-    # Build RAG retriever if wikilinks are enabled
+    """Export recording as Obsidian-compatible Markdown.
+
+    Generates a Markdown file with YAML frontmatter, template-driven sections,
+    and optional ``[[wikilinks]]`` to related recordings discovered via RAG.
+
+    Args:
+        recording_id: ID of the recording to export.
+        body: Optional export configuration (format, vault path, etc.).
+    """
+    # Build RAG retriever if wikilinks are enabled (for cross-recording links)
     retriever = None
     try:
         from src.core.config import get_settings

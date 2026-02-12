@@ -31,7 +31,14 @@ logger = logging.getLogger(__name__)
 
 
 def _get_audio_duration_minutes(file_path: Path) -> int:
-    """Return audio duration in minutes (minimum 1) using pydub."""
+    """Return audio duration in minutes (minimum 1) using pydub.
+
+    Args:
+        file_path: Path to the audio file.
+
+    Returns:
+        Duration in whole minutes (minimum 1), or 0 if the file cannot be read.
+    """
     try:
         audio = AudioSegment.from_file(str(file_path))
         return max(int(len(audio) / 1000 / 60), 1)
@@ -40,7 +47,15 @@ def _get_audio_duration_minutes(file_path: Path) -> int:
 
 
 class RecordingRepository:
-    """Data-access layer for the VoiceVault Week 1 + Week 2 schema."""
+    """Data-access layer for the VoiceVault schema.
+
+    All methods use ``flush()`` instead of ``commit()`` so transaction
+    boundaries are controlled by the caller (typically ``get_session()``
+    context manager which commits on clean exit).
+
+    Args:
+        session: An active SQLAlchemy ``AsyncSession``.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -91,12 +106,19 @@ class RecordingRepository:
         return list(result.scalars().all())
 
     async def stop_recording(self, recording_id: int) -> Recording:
-        """Mark a recording as *completed* and compute *total_minutes*."""
+        """Mark a recording as *completed* and compute *total_minutes*.
+
+        Args:
+            recording_id: The recording to finalize.
+
+        Returns:
+            The updated Recording with status="completed" and computed duration.
+        """
         recording = await self.get_recording(recording_id)
         recording.status = "completed"
         recording.ended_at = datetime.now(UTC)
         if recording.started_at:
-            # SQLite may return naive datetimes; ensure both sides match
+            # SQLite may return naive datetimes; strip tzinfo for safe subtraction
             ended = recording.ended_at.replace(tzinfo=None)
             started = recording.started_at.replace(tzinfo=None)
             delta = ended - started

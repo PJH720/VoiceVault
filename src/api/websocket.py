@@ -33,7 +33,18 @@ _BYTES_PER_MINUTE = _BYTES_PER_SECOND * 60  # 1,920,000
 
 
 class _PipelineState:
-    """Tracks per-recording session state for the transcription pipeline."""
+    """Tracks per-recording session state for the transcription pipeline.
+
+    Accumulates raw PCM bytes and transcribed text, detecting minute
+    boundaries based on total byte count (PCM 16-bit, 16 kHz, mono).
+
+    Attributes:
+        recording_id: ID of the associated recording session.
+        current_minute: Zero-based minute counter incremented on each flush.
+        text_buffer: Accumulated transcription text for the current minute.
+        total_audio_bytes: Running total of received PCM bytes.
+        pcm_buffer: Raw PCM data accumulated for WAV export on disconnect.
+    """
 
     def __init__(self, recording_id: int) -> None:
         self.recording_id = recording_id
@@ -43,7 +54,11 @@ class _PipelineState:
         self.pcm_buffer: bytearray = bytearray()
 
     def add_audio_bytes(self, data: bytes) -> None:
-        """Append PCM data to the buffer and update the byte counter."""
+        """Append PCM data to the buffer and update the byte counter.
+
+        Args:
+            data: Raw PCM audio bytes (16-bit, 16 kHz, mono).
+        """
         self.total_audio_bytes += len(data)
         self.pcm_buffer.extend(data)
 
@@ -59,7 +74,12 @@ class _PipelineState:
         return self.total_audio_bytes >= (self.current_minute + 1) * _BYTES_PER_MINUTE
 
     def flush_minute(self) -> tuple[int, str]:
-        """Return the current minute index and buffered text, then reset."""
+        """Return the current minute index and buffered text, then reset.
+
+        Returns:
+            A (minute_index, text) tuple. The text buffer is cleared and
+            the minute counter is incremented for the next window.
+        """
         minute_index = self.current_minute
         text = self.text_buffer
         self.text_buffer = ""
@@ -68,7 +88,13 @@ class _PipelineState:
 
 
 async def _save_transcript(recording_id: int, minute_index: int, text: str) -> None:
-    """Save a transcript row in its own transaction."""
+    """Save a transcript row in its own independent DB transaction.
+
+    Args:
+        recording_id: The recording this transcript belongs to.
+        minute_index: Zero-based minute offset within the recording.
+        text: The transcribed text for this minute window.
+    """
     async with get_session() as session:
         repo = RecordingRepository(session)
         await repo.create_transcript(

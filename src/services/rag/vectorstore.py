@@ -27,9 +27,16 @@ class ChromaVectorStore(BaseVectorStore):
     """
 
     def __init__(self, persist_dir: str | None = None) -> None:
+        """Initialize the ChromaDB vector store.
+
+        Args:
+            persist_dir: Path to the ChromaDB on-disk storage directory.
+                Falls back to ``settings.chroma_persist_dir``.
+        """
         settings = get_settings()
         self._persist_dir = persist_dir or settings.chroma_persist_dir
         self._client = chromadb.PersistentClient(path=self._persist_dir)
+        # HNSW index with cosine distance metric for semantic similarity
         self._collection = self._client.get_or_create_collection(
             name=COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"},

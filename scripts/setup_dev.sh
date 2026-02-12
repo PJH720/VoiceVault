@@ -6,33 +6,39 @@
 
 set -e  # Exit on error
 
-# Colors for output
+# ANSI color codes for readable terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # No Color (reset)
 
 PYTHON_VERSION="3.12"
 
-# Helper functions
+# ---- Helper functions for consistent log formatting ----
+
+# Print a blue step indicator (informational progress)
 print_step() {
     echo -e "${BLUE}==>${NC} $1"
 }
 
+# Print a green success indicator
 print_success() {
     echo -e "${GREEN}✓${NC} $1"
 }
 
+# Print a yellow warning indicator (non-fatal)
 print_warning() {
     echo -e "${YELLOW}⚠${NC} $1"
 }
 
+# Print a red error indicator (fatal)
 print_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
-# Detect OS
+# Detect the host operating system (macOS or Linux).
+# Sets the global $OS variable used by later steps (e.g. brew vs curl install).
 detect_os() {
     case "$(uname -s)" in
         Darwin*)
@@ -49,7 +55,8 @@ detect_os() {
     print_success "Detected OS: $OS"
 }
 
-# Install uv if not present
+# Install the uv package manager if it is not already available on $PATH.
+# On macOS with Homebrew, uses `brew install`; otherwise uses the official install script.
 install_uv() {
     print_step "Checking for uv installation..."
 
@@ -67,7 +74,9 @@ install_uv() {
     fi
 }
 
-# Create virtual environment with Python 3.12 (uv auto-downloads if needed)
+# Create a .venv virtual environment with the target Python version.
+# If a .venv already exists with the correct version, it is reused.
+# If the version differs, the old .venv is deleted and recreated.
 create_venv() {
     print_step "Creating virtual environment with Python ${PYTHON_VERSION}..."
 
@@ -87,7 +96,8 @@ create_venv() {
     print_success "Virtual environment created at .venv/ (Python ${PYTHON_VERSION})"
 }
 
-# Install dependencies via uv
+# Install Python dependencies into the active .venv using uv.
+# First installs core deps from requirements.txt, then dev deps from pyproject.toml.
 install_dependencies() {
     print_step "Installing Python dependencies via uv..."
 
@@ -110,7 +120,8 @@ install_dependencies() {
     fi
 }
 
-# Create data directories
+# Create runtime data directories that are gitignored.
+# These hold recordings, Obsidian exports, and application logs.
 create_directories() {
     print_step "Creating data directories..."
 
@@ -121,7 +132,8 @@ create_directories() {
     print_success "Data directories created"
 }
 
-# Copy .env.example to .env
+# Copy .env.example to .env if .env does not already exist.
+# The user must then edit .env to configure API keys and providers.
 setup_env_file() {
     print_step "Setting up environment file..."
 
@@ -138,7 +150,8 @@ setup_env_file() {
     fi
 }
 
-# Download Whisper model
+# Download the default Whisper "base" model for speech-to-text.
+# Uses the download_models.py script inside the newly created .venv.
 download_whisper_model() {
     print_step "Downloading Whisper base model..."
 
@@ -146,7 +159,8 @@ download_whisper_model() {
     print_success "Whisper base model downloaded"
 }
 
-# Install Ollama (optional)
+# Optionally install Ollama (local LLM runtime) and pull the llama3.2 model.
+# Prompts the user interactively before installing or pulling.
 install_ollama() {
     print_step "Checking for Ollama installation..."
 
@@ -177,7 +191,8 @@ install_ollama() {
     fi
 }
 
-# Print next steps
+# Display post-setup instructions: how to activate the venv, configure .env,
+# start the dev server, run Docker, and execute tests.
 print_next_steps() {
     echo
     echo -e "${GREEN}========================================${NC}"
@@ -205,7 +220,7 @@ print_next_steps() {
     echo
 }
 
-# Main execution
+# Main execution — orchestrates all setup steps in order.
 main() {
     echo -e "${BLUE}========================================${NC}"
     echo -e "${BLUE}VoiceVault Development Setup (uv)${NC}"

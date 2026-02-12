@@ -23,7 +23,15 @@ TEMPLATES_DIR = PROJECT_ROOT / "templates"
 
 
 async def seed() -> int:
-    """Load all JSON templates into the database."""
+    """Load all JSON template files from ``templates/`` into the database.
+
+    Each JSON file is expected to contain at minimum a ``name`` field.
+    Templates already present in the DB (matched by name) are skipped,
+    making this function idempotent.
+
+    Returns:
+        Exit code: 0 on success, 1 if the templates directory is missing.
+    """
     await init_db()
 
     if not TEMPLATES_DIR.is_dir():
@@ -46,6 +54,7 @@ async def seed() -> int:
                 data = json.load(f)
 
             name = data["name"]
+            # Idempotent: skip if a template with this name already exists
             existing = await repo.get_template_by_name(name)
             if existing is not None:
                 print(f"  SKIP  {name} (already exists)")
@@ -61,7 +70,7 @@ async def seed() -> int:
                 icon=data.get("icon", ""),
                 priority=data.get("priority", 0),
             )
-            # Set is_default if specified
+            # Mark as the fallback template when no classification matches
             if data.get("is_default", False):
                 template.is_default = True
                 await session.flush()
@@ -74,7 +83,7 @@ async def seed() -> int:
 
 
 def main() -> int:
-    """Entry point."""
+    """CLI entry point — print header and run the async seed coroutine."""
     print("VoiceVault Template Seeder")
     print(f"Templates dir: {TEMPLATES_DIR}\n")
     return asyncio.run(seed())

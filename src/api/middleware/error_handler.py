@@ -15,10 +15,20 @@ from src.core.exceptions import VoiceVaultError
 
 
 def register_error_handlers(app: FastAPI) -> None:
-    """Attach exception handlers to the FastAPI application."""
+    """Attach exception handlers to the FastAPI application.
+
+    Registers three handlers in priority order:
+    1. ``VoiceVaultError`` — maps domain errors to structured JSON responses.
+    2. ``RequestValidationError`` — Pydantic validation failures (422).
+    3. ``Exception`` — catch-all for unexpected server errors (500).
+
+    Args:
+        app: The FastAPI application instance to register handlers on.
+    """
 
     @app.exception_handler(VoiceVaultError)
     async def voicevault_error_handler(_request: Request, exc: VoiceVaultError) -> JSONResponse:
+        """Convert domain-specific errors into a JSON error envelope."""
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -32,6 +42,7 @@ def register_error_handlers(app: FastAPI) -> None:
     async def validation_error_handler(
         _request: Request, exc: RequestValidationError
     ) -> JSONResponse:
+        """Handle Pydantic request validation errors (malformed body/params)."""
         return JSONResponse(
             status_code=422,
             content={
@@ -43,6 +54,7 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def generic_error_handler(_request: Request, _exc: Exception) -> JSONResponse:
+        """Catch-all handler — prevents stack traces from leaking to clients."""
         return JSONResponse(
             status_code=500,
             content={

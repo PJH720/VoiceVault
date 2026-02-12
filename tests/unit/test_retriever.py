@@ -18,6 +18,7 @@ from src.services.rag.retriever import RAGRetriever
 
 @pytest.fixture
 def mock_embedding():
+    """Create a mock embedding provider returning 384-dim vectors."""
     emb = AsyncMock(spec=BaseEmbedding)
     emb.embed.return_value = [0.1] * 384
     emb.embed_batch.return_value = [[0.1] * 384]
@@ -27,6 +28,7 @@ def mock_embedding():
 
 @pytest.fixture
 def mock_vectorstore():
+    """Create a mock vector store pre-loaded with two lecture summary results."""
     vs = AsyncMock(spec=BaseVectorStore)
     vs.search.return_value = [
         {
@@ -60,6 +62,7 @@ def mock_vectorstore():
 
 @pytest.fixture
 def mock_llm():
+    """Create a mock LLM that returns a JSON answer with source indices."""
     llm = AsyncMock(spec=BaseLLM)
     llm.model = "test-model"
     llm.generate.return_value = json.dumps(
@@ -70,6 +73,7 @@ def mock_llm():
 
 @pytest.fixture
 def retriever(mock_llm, mock_embedding, mock_vectorstore):
+    """Assemble a RAGRetriever with all mocked dependencies."""
     return RAGRetriever(
         llm=mock_llm,
         embedding=mock_embedding,

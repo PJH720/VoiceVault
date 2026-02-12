@@ -42,7 +42,20 @@ def _build_user_prompt(
     previous_context: str | None,
     user_context: str | None = None,
 ) -> str:
-    """Build the user prompt including transcript and optional context."""
+    """Build the user prompt including transcript and optional context.
+
+    The prompt is structured so the LLM first sees relevant context
+    (user-provided topic hints and the previous summary) before the
+    transcript to summarize, improving coherence and STT error correction.
+
+    Args:
+        transcript: The raw 1-minute transcript text.
+        previous_context: Summary from the previous minute (continuity aid).
+        user_context: User-provided recording context (topic, key terms).
+
+    Returns:
+        Formatted prompt string for the LLM.
+    """
     parts = []
     if user_context:
         parts.append(f"User-provided context (use for STT error correction):\n{user_context}\n")
@@ -62,9 +75,18 @@ def _strip_code_fences(text: str) -> str:
 
 
 class MinuteSummarizer(BaseSummarizer):
-    """Summarizes 1-minute transcript segments using an LLM provider."""
+    """Summarizes 1-minute transcript segments using an LLM provider.
+
+    Each summary targets ~50 tokens to keep costs manageable while retaining
+    key information. Supports STT error correction via user-provided context.
+    """
 
     def __init__(self, llm: BaseLLM) -> None:
+        """Initialize with the configured LLM provider.
+
+        Args:
+            llm: An LLM provider implementing ``BaseLLM``.
+        """
         self._llm = llm
 
     @retry(
@@ -126,7 +148,7 @@ class MinuteSummarizer(BaseSummarizer):
                 detail=f"Invalid JSON from LLM for minute {minute_index}: {raw_response[:200]}"
             ) from exc
 
-        # Parse corrections gracefully — skip malformed entries
+        # Parse STT corrections gracefully — skip malformed entries from LLM
         corrections = []
         for c in data.get("corrections", []):
             if isinstance(c, dict) and "original" in c and "corrected" in c:

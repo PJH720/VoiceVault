@@ -29,7 +29,12 @@ logger = logging.getLogger(__name__)
 
 
 class ClaudeLLM(BaseLLM):
-    """Claude API LLM provider with rate-limit semaphore and retry logic."""
+    """Claude API LLM provider with rate-limit semaphore and retry logic.
+
+    Uses an ``asyncio.Semaphore`` to cap concurrent API requests (free tier
+    allows only 5 req/min). Retries transient errors (connection, timeout)
+    up to 3 times with exponential backoff via ``tenacity``.
+    """
 
     def __init__(
         self,
@@ -39,11 +44,21 @@ class ClaudeLLM(BaseLLM):
         temperature: float = 0.7,
         max_concurrent: int = 5,
     ) -> None:
+        """Initialize the Claude LLM provider.
+
+        Args:
+            api_key: Anthropic API key (falls back to settings if not provided).
+            model: Claude model identifier (e.g. "claude-sonnet-4-20250514").
+            max_tokens: Default maximum tokens for responses.
+            temperature: Default sampling temperature (0.0–1.0).
+            max_concurrent: Max simultaneous API requests (semaphore limit).
+        """
         settings = get_settings()
         self._api_key = api_key or settings.claude_api_key
         self._model = model or settings.claude_model
         self._max_tokens = max_tokens
         self._temperature = temperature
+        # Semaphore prevents exceeding Claude's rate limit on the free tier
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._client = AsyncAnthropic(api_key=self._api_key)
 
