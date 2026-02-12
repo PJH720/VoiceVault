@@ -1,5 +1,9 @@
 """
 RAG Search page — query past recordings with natural language.
+
+Users enter a natural-language question and optionally filter by date,
+category, or keywords. Results show a grounded LLM answer with cited
+source summaries and similarity scores.
 """
 
 # Ensure project root is on sys.path (Streamlit page files need this).

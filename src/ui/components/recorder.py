@@ -2,6 +2,11 @@
 Recorder component — handles the full recording state machine.
 
 States: idle -> processing -> completed
+
+The ``idle`` state shows the audio input widget. When audio is captured,
+the state transitions to ``processing`` where the audio is converted to
+PCM, streamed over WebSocket for transcription, and summarized. On
+completion, the ``completed`` state displays transcripts and summaries.
 """
 
 import asyncio
@@ -20,21 +25,33 @@ logger = logging.getLogger(__name__)
 
 
 def _convert_to_pcm_16k_mono(audio_bytes: bytes) -> bytes:
-    """Read uploaded WAV/audio bytes, resample to 16 kHz mono PCM int16."""
+    """Read uploaded WAV/audio bytes, resample to 16 kHz mono PCM int16.
+
+    Whisper requires 16 kHz mono audio. This function handles:
+    1. Stereo-to-mono conversion (average channels).
+    2. Resampling to 16 kHz via linear interpolation.
+    3. Float32-to-int16 conversion for PCM byte output.
+
+    Args:
+        audio_bytes: Raw audio file bytes (WAV or other format supported by soundfile).
+
+    Returns:
+        PCM int16 bytes at 16 kHz mono, suitable for WebSocket streaming.
+    """
     data, sample_rate = sf.read(io.BytesIO(audio_bytes), dtype="float32")
 
-    # Convert to mono if stereo
+    # Convert to mono if stereo (average all channels)
     if data.ndim > 1:
         data = data.mean(axis=1)
 
-    # Resample to 16 kHz if needed
+    # Resample to 16 kHz if the source sample rate differs
     if sample_rate != 16000:
         duration = len(data) / sample_rate
         num_samples = int(duration * 16000)
         indices = np.linspace(0, len(data) - 1, num_samples)
         data = np.interp(indices, np.arange(len(data)), data)
 
-    # Convert to int16 PCM bytes
+    # Scale float32 [-1.0, 1.0] to int16 range and convert to bytes
     pcm = (data * 32767).clip(-32768, 32767).astype(np.int16)
     return pcm.tobytes()
 
@@ -104,7 +121,18 @@ async def _stream_audio_ws(
 
 
 def _process_audio(audio_bytes: bytes) -> None:
-    """Process captured audio: create recording, send via WS, stop recording."""
+    """Process captured audio: create recording, send via WS, stop recording.
+
+    Full pipeline:
+    1. Create a recording session via REST API.
+    2. Convert audio to 16 kHz mono PCM.
+    3. Stream PCM bytes over WebSocket for real-time transcription.
+    4. Collect transcript and summary messages from the WebSocket.
+    5. Stop the recording via REST API.
+
+    Args:
+        audio_bytes: Raw audio bytes from Streamlit's ``st.audio_input``.
+    """
     client = get_api_client()
     title = st.session_state.recording_title or None
     context = st.session_state.recording_context or None
@@ -159,7 +187,11 @@ def _process_audio(audio_bytes: bytes) -> None:
 
 
 def render_recorder() -> None:
-    """Render the full recording UI based on current session state."""
+    """Render the full recording UI based on current session state.
+
+    Dispatches to the appropriate sub-renderer based on
+    ``st.session_state.recording_status``: idle, processing, or completed.
+    """
     status = st.session_state.recording_status
 
     if status == "idle":

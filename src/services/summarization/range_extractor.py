@@ -34,9 +34,19 @@ RANGE_SYSTEM_PROMPT = (
 
 
 class RangeExtractor:
-    """Extracts and re-summarizes an arbitrary minute range from a recording."""
+    """Extracts and re-summarizes an arbitrary minute range from a recording.
+
+    Allows cross-hour-boundary selections (e.g. minutes 40–80) that are
+    transparent to the user. The hour-level compression boundaries are
+    invisible — the user simply picks a time range.
+    """
 
     def __init__(self, llm: BaseLLM) -> None:
+        """Initialize with the configured LLM provider.
+
+        Args:
+            llm: An LLM provider implementing ``BaseLLM``.
+        """
         self._llm = llm
 
     @retry(

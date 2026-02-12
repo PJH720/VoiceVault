@@ -23,15 +23,27 @@ from src.services.storage.database import close_db, init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Initialize DB on startup, dispose engine on shutdown."""
+    """Manage application startup and shutdown lifecycle.
+
+    Startup: initialize the async SQLite database (create tables if needed).
+    Shutdown: drain any active orchestrator sessions, then dispose the DB engine.
+    """
     await init_db()
     yield
+    # Graceful shutdown: finish pending summarization before closing DB
     await orchestrator.cleanup()
     await close_db()
 
 
 def create_app() -> FastAPI:
-    """Build and return a fully configured FastAPI application."""
+    """Build and return a fully configured FastAPI application.
+
+    Assembles CORS middleware, error handlers, REST routers, and
+    the WebSocket transcription endpoint into a single FastAPI instance.
+
+    Returns:
+        FastAPI: The configured application, ready for ``uvicorn``.
+    """
 
     app = FastAPI(
         title="VoiceVault",

@@ -56,6 +56,15 @@ class RecordingSession:
         summarization_interval: float = 60.0,
         user_context: str | None = None,
     ) -> None:
+        """Initialize the recording session.
+
+        Args:
+            recording_id: ID of the recording to summarize.
+            notify: Async callback invoked with summary results or errors,
+                typically sends data back over the WebSocket.
+            summarization_interval: Seconds between queue drain cycles.
+            user_context: Optional user-provided context for STT error correction.
+        """
         self.recording_id = recording_id
         self._notify = notify
         self._interval = summarization_interval
@@ -63,13 +72,14 @@ class RecordingSession:
         self._queue: asyncio.Queue[PendingTranscript] = asyncio.Queue()
         self._stop_event = asyncio.Event()
         self._task: asyncio.Task | None = None
+        # Track the previous minute's summary for continuity across segments
         self._previous_summary: str | None = None
 
         settings = get_settings()
         llm = create_llm(provider=settings.llm_provider)
         self._summarizer = MinuteSummarizer(llm)
 
-        # RAG embedding pipeline (failures are non-fatal)
+        # RAG embedding pipeline (failures are non-fatal — summarization continues)
         try:
             self._embedding = create_embedding(provider=settings.embedding_provider)
             self._vectorstore = create_vectorstore()
@@ -87,7 +97,11 @@ class RecordingSession:
         self._queue.put_nowait(PendingTranscript(minute_index=minute_index, text=text))
 
     async def stop(self) -> None:
-        """Signal the loop to stop, wait for final drain, and finalize recording."""
+        """Signal the loop to stop, wait for final drain, and finalize recording.
+
+        Sequence: set stop event -> await background task completion
+        -> mark recording as completed in DB -> auto-classify recording.
+        """
         self._stop_event.set()
         if self._task is not None:
             await self._task
@@ -106,7 +120,12 @@ class RecordingSession:
         await self._classify_recording()
 
     async def _summarization_loop(self) -> None:
-        """Background loop: drain queue every interval or on stop signal."""
+        """Background loop: drain queue every ``_interval`` seconds or on stop.
+
+        Uses ``asyncio.wait_for`` on the stop event as a cancellable timer.
+        On each cycle (timer or stop signal), all pending transcripts are
+        drained and summarized. A final drain runs in the ``finally`` block.
+        """
         logger.info("Summarization loop started for recording %s", self.recording_id)
         try:
             while not self._stop_event.is_set():
@@ -137,7 +156,12 @@ class RecordingSession:
             await self._process_one(item)
 
     async def _process_one(self, item: PendingTranscript) -> None:
-        """Summarize a single transcript and persist + notify."""
+        """Summarize a single transcript, persist to DB, embed in ChromaDB, and notify.
+
+        The full pipeline for one minute: LLM summarize -> save to DB
+        -> embed into vector store -> send result via notify callback.
+        All steps except summarization are non-fatal.
+        """
         try:
             result = await self._summarizer.summarize_minute(
                 transcript=item.text,
@@ -235,7 +259,11 @@ class RecordingSession:
             )
 
     async def _classify_recording(self) -> None:
-        """Classify the recording after stop. Failures are logged but never block."""
+        """Classify the recording after stop. Failures are logged but never block.
+
+        Combines all minute summaries into one text, runs zero-shot classification,
+        matches to the best template, and persists the classification result.
+        """
         try:
             async with get_session() as session:
                 repo = RecordingRepository(session)
@@ -304,7 +332,19 @@ async def start_session(
     summarization_interval: float = 60.0,
     user_context: str | None = None,
 ) -> RecordingSession:
-    """Create and start a new recording session.
+    """Create and start a new recording session (singleton).
+
+    Only one session can be active at a time. The background summarization
+    loop begins immediately after creation.
+
+    Args:
+        recording_id: The recording to manage.
+        notify: Async callback for sending results back to the client.
+        summarization_interval: Seconds between queue drain cycles.
+        user_context: Optional context for STT error correction.
+
+    Returns:
+        The newly created and started ``RecordingSession``.
 
     Raises:
         RecordingAlreadyActiveError: If a session is already running.

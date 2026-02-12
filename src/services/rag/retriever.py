@@ -35,7 +35,14 @@ def _strip_code_fences(text: str) -> str:
 
 
 class RAGRetriever:
-    """Orchestrates RAG queries: embed → vector search → LLM answer."""
+    """Orchestrates RAG queries: embed → vector search → LLM answer.
+
+    Full pipeline:
+    1. Embed the user's natural-language query.
+    2. Search ChromaDB for similar summaries (cosine similarity).
+    3. Apply metadata filters (date, category, keywords).
+    4. Feed top-K sources as context to the LLM for grounded answer generation.
+    """
 
     def __init__(
         self,
@@ -43,6 +50,13 @@ class RAGRetriever:
         embedding: BaseEmbedding,
         vectorstore: BaseVectorStore,
     ) -> None:
+        """Initialize with the configured providers.
+
+        Args:
+            llm: LLM provider for answer generation.
+            embedding: Embedding provider for query vectorization.
+            vectorstore: Vector store for similarity search.
+        """
         self._llm = llm
         self._embedding = embedding
         self._vectorstore = vectorstore
@@ -77,6 +91,7 @@ class RAGRetriever:
         except Exception as exc:
             raise RAGError(detail=f"Vector search failed: {exc}") from exc
 
+        # Convert raw results to typed sources, filtering by similarity threshold
         sources = self._results_to_sources(raw_results, request.min_similarity)
 
         if not sources:
@@ -195,6 +210,7 @@ class RAGRetriever:
         sources: list[RAGSource] = []
         for r in results:
             distance = r.get("distance", 0.0)
+            # ChromaDB cosine distance is in [0, 2]; similarity = 1 - distance
             similarity = 1.0 - distance
             if similarity < min_similarity:
                 continue

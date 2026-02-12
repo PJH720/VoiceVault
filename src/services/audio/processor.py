@@ -10,7 +10,11 @@ import numpy as np
 
 
 class AudioProcessor:
-    """Handles PCM audio data conversion and analysis."""
+    """Handles PCM audio data conversion and analysis.
+
+    Provides utilities for converting raw PCM bytes to numpy arrays,
+    saving to WAV files, and detecting silence via RMS energy.
+    """
 
     def __init__(
         self,
@@ -18,6 +22,13 @@ class AudioProcessor:
         sample_width: int = 2,
         channels: int = 1,
     ) -> None:
+        """Initialize the audio processor.
+
+        Args:
+            sample_rate: Audio sample rate in Hz (default: 16 kHz).
+            sample_width: Bytes per sample (2 = 16-bit signed PCM).
+            channels: Number of audio channels (1 = mono).
+        """
         self.sample_rate = sample_rate
         self.sample_width = sample_width
         self.channels = channels
@@ -39,6 +50,7 @@ class AudioProcessor:
             raise ValueError(
                 f"PCM data length ({len(pcm_data)}) is not aligned to frame size ({frame_size})"
             )
+        # Convert 16-bit signed integers to float32 in [-1.0, 1.0] range
         return np.frombuffer(pcm_data, dtype=np.int16).astype(np.float32) / 32768.0
 
     def save_wav(self, pcm_data: bytes, file_path: str | Path) -> str:
@@ -77,5 +89,6 @@ class AudioProcessor:
         """
         if len(audio) == 0:
             return True
+        # RMS (Root Mean Square) measures signal energy — low RMS = silence
         rms = np.sqrt(np.mean(audio**2))
         return float(rms) < threshold

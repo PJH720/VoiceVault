@@ -157,8 +157,8 @@ ipython_config.py
 # pdm
 #   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
 #pdm.lock
-#   uv lock file — not used in `uv pip` workflow
-uv.lock
+#   uv lock file — tracked for reproducible builds in application projects
+#uv.lock
 #   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
 #   in version control.
 #   https://pdm.fming.dev/#use-with-ide
@@ -296,7 +296,6 @@ huggingface/
 
 ### Streamlit ###
 .streamlit/secrets.toml
-.streamlit/
 
 ### Secrets & Credentials ###
 .env.local
@@ -330,6 +329,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+### Temporary Files ###
+*.tmp
 
 ### OS Generated ###
 Thumbs.db

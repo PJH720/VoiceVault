@@ -1,5 +1,9 @@
 """
 Summaries browsing page — list recordings and their summaries.
+
+Features: recording list with sync, per-recording minute summaries,
+hour-level summaries with on-demand generation, cross-boundary range
+extraction, audio playback, and recording deletion.
 """
 
 # Ensure project root is on sys.path (Streamlit page files need this).

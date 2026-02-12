@@ -46,9 +46,18 @@ def _strip_code_fences(text: str) -> str:
 
 
 class ZeroShotClassifier:
-    """Classifies recording content into categories using an LLM provider."""
+    """Classifies recording content into categories using an LLM provider.
+
+    "Zero-shot" because the LLM classifies without task-specific fine-tuning;
+    it relies on the system prompt describing each category.
+    """
 
     def __init__(self, llm: BaseLLM) -> None:
+        """Initialize with the configured LLM provider.
+
+        Args:
+            llm: An LLM provider implementing ``BaseLLM``.
+        """
         self._llm = llm
 
     @retry(
@@ -100,11 +109,13 @@ class ZeroShotClassifier:
                 detail=f"Invalid JSON from LLM classification: {raw_response[:200]}"
             ) from exc
 
+        # Validate category is one of the expected labels
         category = data.get("category", "memo")
         if category not in cats:
             logger.warning("LLM returned unknown category %r, falling back to memo", category)
             category = "memo"
 
+        # Safely parse confidence as float, clamped to [0.0, 1.0]
         confidence = data.get("confidence", 0.0)
         try:
             confidence = float(confidence)
