@@ -17,9 +17,21 @@ logger = logging.getLogger(__name__)
 
 
 class TemplateMatcher:
-    """Matches a ClassificationResult to the best template in the DB."""
+    """Matches a ClassificationResult to the best template in the DB.
+
+    Scoring strategy (in order of precedence):
+    1. Exact category name match.
+    2. Trigger keyword overlap with the classification reason.
+    3. Template priority (higher = preferred).
+    4. Fallback to the default template (``is_default=True``).
+    """
 
     def __init__(self, session: AsyncSession) -> None:
+        """Initialize with an active database session.
+
+        Args:
+            session: SQLAlchemy ``AsyncSession`` for template queries.
+        """
         self._session = session
 
     async def match(self, classification_result: ClassificationResult) -> Template:
@@ -74,7 +86,15 @@ class TemplateMatcher:
 
     @staticmethod
     def _trigger_score(template: Template, text: str) -> int:
-        """Count how many trigger keywords appear in the text."""
+        """Count how many trigger keywords appear in the text.
+
+        Args:
+            template: Template whose triggers to check.
+            text: Lowercased text to search for trigger words.
+
+        Returns:
+            Number of matching trigger keywords found.
+        """
         triggers = template.triggers or []
         return sum(1 for trigger in triggers if trigger.lower() in text)
 

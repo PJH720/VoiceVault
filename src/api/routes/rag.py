@@ -39,7 +39,11 @@ class ReindexDetailResponse(BaseModel):
 
 @router.post("/reindex", response_model=ReindexDetailResponse)
 async def reindex_summaries():
-    """Rebuild the vector index from all existing summaries in the database."""
+    """Rebuild the ChromaDB vector index from all existing summaries.
+
+    Iterates over every recording and re-embeds all their minute summaries.
+    Useful after changing the embedding model or recovering from data loss.
+    """
     settings = get_settings()
     embedding = create_embedding(provider=settings.embedding_provider)
     vectorstore = create_vectorstore()
@@ -92,7 +96,7 @@ async def reindex_summaries():
 
 
 def _create_retriever() -> RAGRetriever:
-    """Build a RAGRetriever from current application settings."""
+    """Build a RAGRetriever wired to the configured LLM, embedding, and vector store."""
     settings = get_settings()
     return RAGRetriever(
         llm=create_llm(provider=settings.llm_provider),
@@ -103,10 +107,16 @@ def _create_retriever() -> RAGRetriever:
 
 @router.post("/query", response_model=RAGQueryResponse)
 async def rag_query(request: RAGQueryRequest):
-    """Search past recordings with a natural-language query."""
+    """Search past recordings with a natural-language query.
+
+    Pipeline: embed query -> ChromaDB similarity search -> metadata filter
+    -> LLM generates a grounded answer with source citations.
+    The query and results are also persisted for analytics.
+    """
     retriever = _create_retriever()
     response = await retriever.query(request)
 
+    # Persist the query and results for usage analytics
     async with get_session() as session:
         repo = RecordingRepository(session)
         await repo.create_rag_query(
@@ -125,6 +135,6 @@ async def rag_similar(
     recording_id: int,
     top_k: int = Query(default=5, ge=1, le=50),
 ):
-    """Find recordings similar to the given recording."""
+    """Find recordings similar to the given recording via vector similarity."""
     retriever = _create_retriever()
     return await retriever.find_similar(recording_id=recording_id, top_k=top_k)

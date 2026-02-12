@@ -1,5 +1,9 @@
 """
 Obsidian Export page — export recordings as Obsidian-compatible Markdown.
+
+Features: recording selection, export format options, vault path config,
+transcript inclusion toggle, preview (rendered + raw + frontmatter tabs),
+batch export, and folder sync.
 """
 
 # Ensure project root is on sys.path (Streamlit page files need this).

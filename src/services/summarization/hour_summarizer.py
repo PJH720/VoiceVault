@@ -51,18 +51,31 @@ HOUR_SYSTEM_PROMPT = (
     "(Korean, English, etc.)."
 )
 
+# Limit concurrent LLM calls for 10-min chunk summarization
 _SEMAPHORE_LIMIT = 3
 
 
 def _estimate_tokens(text: str) -> int:
-    """Rough token estimate using len(text) // 4 heuristic."""
+    """Rough token estimate using the ~4 characters per token heuristic.
+
+    This is a fast approximation; actual token counts vary by model and language.
+    """
     return len(text) // 4
 
 
 class HourSummarizer:
-    """Produces hour-level summaries via hierarchical compression."""
+    """Produces hour-level summaries via hierarchical compression.
+
+    Pipeline: 60 one-min summaries -> 6 ten-min groups (parallel LLM calls)
+    -> 1 hour summary. Achieves ~95% token reduction.
+    """
 
     def __init__(self, llm: BaseLLM) -> None:
+        """Initialize with the configured LLM provider.
+
+        Args:
+            llm: An LLM provider implementing ``BaseLLM``.
+        """
         self._llm = llm
         self._semaphore = asyncio.Semaphore(_SEMAPHORE_LIMIT)
 
@@ -144,13 +157,14 @@ class HourSummarizer:
 
         input_tokens = sum(_estimate_tokens(s) for s in minute_summaries)
 
-        # --- Level 1: 10-min chunks ---
+        # --- Level 1: Group into 10-minute chunks and summarize each ---
         chunks = [minute_summaries[i : i + 10] for i in range(0, len(minute_summaries), 10)]
 
         if len(chunks) == 1:
-            # Skip Level 1 grouping — go straight to hour summary
+            # Only one chunk (≤10 minutes) — skip intermediate grouping
             ten_min_texts = minute_summaries
         else:
+            # Summarize all 10-min chunks in parallel (bounded by semaphore)
             ten_min_results = await asyncio.gather(
                 *(self._summarize_ten_minutes(chunk, idx) for idx, chunk in enumerate(chunks))
             )

@@ -57,7 +57,14 @@ _FIELD_ICONS: dict[str, str] = {
 
 
 def _sanitize_filename(name: str) -> str:
-    """Remove characters unsafe for file paths."""
+    """Remove characters unsafe for file paths (Windows + Unix).
+
+    Args:
+        name: Raw filename string potentially containing unsafe characters.
+
+    Returns:
+        Sanitized filename safe for all major operating systems.
+    """
     sanitized = re.sub(r'[<>:"/\\|?*]', "", name)
     sanitized = sanitized.strip(". ")
     return sanitized or "untitled"
@@ -87,7 +94,15 @@ def _build_frontmatter(
     template: Template | None,
     summaries: list[Summary],
 ) -> str:
-    """Build YAML frontmatter for Obsidian export."""
+    """Build YAML frontmatter for Obsidian export.
+
+    Generates structured metadata including title, date, category, tags,
+    keywords, speakers, and recording ID. Obsidian uses frontmatter for
+    Dataview queries and graph view filtering.
+
+    Returns:
+        A ``---``-delimited YAML frontmatter string.
+    """
     icon = _get_icon(template, classification)
     display_name = _get_display_name(template, classification)
     title_text = recording.title or "Untitled Recording"
@@ -141,7 +156,12 @@ def _build_body(
     summaries: list[Summary],
     hour_summaries: list[HourSummary],
 ) -> str:
-    """Build template-driven body from classification result and summaries."""
+    """Build template-driven body from classification result and summaries.
+
+    If a template with fields is available, each field from the classification
+    result is rendered as a Markdown section. Otherwise, falls back to a
+    simple bullet-list of minute summaries.
+    """
     sections: list[str] = []
 
     result_json: dict = {}
@@ -193,7 +213,18 @@ async def _build_wikilinks(
     recording_id: int,
     retriever: RAGRetriever | None,
 ) -> str:
-    """Build a Related Notes section with [[wikilinks]] from RAG similarity."""
+    """Build a Related Notes section with ``[[wikilinks]]`` from RAG similarity.
+
+    Uses the RAG retriever to find the top 3 semantically similar recordings
+    and generates Obsidian wikilinks to them.
+
+    Args:
+        recording_id: The current recording being exported.
+        retriever: RAG retriever for similarity search (None = skip).
+
+    Returns:
+        Markdown section string, or empty string if no similar recordings found.
+    """
     if retriever is None:
         return ""
 
@@ -215,7 +246,10 @@ async def _build_wikilinks(
 
 
 def _build_transcript_section(transcripts: list[Transcript]) -> str:
-    """Build a collapsible transcript section with timestamps."""
+    """Build a collapsible HTML ``<details>`` section with timestamped transcripts.
+
+    Each transcript is prefixed with its minute timestamp (e.g. [05:00]).
+    """
     if not transcripts:
         return ""
 

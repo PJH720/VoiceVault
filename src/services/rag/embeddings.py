@@ -26,9 +26,14 @@ class SentenceTransformerEmbedding(BaseEmbedding):
     """
 
     def __init__(self, model_name: str | None = None) -> None:
+        """Initialize the local embedding provider.
+
+        Args:
+            model_name: sentence-transformers model name (falls back to settings).
+        """
         settings = get_settings()
         self._model_name = model_name or settings.embedding_model
-        self._model = None
+        self._model = None  # Lazily loaded on first embed call
 
     def _load_model(self):
         """Lazily load the sentence-transformers model."""
@@ -45,8 +50,12 @@ class SentenceTransformerEmbedding(BaseEmbedding):
         return self._model
 
     async def embed(self, text: str) -> list[float]:
-        """Generate an embedding for a single text."""
+        """Generate an embedding for a single text.
+
+        Runs the CPU-bound encode in a thread to avoid blocking the event loop.
+        """
         model = self._load_model()
+        # normalize_embeddings=True ensures cosine similarity works correctly
         vector = await asyncio.to_thread(model.encode, text, normalize_embeddings=True)
         return vector.tolist()
 
@@ -82,6 +91,12 @@ class OllamaEmbedding(BaseEmbedding):
         base_url: str | None = None,
         model: str | None = None,
     ) -> None:
+        """Initialize the Ollama embedding provider.
+
+        Args:
+            base_url: Ollama server URL (falls back to settings).
+            model: Embedding model name (falls back to settings).
+        """
         settings = get_settings()
         self._base_url = base_url or settings.ollama_base_url
         self._model = model or settings.ollama_embedding_model

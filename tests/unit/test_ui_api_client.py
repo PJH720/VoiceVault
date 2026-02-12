@@ -1,5 +1,8 @@
-"""
-Unit tests for the APIClient RAG, export, and template methods.
+"""Unit tests for the APIClient RAG, export, and template methods.
+
+Validates that the Streamlit-side APIClient correctly serialises request
+parameters, calls the right endpoints, propagates errors, and omits
+optional filters when they are None or empty.
 """
 
 from unittest.mock import MagicMock, patch
@@ -21,7 +24,10 @@ def client():
 
 
 class TestRagQuery:
+    """Verify APIClient.rag_query() request construction and response handling."""
+
     def test_basic_query(self, client):
+        """Minimal query sends correct JSON body and returns the answer."""
         resp = MagicMock()
         resp.json.return_value = {
             "answer": "Test answer",
@@ -41,6 +47,7 @@ class TestRagQuery:
         assert result["answer"] == "Test answer"
 
     def test_query_with_all_filters(self, client):
+        """All optional filters are included in the request body when set."""
         resp = MagicMock()
         resp.json.return_value = {"answer": "filtered", "sources": []}
         client._mock_http.post.return_value = resp
@@ -65,6 +72,7 @@ class TestRagQuery:
         assert call_body["keywords"] == ["AI", "RAG"]
 
     def test_optional_filters_excluded_when_none(self, client):
+        """None-valued optional filters are omitted from the JSON body."""
         resp = MagicMock()
         resp.json.return_value = {"answer": "", "sources": []}
         client._mock_http.post.return_value = resp
@@ -78,6 +86,7 @@ class TestRagQuery:
         assert "keywords" not in call_body
 
     def test_error_propagation(self, client):
+        """HTTP errors from raise_for_status propagate to the caller."""
         resp = MagicMock()
         resp.raise_for_status.side_effect = Exception("500 Server Error")
         client._mock_http.post.return_value = resp
@@ -87,7 +96,10 @@ class TestRagQuery:
 
 
 class TestRagSimilar:
+    """Verify APIClient.rag_similar() request construction and response handling."""
+
     def test_basic_similar(self, client):
+        """Default top_k=5 is sent and response is parsed correctly."""
         resp = MagicMock()
         resp.json.return_value = [
             {"recording_id": 2, "similarity": 0.85, "summary_text": "similar"}
@@ -105,6 +117,7 @@ class TestRagSimilar:
         assert result[0]["recording_id"] == 2
 
     def test_custom_top_k(self, client):
+        """Custom top_k value is forwarded as a query parameter."""
         resp = MagicMock()
         resp.json.return_value = []
         client._mock_http.get.return_value = resp
@@ -117,6 +130,7 @@ class TestRagSimilar:
         )
 
     def test_error_propagation(self, client):
+        """HTTP errors propagate to the caller."""
         resp = MagicMock()
         resp.raise_for_status.side_effect = Exception("404 Not Found")
         client._mock_http.get.return_value = resp
@@ -126,7 +140,10 @@ class TestRagSimilar:
 
 
 class TestExportRecording:
+    """Verify APIClient.export_recording() request construction and response handling."""
+
     def test_basic_export(self, client):
+        """Default export sends Obsidian format without transcript."""
         resp = MagicMock()
         resp.json.return_value = {
             "file_path": "/exports/test.md",
@@ -145,6 +162,7 @@ class TestExportRecording:
         assert result["file_path"] == "/exports/test.md"
 
     def test_export_with_all_options(self, client):
+        """All optional export parameters are included when set."""
         resp = MagicMock()
         resp.json.return_value = {"file_path": "", "markdown_content": "", "frontmatter": {}}
         client._mock_http.post.return_value = resp
@@ -162,6 +180,7 @@ class TestExportRecording:
         assert call_body["vault_path"] == "/my/vault"
 
     def test_vault_path_excluded_when_empty(self, client):
+        """Empty vault_path string is omitted from the request body."""
         resp = MagicMock()
         resp.json.return_value = {"file_path": "", "markdown_content": "", "frontmatter": {}}
         client._mock_http.post.return_value = resp
@@ -172,6 +191,7 @@ class TestExportRecording:
         assert "vault_path" not in call_body
 
     def test_error_propagation(self, client):
+        """HTTP errors propagate to the caller."""
         resp = MagicMock()
         resp.raise_for_status.side_effect = Exception("500 Server Error")
         client._mock_http.post.return_value = resp
@@ -181,7 +201,10 @@ class TestExportRecording:
 
 
 class TestListTemplates:
+    """Verify APIClient.list_templates() request construction and response handling."""
+
     def test_list_templates(self, client):
+        """GET /templates returns the template list."""
         resp = MagicMock()
         resp.json.return_value = [
             {"id": 1, "name": "lecture", "display_name": "Lecture Note"},
@@ -197,6 +220,7 @@ class TestListTemplates:
         assert result[0]["name"] == "lecture"
 
     def test_error_propagation(self, client):
+        """HTTP errors propagate to the caller."""
         resp = MagicMock()
         resp.raise_for_status.side_effect = Exception("503 Service Unavailable")
         client._mock_http.get.return_value = resp
