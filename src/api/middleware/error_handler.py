@@ -5,6 +5,7 @@ Catches VoiceVaultError subclasses, Pydantic validation errors, and
 unhandled exceptions, converting them into a consistent JSON envelope.
 """
 
+import logging
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request
@@ -12,6 +13,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from src.core.exceptions import VoiceVaultError
+
+logger = logging.getLogger(__name__)
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -53,8 +56,9 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def generic_error_handler(_request: Request, _exc: Exception) -> JSONResponse:
+    async def generic_error_handler(_request: Request, exc: Exception) -> JSONResponse:
         """Catch-all handler — prevents stack traces from leaking to clients."""
+        logger.exception("Unhandled error: %s", exc)
         return JSONResponse(
             status_code=500,
             content={
