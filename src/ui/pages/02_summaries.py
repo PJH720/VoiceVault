@@ -156,6 +156,28 @@ for rec in recordings:
                     st.session_state[audio_key] = audio_bytes
                     st.rerun()
 
+        # -- Classification badge --
+        try:
+            classifications = client.list_classifications(rec_id)
+            if classifications:
+                best = max(classifications, key=lambda c: c.get("confidence", 0))
+                _icon_map = {
+                    "lecture": "📚", "meeting": "💼", "conversation": "💬",
+                    "memo": "📝", "person": "👤", "english_vocabulary": "📖",
+                    "incident": "🚨",
+                }
+                cat = best.get("category", "unknown")
+                icon = _icon_map.get(cat, "🏷️")
+                conf = best.get("confidence", 0)
+                reason = best.get("reason", "")
+                tmpl = best.get("template_name", "")
+                st.markdown(
+                    f"{icon} **{cat.title()}** — {conf:.0%} confidence"
+                    + (f"  \n_{reason}_" if reason else "")
+                )
+        except Exception:
+            pass  # classification display is non-critical
+
         col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
         with col1:
             st.markdown(f"**ID**: {rec_id}  \n**Status**: {status}")
