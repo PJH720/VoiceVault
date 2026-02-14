@@ -6,11 +6,10 @@ Uses an LLM provider to classify recording content into categories
 
 import json
 import logging
-import re
-
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.core.exceptions import ClassificationError
+from src.core.utils import strip_code_fences
 from src.core.models import ClassificationResult
 from src.services.llm.base import BaseLLM
 
@@ -34,15 +33,6 @@ CLASSIFICATION_SYSTEM_PROMPT = (
     "- conversation: 일상 대화, 친구와 대화, 잡담 (casual conversation with friends)\n"
     "- memo: 개인 메모, 독백, 혼잣말, 공부 (personal memo, solo study, monologue)\n"
 )
-
-
-def _strip_code_fences(text: str) -> str:
-    """Remove markdown code fences wrapping JSON from LLM responses."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```\w*\n?", "", text)
-        text = re.sub(r"\n?```$", "", text)
-    return text.strip()
 
 
 class ZeroShotClassifier:
@@ -102,7 +92,7 @@ class ZeroShotClassifier:
             raise ClassificationError(detail=f"LLM classification call failed: {exc}") from exc
 
         try:
-            raw_response = _strip_code_fences(raw_response)
+            raw_response = strip_code_fences(raw_response)
             data = json.loads(raw_response)
         except json.JSONDecodeError as exc:
             raise ClassificationError(
