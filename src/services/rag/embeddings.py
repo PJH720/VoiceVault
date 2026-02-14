@@ -112,14 +112,20 @@ class OllamaEmbedding(BaseEmbedding):
             raise RAGError(f"Ollama embedding error: {exc}") from exc
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """Generate embeddings for multiple texts (sequential calls)."""
+        """Generate embeddings for multiple texts in parallel.
+
+        Uses asyncio.gather with a semaphore to limit concurrency and
+        avoid overloading the Ollama server.
+        """
         if not texts:
             return []
-        results = []
-        for text in texts:
-            vector = await self.embed(text)
-            results.append(vector)
-        return results
+        semaphore = asyncio.Semaphore(10)
+
+        async def _embed_one(text: str) -> list[float]:
+            async with semaphore:
+                return await self.embed(text)
+
+        return list(await asyncio.gather(*[_embed_one(t) for t in texts]))
 
     def dimension(self) -> int:
         """Return embedding dimension based on known model dimensions."""
