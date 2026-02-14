@@ -109,12 +109,14 @@ async def transcribe_ws(
     websocket: WebSocket,
     recording_id: int = Query(...),
     language: str | None = Query(None),
+    token: str | None = Query(None),
 ) -> None:
     """Real-time audio-to-text streaming endpoint with background summarization.
 
     Query params:
         recording_id: ID of the recording session to attach to.
         language: ISO language code (e.g. "ko", "en") or None for auto-detect.
+        token: Authentication token (required when WS_AUTH_ENABLED=true).
 
     Protocol:
         - Client sends: raw PCM bytes (16-bit, 16 kHz, mono).
@@ -127,6 +129,17 @@ async def transcribe_ws(
         3. Flush partial buffer → save + enqueue
         4. Stop orchestrator session (final drain + DB update)
     """
+    # Authenticate if enabled
+    settings = get_settings()
+    if settings.ws_auth_enabled:
+        if not token or token != settings.ws_auth_token:
+            logger.warning(
+                "Unauthorized WebSocket connection attempt for recording_id=%s",
+                recording_id,
+            )
+            await websocket.close(code=4401)
+            return
+
     await websocket.accept()
     logger.info("WebSocket connected for recording_id=%s, language=%s", recording_id, language)
 
