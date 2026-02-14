@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api import websocket
 from src.api.middleware.error_handler import register_error_handlers
 from src.api.routes import rag, recording, summary, template
+from src.core.config import get_settings
 from src.core.models import HealthResponse
 from src.services import orchestrator
 from src.services.storage.database import close_db, init_db
@@ -54,12 +55,10 @@ def create_app() -> FastAPI:
     )
 
     # -- CORS --
+    settings = get_settings()
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:8501",  # Streamlit
-            "http://localhost:3000",  # Dev frontend
-        ],
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
