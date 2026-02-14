@@ -872,3 +872,65 @@ async def test_export_frontmatter_disabled(tmp_path):
 
     assert "---" not in result.markdown_content
     assert result.frontmatter == {}
+
+
+# Additional edge cases for #63
+
+def test_sanitize_filename_dots_only():
+    """Dots-only name should fallback to 'untitled'."""
+    assert _sanitize_filename("...") == "untitled"
+
+
+def test_sanitize_filename_spaces_only():
+    """Spaces-only name should fallback to 'untitled'."""
+    assert _sanitize_filename("   ") == "untitled"
+
+
+def test_sanitize_filename_unicode():
+    """Unicode characters should be preserved."""
+    assert _sanitize_filename("강의 노트 2026.md") == "강의 노트 2026.md"
+
+
+def test_get_icon_no_template_no_classification():
+    """Without both template and classification, fallback icon is used."""
+    assert _get_icon(None, None) == "\U0001f4a1"
+
+
+def test_get_display_name_no_template_no_classification():
+    """Without both, fallback display name is 'Memo'."""
+    assert _get_display_name(None, None) == "Memo"
+
+
+def test_build_body_list_field_with_empty_items():
+    """List fields with empty items should skip them."""
+    from unittest.mock import MagicMock
+
+    rec = MagicMock()
+    classification = MagicMock()
+    classification.result_json = {"key_concepts": ["concept1", "", "concept3", None]}
+    template = MagicMock()
+    template.fields = [{"name": "key_concepts", "label": "Key Concepts", "type": "list"}]
+
+    body = _build_body(rec, classification, template, [], [])
+    assert "concept1" in body
+    assert "concept3" in body
+    # Empty items filtered out by the `if item` guard
+    lines = [l for l in body.split("\n") if l.startswith("- ")]
+    assert len(lines) == 2
+
+
+def test_build_transcript_section_timestamps_formatted():
+    """Transcript timestamps should be zero-padded."""
+    from unittest.mock import MagicMock
+
+    t1 = MagicMock()
+    t1.minute_index = 5
+    t1.text = "Hello world"
+    t2 = MagicMock()
+    t2.minute_index = 75
+    t2.text = "Another transcript"
+
+    result = _build_transcript_section([t1, t2])
+    assert "[05:00]" in result
+    assert "[75:00]" in result
+    assert "<details>" in result
