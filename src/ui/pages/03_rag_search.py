@@ -20,7 +20,7 @@ from src.ui.components.rag_result import render_rag_result  # noqa: E402
 
 st.header("RAG Search")
 
-client = get_api_client()
+client = get_api_client(st.session_state.get("api_base_url", "http://localhost:8000"))
 
 # ---------------------------------------------------------------------------
 # Sidebar filters

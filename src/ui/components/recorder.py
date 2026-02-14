@@ -133,7 +133,7 @@ def _process_audio(audio_bytes: bytes) -> None:
     Args:
         audio_bytes: Raw audio bytes from Streamlit's ``st.audio_input``.
     """
-    client = get_api_client()
+    client = get_api_client(st.session_state.get("api_base_url", "http://localhost:8000"))
     title = st.session_state.recording_title or None
     context = st.session_state.recording_context or None
 
@@ -288,7 +288,7 @@ def _render_completed() -> None:
         st.info("No transcript received (backend STT may not be configured).")
 
     # Summaries
-    client = get_api_client()
+    client = get_api_client(st.session_state.get("api_base_url", "http://localhost:8000"))
     try:
         summaries = client.list_summaries(rec_id)
         if summaries:

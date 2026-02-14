@@ -84,7 +84,7 @@ with st.sidebar:
     # Connection status indicator
     from src.ui.api_client import get_api_client  # noqa: E402
 
-    _client = get_api_client()
+    _client = get_api_client(st.session_state.get("api_base_url", "http://localhost:8000"))
     _conn_ok, _conn_msg = _client.check_connection()
     if _conn_ok:
         st.success(f"Backend: {_conn_msg}")
