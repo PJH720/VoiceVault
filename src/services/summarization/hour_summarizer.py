@@ -16,7 +16,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from src.core.exceptions import SummarizationError
 from src.core.models import HourSummaryResult
 from src.services.llm.base import BaseLLM
-from src.services.summarization.minute_summarizer import _strip_code_fences
+from src.core.utils import strip_code_fences
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class HourSummarizer:
             ) from exc
 
         try:
-            raw = _strip_code_fences(raw)
+            raw = strip_code_fences(raw)
             data: dict = json.loads(raw)
             return data
         except json.JSONDecodeError as exc:
@@ -185,7 +185,7 @@ class HourSummarizer:
             ) from exc
 
         try:
-            raw = _strip_code_fences(raw)
+            raw = strip_code_fences(raw)
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise SummarizationError(

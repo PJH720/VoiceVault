@@ -6,12 +6,12 @@ natural-language queries over past recordings stored in ChromaDB.
 
 import json
 import logging
-import re
 import time
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.core.exceptions import RAGError
+from src.core.utils import strip_code_fences
 from src.core.models import RAGQueryRequest, RAGQueryResponse, RAGSource
 from src.services.llm.base import BaseLLM
 from src.services.rag.base import BaseEmbedding, BaseVectorStore
@@ -23,15 +23,6 @@ RAG_SYSTEM_PROMPT = (
     "각 출처를 [source: recording-{recording_id}, minute-{minute_index}] 형태로 인용하세요.\n"
     'Output ONLY valid JSON: {"answer": "...", "source_indices": [0, 1, ...]}'
 )
-
-
-def _strip_code_fences(text: str) -> str:
-    """Remove markdown code fences wrapping JSON from LLM responses."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```\w*\n?", "", text)
-        text = re.sub(r"\n?```$", "", text)
-    return text.strip()
 
 
 class RAGRetriever:
@@ -273,7 +264,7 @@ class RAGRetriever:
         except Exception as exc:
             raise RAGError(detail=f"LLM answer generation failed: {exc}") from exc
 
-        raw = _strip_code_fences(raw)
+        raw = strip_code_fences(raw)
 
         try:
             data = json.loads(raw)

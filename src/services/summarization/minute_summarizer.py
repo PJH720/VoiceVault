@@ -8,12 +8,11 @@ accepting the previous minute's summary for coherence.
 
 import json
 import logging
-import re
-
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.core.exceptions import SummarizationError
 from src.core.models import MinuteSummaryResult, TranscriptionCorrection
+from src.core.utils import strip_code_fences
 from src.services.llm.base import BaseLLM
 from src.services.summarization.base import BaseSummarizer
 
@@ -63,15 +62,6 @@ def _build_user_prompt(
         parts.append(f"Previous minute summary for context:\n{previous_context}\n")
     parts.append(f"Transcript to summarize:\n{transcript}")
     return "\n".join(parts)
-
-
-def _strip_code_fences(text: str) -> str:
-    """Remove markdown code fences wrapping JSON from LLM responses."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```\w*\n?", "", text)
-        text = re.sub(r"\n?```$", "", text)
-    return text.strip()
 
 
 class MinuteSummarizer(BaseSummarizer):
@@ -141,7 +131,7 @@ class MinuteSummarizer(BaseSummarizer):
             ) from exc
 
         try:
-            raw_response = _strip_code_fences(raw_response)
+            raw_response = strip_code_fences(raw_response)
             data = json.loads(raw_response)
         except json.JSONDecodeError as exc:
             raise SummarizationError(
