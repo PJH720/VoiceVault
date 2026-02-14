@@ -28,6 +28,7 @@ from src.services.rag import create_embedding, create_vectorstore
 from src.services.storage.database import get_session
 from src.services.storage.repository import RecordingRepository
 from src.services.summarization.minute_summarizer import MinuteSummarizer
+from src.services.summarization.hour_summarizer import HourSummarizer
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,29 @@ class PendingTranscript:
 
     minute_index: int
     text: str
+
+
+def _group_summaries_by_hour(summaries: list) -> dict[int, list[str]]:
+    """Group minute summaries by hour boundaries.
+    
+    Args:
+        summaries: List of Summary objects with minute_index and summary_text
+        
+    Returns:
+        Dict mapping hour_index (0, 1, 2...) to list of summary texts for that hour
+    """
+    hour_groups: dict[int, list[str]] = {}
+    
+    for summary in summaries:
+        if not summary.summary_text or not summary.summary_text.strip():
+            continue
+            
+        hour_index = summary.minute_index // 60
+        if hour_index not in hour_groups:
+            hour_groups[hour_index] = []
+        hour_groups[hour_index].append(summary.summary_text)
+    
+    return hour_groups
 
 
 class RecordingSession:
@@ -115,6 +139,9 @@ class RecordingSession:
             logger.info("Recording %s finalized as completed", self.recording_id)
         except Exception:
             logger.exception("Failed to finalize recording %s", self.recording_id)
+
+        # Generate hour summaries (non-fatal)
+        await self._generate_hour_summaries()
 
         # Auto-classify recording (non-fatal)
         await self._classify_recording()
@@ -256,6 +283,91 @@ class RecordingSession:
                 "Failed to embed summary for recording=%s minute=%s (non-fatal)",
                 recording_id,
                 minute_index,
+            )
+
+    async def _generate_hour_summaries(self) -> None:
+        """Generate hour-level summaries after recording stops. Failures are logged but never block.
+        
+        Groups all minute summaries by hour boundaries (0-59 min = hour 0, 60-119 min = hour 1, etc.)
+        and generates hierarchical hour summaries for each complete hour using HourSummarizer.
+        """
+        try:
+            async with get_session() as session:
+                repo = RecordingRepository(session)
+                summaries = await repo.list_summaries(self.recording_id)
+
+                if not summaries:
+                    logger.info(
+                        "No summaries for recording %s; skipping hour summary generation",
+                        self.recording_id,
+                    )
+                    return
+
+                # Group summaries by hour boundaries
+                hour_groups = _group_summaries_by_hour(summaries)
+                
+                if not hour_groups:
+                    logger.info(
+                        "No valid summaries for recording %s; skipping hour summary generation",
+                        self.recording_id,
+                    )
+                    return
+
+                # Initialize hour summarizer with same LLM as minute summarizer
+                settings = get_settings()
+                llm = create_llm(provider=settings.llm_provider)
+                hour_summarizer = HourSummarizer(llm)
+
+                # Generate hour summaries for each complete hour
+                for hour_index, minute_summaries in hour_groups.items():
+                    # Only generate hour summary if we have enough summaries (at least 10 minutes)
+                    if len(minute_summaries) < 10:
+                        logger.info(
+                            "Skipping hour %d for recording %s (only %d minutes, need at least 10)",
+                            hour_index,
+                            self.recording_id,
+                            len(minute_summaries),
+                        )
+                        continue
+
+                    try:
+                        hour_result = await hour_summarizer.summarize_hour(
+                            recording_id=self.recording_id,
+                            hour_index=hour_index,
+                            minute_summaries=minute_summaries,
+                        )
+
+                        # Save hour summary to database
+                        await repo.create_hour_summary(
+                            recording_id=self.recording_id,
+                            hour_index=hour_result.hour_index,
+                            summary_text=hour_result.summary_text,
+                            keywords=hour_result.keywords,
+                            topic_segments=hour_result.topic_segments,
+                            token_count=hour_result.token_count,
+                            model_used=hour_result.model_used,
+                        )
+
+                        logger.info(
+                            "Generated hour summary %d for recording %s (token_count=%d)",
+                            hour_index,
+                            self.recording_id,
+                            hour_result.token_count,
+                        )
+
+                    except Exception:
+                        logger.warning(
+                            "Failed to generate hour summary %d for recording %s (non-fatal)",
+                            hour_index,
+                            self.recording_id,
+                            exc_info=True,
+                        )
+
+        except Exception:
+            logger.warning(
+                "Hour summary generation failed for recording %s (non-fatal)",
+                self.recording_id,
+                exc_info=True,
             )
 
     async def _classify_recording(self) -> None:
