@@ -271,7 +271,19 @@ for rec in recordings:
                     )
                     start_m, end_m = selected_range
 
-                    if st.button("Extract Summary", key=f"extract_{rec_id}", type="primary"):
+                    col_extract, col_play = st.columns([2, 1])
+                    with col_play:
+                        # Jump audio playback to the selected start minute
+                        if rec.get("audio_path") and f"audio_bytes_{rec_id}" in st.session_state:
+                            if st.button("▶ Play from start", key=f"play_range_{rec_id}"):
+                                st.session_state[f"audio_start_{rec_id}"] = start_m * 60
+                                st.rerun()
+
+                    with col_extract:
+                        extract_clicked = st.button(
+                            "Extract Summary", key=f"extract_{rec_id}", type="primary"
+                        )
+                    if extract_clicked:
                         with st.spinner("Extracting summary..."):
                             try:
                                 result = client.extract_range(rec_id, start_m, end_m)
