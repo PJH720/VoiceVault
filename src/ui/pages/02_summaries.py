@@ -13,6 +13,8 @@ from pathlib import Path as _Path
 _r = str(_Path(__file__).resolve().parents[3])
 _r in _sys.path or _sys.path.insert(0, _r)  # noqa: E702,I001
 
+from datetime import datetime  # noqa: E402
+
 import streamlit as st  # noqa: E402
 
 from src.ui.api_client import APIError, get_api_client  # noqa: E402
@@ -34,7 +36,12 @@ with col_refresh:
                     st.session_state["_sync_toast"] = f"Imported {new} new recording(s)!"
             except Exception:
                 pass  # sync failure shouldn't block refresh
+        st.session_state["_last_refresh"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         st.rerun()
+
+last_refresh = st.session_state.get("_last_refresh")
+if last_refresh:
+    st.caption(f"Last refresh: {last_refresh}")
 
 if "_sync_toast" in st.session_state:
     st.success(st.session_state.pop("_sync_toast"))
