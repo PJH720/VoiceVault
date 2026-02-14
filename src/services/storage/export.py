@@ -314,8 +314,10 @@ async def export_recording_to_markdown(
     # Build markdown parts
     parts: list[str] = []
 
+    fm_text = ""
     if settings.obsidian_frontmatter:
-        parts.append(_build_frontmatter(recording, classification, template, summaries))
+        fm_text = _build_frontmatter(recording, classification, template, summaries)
+        parts.append(fm_text)
 
     body = _build_body(recording, classification, template, summaries, hour_summaries)
     if body:
@@ -368,11 +370,9 @@ async def export_recording_to_markdown(
         classification.export_path = str(file_path)
         await session.flush()
 
-    # Parse frontmatter dict for response
+    # Parse frontmatter dict for response (reuse already-generated fm_text)
     fm_dict: dict = {}
-    if settings.obsidian_frontmatter:
-        fm_text = _build_frontmatter(recording, classification, template, summaries)
-        # Strip --- delimiters
+    if fm_text:
         fm_body = fm_text.strip().removeprefix("---").removesuffix("---").strip()
         try:
             fm_dict = yaml.safe_load(fm_body) or {}
