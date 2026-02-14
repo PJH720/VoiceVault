@@ -265,9 +265,11 @@ class APIClient:
 
 
 @st.cache_resource
-def get_api_client() -> APIClient:
-    """Return a cached APIClient singleton.
+def get_api_client(base_url: str = "http://localhost:8000") -> APIClient:
+    """Return a cached APIClient, keyed by base_url.
 
     Uses Streamlit's ``cache_resource`` to persist the client across reruns.
+    When the base URL changes (e.g. user updates sidebar), a new client
+    is created automatically because the cache key includes the parameter.
     """
-    return APIClient(base_url=st.session_state.get("api_base_url", "http://localhost:8000"))
+    return APIClient(base_url=base_url)

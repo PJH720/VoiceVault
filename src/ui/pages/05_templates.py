@@ -22,7 +22,7 @@ from src.ui.components.template_card import render_template_card  # noqa: E402
 
 st.header("Classification Templates")
 
-client = get_api_client()
+client = get_api_client(st.session_state.get("api_base_url", "http://localhost:8000"))
 
 # ---------------------------------------------------------------------------
 # Create new template

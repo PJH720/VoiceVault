@@ -20,7 +20,7 @@ from src.ui.api_client import get_api_client  # noqa: E402
 from src.ui.components.export_preview import render_export_preview  # noqa: E402
 from src.ui.utils import open_folder_in_explorer  # noqa: E402
 
-client = get_api_client()
+client = get_api_client(st.session_state.get("api_base_url", "http://localhost:8000"))
 
 col_title, col_refresh = st.columns([6, 1])
 with col_title:

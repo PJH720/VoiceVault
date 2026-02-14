@@ -18,7 +18,7 @@ import streamlit as st  # noqa: E402
 from src.ui.api_client import APIError, get_api_client  # noqa: E402
 from src.ui.components.summary_card import render_summary_list  # noqa: E402
 
-client = get_api_client()
+client = get_api_client(st.session_state.get("api_base_url", "http://localhost:8000"))
 
 col_title, col_refresh = st.columns([6, 1])
 with col_title:
