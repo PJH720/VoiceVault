@@ -229,6 +229,52 @@ for rec in recordings:
         cached_summaries = st.session_state.get(f"summaries_{rec_id}")
         if cached_summaries is not None:
             if cached_summaries:
+                # -- Cross-boundary extraction --
+                st.divider()
+                st.subheader("Cross-Boundary Extraction")
+
+                minute_indices = sorted(
+                    s["minute_index"] for s in cached_summaries if "minute_index" in s
+                )
+                min_m = minute_indices[0]
+                max_m = minute_indices[-1]
+
+                if min_m < max_m:
+                    selected_range = st.slider(
+                        "Select time range (minutes)",
+                        min_value=min_m,
+                        max_value=max_m,
+                        value=(min_m, max_m),
+                        key=f"range_slider_{rec_id}",
+                    )
+                    start_m, end_m = selected_range
+
+                    if st.button("Extract Summary", key=f"extract_{rec_id}", type="primary"):
+                        with st.spinner("Extracting summary..."):
+                            try:
+                                result = client.extract_range(rec_id, start_m, end_m)
+                                st.session_state[f"extract_result_{rec_id}"] = result
+                            except APIError as exc:
+                                st.error(f"Extraction failed: {exc.message}")
+                            except Exception as exc:
+                                st.error(f"Extraction failed: {exc}")
+
+                    extract_result = st.session_state.get(f"extract_result_{rec_id}")
+                    if extract_result:
+                        with st.container(border=True):
+                            r_start = extract_result["start_minute"]
+                            r_end = extract_result["end_minute"]
+                            st.markdown(f"**Extracted Summary (minute {r_start}–{r_end})**")
+                            st.write(extract_result.get("summary_text", ""))
+                            kws = extract_result.get("keywords", [])
+                            if kws:
+                                st.markdown(" ".join(f"`{kw}`" for kw in kws))
+                            src_count = extract_result.get("source_count", 0)
+                            st.caption(f"Sources: {src_count} minute summary(ies)")
+                else:
+                    st.info("Need at least 2 minute summaries for range extraction.")
+
+                st.divider()
                 render_summary_list(cached_summaries, recording_id=rec_id)
             else:
                 st.info("No summaries yet for this recording.")
