@@ -162,6 +162,15 @@ class APIClient:
     def list_summaries(self, recording_id: int) -> list[dict]:
         return self._request("get", f"/api/v1/recordings/{recording_id}/summaries").json()
 
+    def extract_range(self, recording_id: int, start_minute: int, end_minute: int) -> dict:
+        """Cross-boundary range extraction and re-summarization."""
+        return self._request(
+            "post",
+            f"/api/v1/recordings/{recording_id}/extract",
+            json={"start_minute": start_minute, "end_minute": end_minute},
+            timeout=120.0,
+        ).json()
+
     # -- RAG --
 
     def rag_query(
