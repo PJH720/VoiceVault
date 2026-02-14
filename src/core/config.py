@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     app_port: int = 8000
     log_level: str = "INFO"  # Python logging level
 
+    # --- WebSocket Auth ---
+    ws_auth_enabled: bool = False
+    ws_auth_token: str = ""
+
     # --- CORS ---
     cors_origins: list[str] = ["http://localhost:8501", "http://localhost:3000"]
 
