@@ -24,12 +24,39 @@ from src.ui.utils import open_folder_in_explorer
 logger = logging.getLogger(__name__)
 
 
+def _resample(data: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+    """Resample audio using FFT-based method with proper anti-aliasing.
+
+    Uses numpy FFT to resample, which applies an implicit brick-wall
+    low-pass filter at the Nyquist frequency of the lower sample rate,
+    preventing aliasing artifacts that np.interp would introduce.
+
+    Args:
+        data: 1-D float32 audio samples.
+        orig_sr: Original sample rate in Hz.
+        target_sr: Target sample rate in Hz.
+
+    Returns:
+        Resampled 1-D float32 array.
+    """
+    if orig_sr == target_sr:
+        return data
+    # Compute target length
+    num_samples = int(len(data) * target_sr / orig_sr)
+    # FFT-based resampling (equivalent to scipy.signal.resample)
+    spectrum = np.fft.rfft(data)
+    resampled = np.fft.irfft(spectrum, n=num_samples)
+    # Normalize amplitude to compensate for length change
+    resampled *= num_samples / len(data)
+    return resampled.astype(np.float32)
+
+
 def _convert_to_pcm_16k_mono(audio_bytes: bytes) -> bytes:
     """Read uploaded WAV/audio bytes, resample to 16 kHz mono PCM int16.
 
     Whisper requires 16 kHz mono audio. This function handles:
     1. Stereo-to-mono conversion (average channels).
-    2. Resampling to 16 kHz via linear interpolation.
+    2. Resampling to 16 kHz via FFT-based method with anti-aliasing.
     3. Float32-to-int16 conversion for PCM byte output.
 
     Args:
@@ -44,12 +71,9 @@ def _convert_to_pcm_16k_mono(audio_bytes: bytes) -> bytes:
     if data.ndim > 1:
         data = data.mean(axis=1)
 
-    # Resample to 16 kHz if the source sample rate differs
+    # Resample to 16 kHz with proper anti-aliasing
     if sample_rate != 16000:
-        duration = len(data) / sample_rate
-        num_samples = int(duration * 16000)
-        indices = np.linspace(0, len(data) - 1, num_samples)
-        data = np.interp(indices, np.arange(len(data)), data)
+        data = _resample(data, sample_rate, 16000)
 
     # Scale float32 [-1.0, 1.0] to int16 range and convert to bytes
     pcm = (data * 32767).clip(-32768, 32767).astype(np.int16)
