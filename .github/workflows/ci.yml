@@ -130,7 +130,7 @@ jobs:
           pytest tests/unit/ tests/integration/ tests/e2e/ --cov=src --cov-report=xml --cov-report=term-missing -v
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: matrix.python-version == '3.12'
         with:
           file: ./backend/coverage.xml
