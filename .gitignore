@@ -330,6 +330,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+### Frontend Test Artifacts ###
+# Playwright
+**/playwright-report/
+**/e2e/test-results/
+**/blob-report/
+# Vitest
+**/coverage/
+
 ### Temporary Files ###
 *.tmp
 
