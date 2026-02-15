@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type { CaptureStatus } from "@/hooks/useAudioCapture";
+import type { WsConnectionState } from "@/types/ws-messages";
 
 interface RecordingState {
   // ── C1: Device selection ──
@@ -18,6 +19,10 @@ interface RecordingState {
   sampleRate: number | null;
   setCaptureStatus: (status: CaptureStatus) => void;
   setSampleRate: (rate: number | null) => void;
+
+  // ── C3: WebSocket connection status ──
+  wsState: WsConnectionState;
+  setWsState: (state: WsConnectionState) => void;
 }
 
 export const useRecordingStore = create<RecordingState>((set) => ({
@@ -35,6 +40,7 @@ export const useRecordingStore = create<RecordingState>((set) => ({
       currentRecordingId: null,
       captureStatus: "idle",
       sampleRate: null,
+      wsState: "disconnected",
     }),
 
   // ── C2 ──
@@ -42,4 +48,8 @@ export const useRecordingStore = create<RecordingState>((set) => ({
   sampleRate: null,
   setCaptureStatus: (captureStatus) => set({ captureStatus }),
   setSampleRate: (sampleRate) => set({ sampleRate }),
+
+  // ── C3 ──
+  wsState: "disconnected",
+  setWsState: (wsState) => set({ wsState }),
 }));
