@@ -1,4 +1,4 @@
-.PHONY: build up down logs health seed clean up-ollama dev-api dev-ui lint test
+.PHONY: build up down logs health seed clean up-ollama dev-api dev-ui gen-openapi lint test
 
 # ── Docker ──────────────────────────────────────────
 
@@ -46,6 +46,12 @@ dev-api:
 # Start Streamlit UI locally
 dev-ui:
 	streamlit run src/ui/app.py
+
+# ── Code Generation ────────────────────────────────
+
+# Export OpenAPI schema to docs/openapi.json
+gen-openapi:
+	PYTHONPATH=backend python backend/scripts/export_openapi.py
 
 # ── Quality ─────────────────────────────────────────
 
