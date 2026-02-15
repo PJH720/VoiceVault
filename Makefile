@@ -1,4 +1,6 @@
-.PHONY: build up down logs health seed clean up-ollama
+.PHONY: build up down logs health seed clean up-ollama dev-api dev-ui lint test
+
+# ── Docker ──────────────────────────────────────────
 
 # Build all Docker images
 build:
@@ -29,8 +31,29 @@ health:
 
 # Run demo data seeder inside the API container
 seed:
-	docker compose exec api python scripts/seed_demo_data.py
+	docker compose exec api python backend/scripts/seed_demo_data.py
 
 # Stop all services and remove volumes
 clean:
 	docker compose --profile ollama down -v
+
+# ── Local Development ───────────────────────────────
+
+# Start backend API locally (PYTHONPATH=backend)
+dev-api:
+	PYTHONPATH=backend uvicorn src.api.app:app --reload --port 8000
+
+# Start Streamlit UI locally
+dev-ui:
+	streamlit run src/ui/app.py
+
+# ── Quality ─────────────────────────────────────────
+
+# Lint & format check (backend code)
+lint:
+	ruff check backend/src/ backend/tests/
+	ruff format --check backend/src/ backend/tests/
+
+# Run tests (from backend/ directory)
+test:
+	cd backend && pytest tests/ -v
