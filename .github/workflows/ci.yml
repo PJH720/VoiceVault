@@ -8,6 +8,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
 
 jobs:
   # ===========================================================================
@@ -141,12 +142,86 @@ jobs:
           retention-days: 30
 
   # ===========================================================================
+  # API Contract Check (OpenAPI + TypeScript types freshness)
+  # ===========================================================================
+  api-contract-check:
+    name: API Contract Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -- Backend: regenerate openapi.json --
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Create backend venv & install deps
+        working-directory: backend
+        run: |
+          uv venv --python ${{ env.PYTHON_VERSION }}
+          uv pip install -r requirements.txt
+
+      - name: Regenerate OpenAPI schema
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+        run: python backend/scripts/export_openapi.py
+
+      # -- Frontend: regenerate api.generated.ts --
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate TypeScript types
+        working-directory: frontend
+        run: pnpm gen:types
+
+      # -- Diff check --
+      - name: Check for uncommitted changes
+        run: |
+          if git diff --exit-code docs/openapi.json frontend/src/types/api.generated.ts; then
+            echo "API contract is up to date."
+          else
+            echo ""
+            echo "============================================================"
+            echo "ERROR: API contract files are out of date!"
+            echo "============================================================"
+            echo ""
+            echo "The following generated files do not match the current code:"
+            git diff --stat docs/openapi.json frontend/src/types/api.generated.ts
+            echo ""
+            echo "To fix, run from the repo root:"
+            echo ""
+            echo "  make gen-openapi && make gen-types"
+            echo ""
+            echo "Then commit the updated files."
+            echo "============================================================"
+            exit 1
+          fi
+
+  # ===========================================================================
   # Summary
   # ===========================================================================
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [lint, test, security]
+    needs: [lint, test, security, api-contract-check]
     if: always()
 
     steps:
@@ -155,9 +230,11 @@ jobs:
           echo "Lint: ${{ needs.lint.result }}"
           echo "Test: ${{ needs.test.result }}"
           echo "Security: ${{ needs.security.result }}"
+          echo "API Contract: ${{ needs.api-contract-check.result }}"
 
           if [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.test.result }}" != "success" ]; then
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.api-contract-check.result }}" != "success" ]; then
             echo "CI checks failed"
             exit 1
           fi
