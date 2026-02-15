@@ -3,6 +3,8 @@
 # VoiceVault Development Environment Setup Script
 # Uses uv for Python version management and package installation.
 # Target: Python 3.12
+#
+# Run from the repo root:  bash backend/scripts/setup_dev.sh
 
 set -e  # Exit on error
 
@@ -14,6 +16,11 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color (reset)
 
 PYTHON_VERSION="3.12"
+
+# Resolve the repository root (two levels up from this script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+BACKEND_DIR="$REPO_ROOT/backend"
 
 # ---- Helper functions for consistent log formatting ----
 
@@ -80,6 +87,8 @@ install_uv() {
 create_venv() {
     print_step "Creating virtual environment with Python ${PYTHON_VERSION}..."
 
+    cd "$REPO_ROOT"
+
     if [ -d ".venv" ]; then
         # Verify existing venv Python version
         EXISTING_VERSION=$(.venv/bin/python --version 2>/dev/null | cut -d' ' -f2 | cut -d'.' -f1-2)
@@ -97,15 +106,17 @@ create_venv() {
 }
 
 # Install Python dependencies into the active .venv using uv.
-# First installs core deps from requirements.txt, then dev deps from pyproject.toml.
+# First installs core deps from backend/requirements.txt, then dev deps from backend/pyproject.toml.
 install_dependencies() {
     print_step "Installing Python dependencies via uv..."
+
+    cd "$BACKEND_DIR"
 
     if [ -f "requirements.txt" ]; then
         uv pip install -r requirements.txt
         print_success "Core dependencies installed"
     else
-        print_error "requirements.txt not found"
+        print_error "backend/requirements.txt not found"
         exit 1
     fi
 
@@ -118,6 +129,8 @@ install_dependencies() {
         uv pip install pytest pytest-asyncio pytest-cov pytest-env pytest-mock ruff mypy bandit
         print_success "Development dependencies installed (fallback)"
     fi
+
+    cd "$REPO_ROOT"
 }
 
 # Create runtime data directories that are gitignored.
@@ -125,9 +138,9 @@ install_dependencies() {
 create_directories() {
     print_step "Creating data directories..."
 
-    mkdir -p data/recordings
-    mkdir -p data/exports
-    mkdir -p logs
+    mkdir -p "$REPO_ROOT/data/recordings"
+    mkdir -p "$REPO_ROOT/data/exports"
+    mkdir -p "$BACKEND_DIR/logs"
 
     print_success "Data directories created"
 }
@@ -136,6 +149,8 @@ create_directories() {
 # The user must then edit .env to configure API keys and providers.
 setup_env_file() {
     print_step "Setting up environment file..."
+
+    cd "$REPO_ROOT"
 
     if [ -f ".env" ]; then
         print_warning ".env file already exists. Skipping."
@@ -155,7 +170,7 @@ setup_env_file() {
 download_whisper_model() {
     print_step "Downloading Whisper base model..."
 
-    .venv/bin/python scripts/download_models.py --model base
+    "$REPO_ROOT/.venv/bin/python" "$BACKEND_DIR/scripts/download_models.py" --model base
     print_success "Whisper base model downloaded"
 }
 
@@ -206,14 +221,14 @@ print_next_steps() {
     echo "  2. Edit .env file to configure your settings:"
     echo "     ${BLUE}nano .env${NC}"
     echo
-    echo "  3. Start the development server:"
-    echo "     ${BLUE}uvicorn src.api.app:app --reload${NC}"
+    echo "  3. Start the backend API server:"
+    echo "     ${BLUE}PYTHONPATH=backend uvicorn src.api.app:app --reload${NC}"
     echo
     echo "  4. Or use Docker Compose:"
-    echo "     ${BLUE}docker-compose up${NC}"
+    echo "     ${BLUE}docker compose up${NC}"
     echo
     echo "  5. Run tests:"
-    echo "     ${BLUE}pytest${NC}"
+    echo "     ${BLUE}cd backend && pytest${NC}"
     echo
     echo "Note: Always use 'uv pip install ...' instead of 'pip install ...'"
     echo "For more information, see README.md and CLAUDE.md"
