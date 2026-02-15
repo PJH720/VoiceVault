@@ -7,8 +7,8 @@ auto-classifies recordings into structured notes, and uses RAG to connect
 knowledge across your entire vault.
 
 **Context**: 서강대학교 러너톤 2026 해커톤 (2-week MVP)
-**Current Version**: v0.2.0 (Week 2 Milestone - Classification + RAG + Obsidian Complete)
-**Stack**: Python 3.12 (uv) | FastAPI | Streamlit | faster-whisper | Claude/Ollama | SQLite | ChromaDB
+**Current Version**: v0.4.0 (Frontend/Backend Split + TypeScript Migration)
+**Stack**: Python 3.12 (uv) | FastAPI | Next.js 16 | TypeScript | faster-whisper | Claude/Ollama | SQLite | ChromaDB
 **Tagline**: "Record your day, let AI organize it"
 **Deployment Targets**: Standalone web app (MVP) → Obsidian plugin (v1.0)
 
@@ -40,127 +40,204 @@ knowledge across your entire vault.
 ## Repository Structure
 
 ```
-src/
-├── core/              # Config, models, exceptions
-│   ├── config.py      # Pydantic Settings (.env loader)
-│   ├── models.py      # Pydantic data models (request/response)
-│   └── exceptions.py  # VoiceVaultError hierarchy
+VoiceVault/
+├── backend/                       # Python backend (FastAPI + services)
+│   ├── src/
+│   │   ├── core/                  # Config, models, exceptions
+│   │   │   ├── config.py          # Pydantic Settings (.env loader)
+│   │   │   ├── models.py          # Pydantic data models (request/response)
+│   │   │   ├── exceptions.py      # VoiceVaultError hierarchy
+│   │   │   └── utils.py           # Utility functions
+│   │   │
+│   │   ├── services/              # Business logic (the heart of the app)
+│   │   │   ├── orchestrator.py    # Recording session orchestrator
+│   │   │   ├── audio/             # Audio recording, PCM→WAV, chunk splitting
+│   │   │   │   ├── recorder.py    # WebSocket audio receiver
+│   │   │   │   └── processor.py   # Preprocessing (16kHz, mono, chunk split)
+│   │   │   ├── transcription/     # STT with faster-whisper
+│   │   │   │   ├── base.py        # BaseSTT interface (ABC)
+│   │   │   │   └── whisper.py     # faster-whisper implementation
+│   │   │   ├── summarization/     # 1-min / 1-hour / range summaries
+│   │   │   │   ├── base.py        # BaseSummarizer interface (ABC)
+│   │   │   │   ├── minute_summarizer.py
+│   │   │   │   ├── hour_summarizer.py
+│   │   │   │   └── range_extractor.py
+│   │   │   ├── classification/    # Zero-shot classification + template matching
+│   │   │   │   ├── classifier.py
+│   │   │   │   └── template_matcher.py
+│   │   │   ├── llm/               # LLM provider abstraction
+│   │   │   │   ├── base.py        # BaseLLM interface (ABC)
+│   │   │   │   ├── claude.py      # Claude API (anthropic package)
+│   │   │   │   └── ollama.py      # Ollama local (localhost:11434)
+│   │   │   ├── rag/               # RAG (Retrieval-Augmented Generation)
+│   │   │   │   ├── base.py        # BaseEmbedding / BaseVectorStore (ABC)
+│   │   │   │   ├── embeddings.py  # Sentence-transformer / Ollama embeddings
+│   │   │   │   ├── vectorstore.py # ChromaDB vector store wrapper
+│   │   │   │   └── retriever.py   # RAG query pipeline
+│   │   │   └── storage/           # Data persistence
+│   │   │       ├── database.py    # SQLAlchemy async engine (aiosqlite)
+│   │   │       ├── models_db.py   # ORM table models
+│   │   │       ├── repository.py  # CRUD operations
+│   │   │       └── export.py      # Obsidian-compatible Markdown export
+│   │   │
+│   │   └── api/                   # FastAPI (thin wrapper over services)
+│   │       ├── app.py             # App factory + CORS + router registration
+│   │       ├── websocket.py       # /ws/transcribe real-time endpoint
+│   │       ├── routes/            # REST endpoints
+│   │       │   ├── recording.py
+│   │       │   ├── summary.py
+│   │       │   ├── rag.py
+│   │       │   └── template.py
+│   │       └── middleware/
+│   │           └── error_handler.py
+│   │
+│   ├── tests/                     # pytest (unit/integration/e2e/stress)
+│   │   ├── unit/
+│   │   ├── integration/
+│   │   ├── e2e/
+│   │   ├── stress/
+│   │   ├── fixtures/
+│   │   └── conftest.py
+│   │
+│   ├── scripts/                   # Dev utilities
+│   │   ├── download_models.py     # faster-whisper model download
+│   │   ├── seed_templates.py      # Default template seeding
+│   │   ├── seed_demo_data.py      # 8-hour demo scenario seeding
+│   │   ├── export_openapi.py      # OpenAPI schema export
+│   │   ├── setup_dev.sh           # Development environment setup
+│   │   └── demo_data/             # Demo scenario data
+│   │       └── scenarios.py
+│   │
+│   ├── pyproject.toml             # Python project config (deps, tools, pytest)
+│   └── requirements.txt           # Pinned dependencies
 │
-├── services/          # Business logic (the heart of the app)
-│   ├── orchestrator.py    # Recording session orchestrator (background pipeline)
-│   ├── audio/         # Audio recording, PCM→WAV, chunk splitting
-│   │   ├── recorder.py    # WebSocket audio receiver
-│   │   └── processor.py   # Preprocessing (16kHz, mono, chunk split)
-│   ├── transcription/ # STT with faster-whisper
-│   │   ├── base.py        # BaseSTT interface (ABC)
-│   │   └── whisper.py     # faster-whisper implementation
-│   ├── summarization/ # 1-min / 1-hour / range summaries
-│   │   ├── base.py              # BaseSummarizer interface (ABC)
-│   │   ├── minute_summarizer.py # 1-min auto-summary
-│   │   ├── hour_summarizer.py   # 1-hour hierarchical summary
-│   │   └── range_extractor.py   # Cross-boundary range re-summary
-│   ├── classification/ # Zero-shot classification + template matching
-│   │   ├── classifier.py       # Claude/Ollama zero-shot
-│   │   └── template_matcher.py # Match segments to user templates
-│   ├── llm/           # LLM provider abstraction
-│   │   ├── base.py        # BaseLLM interface (ABC)
-│   │   ├── claude.py      # Claude API (anthropic package)
-│   │   └── ollama.py      # Ollama local (localhost:11434)
-│   ├── rag/           # RAG (Retrieval-Augmented Generation)
-│   │   ├── base.py        # BaseEmbedding / BaseVectorStore interfaces (ABC)
-│   │   ├── embeddings.py  # Sentence-transformer / Ollama embeddings
-│   │   ├── vectorstore.py # ChromaDB vector store wrapper
-│   │   └── retriever.py   # RAG query pipeline (embed → search → rerank → answer)
-│   └── storage/       # Data persistence
-│       ├── database.py    # SQLAlchemy async engine (aiosqlite)
-│       ├── models_db.py   # ORM table models
-│       ├── repository.py  # CRUD operations
-│       └── export.py      # Markdown file generation (Obsidian-compatible)
+├── frontend/                      # Next.js 16 + TypeScript frontend
+│   ├── src/
+│   │   ├── app/                   # App Router pages
+│   │   │   ├── layout.tsx         # Root layout
+│   │   │   ├── page.tsx           # Home page
+│   │   │   ├── providers.tsx      # React Query + global providers
+│   │   │   ├── recording/page.tsx # Recording page
+│   │   │   └── summaries/page.tsx # Summaries page
+│   │   ├── components/            # React components
+│   │   │   ├── ui/                # Generic UI (Button, Card, Spinner, etc.)
+│   │   │   ├── layout/            # Navigation, Header
+│   │   │   ├── recording/         # Recording controls, transcript view
+│   │   │   └── summaries/         # Summary cards, lists, tabs
+│   │   ├── hooks/                 # Custom React hooks
+│   │   │   ├── useWebSocket.ts    # WebSocket connection
+│   │   │   ├── useAudioCapture.ts # Audio recording
+│   │   │   ├── useRecordings.ts   # Recording API hooks
+│   │   │   └── useSummaries.ts    # Summary API hooks
+│   │   ├── lib/                   # Utilities
+│   │   │   ├── api-client.ts      # Fetch wrapper for backend API
+│   │   │   ├── api/               # API endpoint modules
+│   │   │   ├── env.ts             # Environment variable access
+│   │   │   ├── cn.ts              # className utility (clsx + tailwind-merge)
+│   │   │   ├── query-client.ts    # React Query client config
+│   │   │   ├── websocket/         # WebSocket client
+│   │   │   └── audio/             # Audio worklet + PCM encoder
+│   │   ├── stores/                # Zustand state management
+│   │   │   └── recording.ts       # Recording session state
+│   │   └── types/                 # TypeScript types
+│   │       ├── api.generated.ts   # Auto-generated from OpenAPI
+│   │       ├── api.ts             # Manual API types
+│   │       ├── index.ts           # Re-exports
+│   │       └── ws-messages.ts     # WebSocket message types
+│   │
+│   ├── e2e/                       # Playwright E2E tests
+│   ├── package.json               # Node.js deps (pnpm)
+│   ├── tsconfig.json              # TypeScript config
+│   ├── vitest.config.ts           # Vitest unit test config
+│   ├── playwright.config.ts       # Playwright E2E config
+│   ├── Dockerfile                 # Frontend Docker image
+│   └── eslint.config.mjs          # ESLint config
 │
-├── api/               # FastAPI (thin wrapper over services)
-│   ├── app.py         # App factory + CORS + router registration
-│   ├── websocket.py   # /ws/transcribe real-time endpoint
-│   ├── routes/        # REST endpoints
-│   │   ├── recording.py   # POST/GET recordings
-│   │   ├── summary.py     # GET summaries + hour summaries + extraction
-│   │   ├── rag.py         # RAG query + similar + reindex
-│   │   └── template.py    # Template CRUD
-│   └── middleware/
-│       └── error_handler.py   # Global exception → JSON response
+├── templates/                     # Default classification templates (JSON)
+│   ├── lecture.json
+│   ├── meeting.json
+│   ├── conversation.json
+│   ├── memo.json
+│   ├── person.json
+│   ├── english_vocabulary.json
+│   └── incident.json
 │
-└── ui/                # Streamlit frontend
-    ├── app.py         # Main multipage app
-    ├── api_client.py  # HTTP client for backend API
-    ├── pages/         # Streamlit pages
-    │   ├── 01_recording.py    # Recording page
-    │   ├── 02_summaries.py    # Summaries page
-    │   ├── 03_rag_search.py   # RAG search page
-    │   ├── 04_export.py       # Export page
-    │   └── 05_templates.py    # Template management
-    ├── components/    # Reusable UI widgets
-    │   ├── recorder.py        # Recording UI component
-    │   ├── summary_card.py    # Summary card component
-    │   ├── template_card.py   # Template card component
-    │   ├── export_preview.py  # Export preview component
-    │   └── rag_result.py      # RAG result display component
-    └── assets/
-        └── styles.css # Custom CSS styles
-
-templates/             # Default classification templates (JSON)
-├── lecture.json       # Lecture note template
-├── meeting.json       # Meeting minutes template
-├── conversation.json  # Conversation log template
-├── memo.json          # Personal memo template
-├── person.json        # Person/contact note template
-├── english_vocabulary.json  # English vocabulary study template
-└── incident.json      # Incident report template
-
-tests/                 # pytest (unit + integration + e2e + fixtures)
-scripts/               # Dev utilities
-├── download_models.py # faster-whisper model download
-├── seed_templates.py  # Default template seeding
-├── seed_demo_data.py  # 8-hour demo scenario seeding
-├── setup_dev.sh       # Development environment setup
-└── demo_data/         # Demo scenario data
-    └── scenarios.py   # Demo scenario definitions
-
-data/                  # Runtime data (gitignored): recordings/, exports/, chroma_db/, DB
+├── docs/                          # Generated docs
+│   └── openapi.json               # OpenAPI schema (auto-generated)
+│
+├── .github/workflows/ci.yml       # GitHub Actions CI
+├── docker-compose.yml             # Backend + Frontend + Ollama (optional)
+├── Dockerfile                     # Backend Docker image
+├── Makefile                       # Unified dev commands
+├── .env.example                   # Environment variable template
+└── data/                          # Runtime data (gitignored)
+    ├── recordings/
+    ├── exports/
+    ├── chroma_db/
+    └── voicevault.db
 ```
 
 ---
 
 ## Key Commands
 
+All development is managed through the Makefile. Run `make` targets from the repo root.
+
 ```bash
 # ── Development ──
-uvicorn src.api.app:app --reload --port 8000       # Backend server
-streamlit run src/ui/app.py                         # Frontend UI
+make dev                 # Run backend (port 8000) + frontend (port 3000) concurrently
+make dev-backend         # Backend only: PYTHONPATH=backend uvicorn src.api.app:app --reload --port 8000
+make dev-frontend        # Frontend only: cd frontend && pnpm dev
 
 # ── Testing ──
-pytest tests/ -v                                     # All tests
-pytest tests/unit/ -v                                # Unit only
-pytest tests/integration/ -v                         # Integration only
-pytest tests/ -v --cov=src --cov-report=html        # Coverage report
+make test                # Run all tests (backend + frontend)
+make test-backend        # cd backend && pytest tests/ -v
+make test-frontend       # cd frontend && pnpm test
 
 # ── Linting & Formatting ──
-ruff check src/ tests/                               # Lint check
-ruff check src/ tests/ --fix                         # Auto-fix
-ruff format src/ tests/                              # Format code
-mypy src/ --ignore-missing-imports                   # Type check
+make lint                # Lint all code (backend + frontend)
+make lint-backend        # ruff check backend/src/ backend/tests/ + format check
+make lint-frontend       # eslint + prettier + tsc --noEmit
+
+# ── Code Generation ──
+make gen-openapi         # Export OpenAPI schema → docs/openapi.json
+make gen-types           # Generate TypeScript types from OpenAPI → frontend/src/types/api.generated.ts
 
 # ── Docker ──
-docker-compose up -d                                 # Full stack
-docker-compose logs -f                               # Stream logs
+make up                  # Start backend + frontend containers
+make up-ollama           # Start with Ollama included (--profile ollama)
+make down                # Stop all services
+make logs                # Stream logs from all containers
+make health              # Check backend + frontend health
+make seed                # Seed demo data into running backend container
+make build               # Build all Docker images
+make clean               # Stop all services + remove volumes
 
-# ── Setup (uv 필수) ──
-uv venv --python 3.12                                # Virtual env (Python 자동 다운로드)
-source .venv/bin/activate                            # Activate
-uv pip install -r requirements.txt                   # Install deps
-uv pip install -e ".[dev]"                           # Install dev deps
-cp .env.example .env                                 # Config file
-python scripts/download_models.py                    # faster-whisper model
-python scripts/seed_templates.py                     # Default templates
+# ── Setup ──
+make setup               # Full project setup:
+                         #   1. cd backend && uv venv + pip install
+                         #   2. cd frontend && pnpm install
+                         #   3. Download Whisper model
+                         #   4. Seed default templates
 ```
+
+### Running commands manually (without Make)
+
+```bash
+# Backend (always set PYTHONPATH=backend)
+PYTHONPATH=backend uvicorn src.api.app:app --reload --port 8000
+cd backend && pytest tests/ -v
+ruff check backend/src/ backend/tests/
+
+# Frontend
+cd frontend && pnpm dev
+cd frontend && pnpm test
+cd frontend && pnpm lint
+cd frontend && pnpm type-check
+cd frontend && pnpm build
+```
+
+**Important**: The backend uses `PYTHONPATH=backend` so that Python imports resolve as `from src.xxx`. This is set automatically in the Makefile, docker-compose.yml, and CI.
 
 ---
 
@@ -185,16 +262,16 @@ python scripts/seed_templates.py                     # Default templates
        ↓                               ↓                                   ↓
  Embed summary → ChromaDB         Obsidian Markdown Export            UI: RAG search panel
        ↓                          (frontmatter + wikilinks)
- UI Live Update
+ UI Live Update (WebSocket)
 ```
 
 ### Provider Pattern (Interface Abstraction)
 
 All LLM/STT/RAG services implement base interfaces for provider swapping:
 
-- `src/services/llm/base.py` → `ClaudeLLM`, `OllamaLLM`
-- `src/services/transcription/base.py` → `WhisperSTT`
-- `src/services/rag/base.py` → `BaseEmbedding`, `BaseVectorStore`
+- `backend/src/services/llm/base.py` → `ClaudeLLM`, `OllamaLLM`
+- `backend/src/services/transcription/base.py` → `WhisperSTT`
+- `backend/src/services/rag/base.py` → `BaseEmbedding`, `BaseVectorStore`
 - `.env` `LLM_PROVIDER=claude` or `LLM_PROVIDER=ollama` switches providers
 - `.env` `EMBEDDING_PROVIDER=local` or `EMBEDDING_PROVIDER=ollama` switches embedding models
 - Never import concrete implementations directly in business logic
@@ -202,7 +279,7 @@ All LLM/STT/RAG services implement base interfaces for provider swapping:
 ### Service Layer Pattern
 
 ```
-UI (Streamlit) → HTTP/WebSocket only
+Frontend (Next.js) → HTTP/WebSocket only
     ↓
 API (FastAPI routes) → delegates to services only (no business logic)
     ↓
@@ -212,10 +289,22 @@ Data Layer (SQLite via SQLAlchemy, ChromaDB for vectors, file system)
 ```
 
 **Rules**:
-- UI never calls services directly (must go through API)
+- Frontend never calls services directly (must go through API)
 - API routes contain no business logic
 - Services never construct HTTP response objects
 - Each pipeline step is independently testable
+
+### API Contract (OpenAPI → TypeScript)
+
+The backend exports an OpenAPI schema (`docs/openapi.json`) which is used to auto-generate TypeScript types for the frontend (`frontend/src/types/api.generated.ts`). This ensures type safety across the stack.
+
+```bash
+# Regenerate after changing backend API
+make gen-openapi    # Backend → docs/openapi.json
+make gen-types      # docs/openapi.json → frontend/src/types/api.generated.ts
+```
+
+CI validates that these generated files are in sync via the `api-contract-check` job.
 
 ### Token Optimization — Hierarchical Summarization
 
@@ -353,26 +442,42 @@ Collection: voicevault_summaries
 
 ## Code Conventions
 
-### Python Style
+### Python Style (Backend)
 
 - **Python 3.12** (managed via uv) with type hints on all function signatures
 - **Pydantic v2** for all data models (request, response, config)
 - **async/await** for all I/O operations (FastAPI, WebSocket, DB, LLM calls)
 - **Google-format docstrings**
 - **Max line length**: 100 characters
-- **Linter/Formatter**: Ruff
+- **Linter/Formatter**: Ruff (config in `backend/pyproject.toml`)
+
+### TypeScript Style (Frontend)
+
+- **TypeScript strict mode** (`strict: true`, `noUncheckedIndexedAccess: true`)
+- **Next.js 16** with App Router (`src/app/`)
+- **React 19** with Server Components where applicable
+- **Tailwind CSS v4** for styling
+- **Zustand** for client state management
+- **TanStack React Query** for server state (API data fetching)
+- **Path aliases**: `@/*` maps to `./src/*`
+- **Linter/Formatter**: ESLint + Prettier (with tailwindcss plugin)
+- **Testing**: Vitest (unit) + Playwright (E2E)
 
 ### Naming Conventions
 
 | Element | Convention | Example |
 |---------|-----------|---------|
-| Files | `snake_case.py` | `minute_summarizer.py` |
-| Classes | `PascalCase` | `MinuteSummarizer` |
-| Functions/Variables | `snake_case` | `summarize_minute()` |
-| Constants | `UPPER_SNAKE_CASE` | `MAX_TOKENS = 200` |
-| Private methods | `_leading_underscore` | `_call_llm()` |
+| Python files | `snake_case.py` | `minute_summarizer.py` |
+| Python classes | `PascalCase` | `MinuteSummarizer` |
+| Python functions/variables | `snake_case` | `summarize_minute()` |
+| Python constants | `UPPER_SNAKE_CASE` | `MAX_TOKENS = 200` |
+| Python private methods | `_leading_underscore` | `_call_llm()` |
+| TypeScript files | `PascalCase.tsx` / `kebab-case.ts` | `Button.tsx`, `api-client.ts` |
+| React components | `PascalCase` | `RecordingControls` |
+| TypeScript hooks | `camelCase` with `use` prefix | `useWebSocket` |
+| TypeScript utilities | `camelCase` | `formatDuration()` |
 
-### Import Order
+### Import Order (Python)
 
 ```python
 # 1. Standard library
@@ -396,50 +501,60 @@ Separate each group with a blank line.
 
 ### Adding a new LLM provider
 
-1. Create `src/services/llm/new_provider.py`
-2. Implement `BaseLLM` interface from `src/services/llm/base.py`
-3. Add config fields in `src/core/config.py`
-4. Register in provider factory at `src/services/llm/__init__.py`
+1. Create `backend/src/services/llm/new_provider.py`
+2. Implement `BaseLLM` interface from `backend/src/services/llm/base.py`
+3. Add config fields in `backend/src/core/config.py`
+4. Register in provider factory at `backend/src/services/llm/__init__.py`
 5. Add to `.env.example` with documentation
 
 ### Adding a new classification template
 
 1. Create JSON file in `templates/` directory
 2. Format: `{ "name": "...", "triggers": [...], "output_format": "...", "fields": [...] }`
-3. Run `python scripts/seed_templates.py` to load into DB
+3. Run `PYTHONPATH=backend python backend/scripts/seed_templates.py` to load into DB
 4. Template becomes available for zero-shot classification
 
 ### Adding a new API route
 
-1. Create route file in `src/api/routes/`
-2. Define Pydantic request/response models in `src/core/models.py`
-3. Implement service logic in `src/services/`
+1. Create route file in `backend/src/api/routes/`
+2. Define Pydantic request/response models in `backend/src/core/models.py`
+3. Implement service logic in `backend/src/services/`
 4. Delegate from route to service (thin wrapper)
-5. Register router in `src/api/app.py`
-6. Add tests in `tests/unit/` and `tests/integration/`
+5. Register router in `backend/src/api/app.py`
+6. Add tests in `backend/tests/unit/` and `backend/tests/integration/`
+7. Run `make gen-openapi && make gen-types` to update TypeScript types
 
 ### Adding a new embedding provider
 
-1. Create `src/services/rag/new_embedding.py`
-2. Implement `BaseEmbedding` interface from `src/services/rag/base.py`
-3. Add config fields in `src/core/config.py`
-4. Register in provider factory at `src/services/rag/__init__.py`
+1. Create `backend/src/services/rag/new_embedding.py`
+2. Implement `BaseEmbedding` interface from `backend/src/services/rag/base.py`
+3. Add config fields in `backend/src/core/config.py`
+4. Register in provider factory at `backend/src/services/rag/__init__.py`
 5. Add to `.env.example` with documentation
 
 ### Customizing Obsidian export format
 
-1. Modify `src/services/storage/export.py` for generation logic
-2. Frontmatter fields are defined in `src/core/models.py` → `ObsidianExportModel`
+1. Modify `backend/src/services/storage/export.py` for generation logic
+2. Frontmatter fields are defined in `backend/src/core/models.py` → `ObsidianExportModel`
 3. Wikilinks are auto-generated from RAG similarity results
 
-### Adding a new feature (full checklist)
+### Adding a new frontend page
 
-1. `src/core/models.py` — Pydantic data models
-2. `src/services/` — Business logic implementation
-3. `src/api/routes/` — API endpoint (thin wrapper)
-4. `src/api/app.py` — Register router
-5. `tests/unit/` — Unit tests (mock external deps)
-6. `tests/integration/` — Integration tests
+1. Create `frontend/src/app/<page-name>/page.tsx`
+2. Add API hooks in `frontend/src/hooks/`
+3. Create components in `frontend/src/components/<page-name>/`
+4. Add navigation link in `frontend/src/components/layout/Navigation.tsx`
+5. Write unit tests with Vitest
+
+### Adding a new backend feature (full checklist)
+
+1. `backend/src/core/models.py` — Pydantic data models
+2. `backend/src/services/` — Business logic implementation
+3. `backend/src/api/routes/` — API endpoint (thin wrapper)
+4. `backend/src/api/app.py` — Register router
+5. `backend/tests/unit/` — Unit tests (mock external deps)
+6. `backend/tests/integration/` — Integration tests
+7. `make gen-openapi && make gen-types` — Update API contract
 
 ---
 
@@ -489,11 +604,16 @@ Server sends: JSON `{type: "transcript"|"summary"|"error", data: {...}}`
 
 ## Testing Strategy
 
-- **Unit tests** (`tests/unit/`): Mock LLM/STT providers, test pure service logic
-- **Integration tests** (`tests/integration/`): Real in-memory SQLite, mock external APIs
-- **Fixtures** (`tests/fixtures/`): Sample audio WAV + transcript JSON
+### Backend (pytest)
+
+- **Unit tests** (`backend/tests/unit/`): Mock LLM/STT providers, test pure service logic
+- **Integration tests** (`backend/tests/integration/`): Real in-memory SQLite, mock external APIs
+- **E2E tests** (`backend/tests/e2e/`): Full pipeline tests
+- **Stress tests** (`backend/tests/stress/`): Long-running simulation tests
+- **Fixtures** (`backend/tests/fixtures/`): Sample transcript JSON
 - **Minimum coverage**: 70% for service layer
 - **Framework**: pytest + pytest-asyncio + pytest-cov
+- **Config**: `backend/pyproject.toml` (pytest section)
 
 ```python
 # Example: Mocking LLM for unit test
@@ -504,90 +624,94 @@ def mock_llm():
     return llm
 ```
 
----
+### Frontend (Vitest + Playwright)
 
-## Environment Variables
+- **Unit tests**: Vitest + React Testing Library (`frontend/src/**/*.test.{ts,tsx}`)
+- **E2E tests**: Playwright (`frontend/e2e/*.spec.ts`)
+- **Config**: `frontend/vitest.config.ts`, `frontend/playwright.config.ts`
 
-```env
-# LLM Provider: "claude" or "ollama"
-LLM_PROVIDER=ollama
-
-# Claude API (when LLM_PROVIDER=claude)
-CLAUDE_API_KEY=sk-ant-...
-CLAUDE_MODEL=claude-sonnet-4-20250514
-
-# Ollama (when LLM_PROVIDER=ollama)
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
-
-# Whisper STT
-WHISPER_PROVIDER=local          # "local" or "api"
-WHISPER_MODEL=base              # base, small, medium, large-v3, turbo
-WHISPER_API_KEY=                # OpenAI key (if provider=api)
-WHISPER_DEFAULT_LANGUAGE=       # Default language (empty=auto-detect; "ko","en","ja",etc.)
-
-# RAG & Embeddings
-EMBEDDING_PROVIDER=local        # "local" (sentence-transformers) or "ollama"
-EMBEDDING_MODEL=all-MiniLM-L6-v2  # sentence-transformers model name
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text  # Ollama embedding model (if provider=ollama)
-CHROMA_PERSIST_DIR=data/chroma_db
-RAG_TOP_K=5                     # Number of results for RAG queries
-RAG_MIN_SIMILARITY=0.3          # Minimum cosine similarity threshold
-
-# Obsidian Export
-OBSIDIAN_VAULT_PATH=            # Optional: direct export to Obsidian vault
-OBSIDIAN_EXPORT_FOLDER=VoiceVault  # Subfolder within vault for exports
-OBSIDIAN_FRONTMATTER=true       # Include YAML frontmatter in exports
-OBSIDIAN_WIKILINKS=true         # Use [[wikilinks]] for related notes
-
-# Application
-APP_HOST=0.0.0.0
-APP_PORT=8000
-LOG_LEVEL=INFO
-
-# Storage
-DATABASE_URL=sqlite:///data/voicevault.db
-RECORDINGS_DIR=data/recordings
-EXPORTS_DIR=data/exports
+```bash
+make test-frontend       # Run vitest
+cd frontend && pnpm test:e2e     # Run Playwright E2E tests
 ```
 
 ---
 
-## Hackathon Timeline
+## Environment Variables
 
-### Week 1 (Feb 7–13): Core Pipeline → v0.1.0
+Environment configuration lives in `.env` at the repo root (copied from `.env.example`).
 
-| Day | Task | Deliverable |
-|-----|------|-------------|
-| 1–2 | Project setup + FastAPI + WebSocket | Server boots, /health works |
-| 2–3 | Whisper STT real-time transcription | Audio → text streaming |
-| 3–4 | 1-min auto-summary (Claude/Ollama) | Summary JSON output |
-| 4–5 | SQLite schema + CRUD repository | Data persistence |
-| 5–6 | Streamlit basic UI (record + summaries) | Web interface |
-| 7 | E2E integration test + bug fixes | **Week 1 MVP complete** |
+```env
+# --- LLM Provider ---
+LLM_PROVIDER=ollama                    # "claude" or "ollama"
 
-**Success Criteria**: 30s recording → real-time transcript → 1-min summary → saved in DB
+# --- Claude API (if LLM_PROVIDER=claude) ---
+CLAUDE_API_KEY=
+CLAUDE_MODEL=claude-sonnet-4-20250514
 
-### Week 2 (Feb 14–20): Classification + RAG + Obsidian → v0.2.0
+# --- Ollama (if LLM_PROVIDER=ollama) ---
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
 
-| Day | Task | Deliverable |
-|-----|------|-------------|
-| 8–9 | Zero-shot classification + templates | Auto document typing |
-| 9–10 | RAG: ChromaDB + embeddings + search API | Query past recordings |
-| 10–11 | Cross-boundary search + re-summary | Any time range selection |
-| 11–12 | Obsidian Markdown export (frontmatter + wikilinks) | PKM-ready export |
-| 12–13 | RAG search UI + improved Streamlit | Timeline, template mgmt, RAG panel |
-| 14 | Final testing + demo prep | **Complete MVP** |
+# --- Whisper STT ---
+WHISPER_PROVIDER=local                 # "local" or "api"
+WHISPER_MODEL=base                     # base, small, medium, large-v3, turbo
+WHISPER_API_KEY=                       # OpenAI key (if provider=api)
+WHISPER_DEFAULT_LANGUAGE=              # Default language (empty=auto-detect)
 
-**Success Criteria**: 1h recording → classify → RAG search → export as Obsidian Markdown
+# --- RAG & Embeddings ---
+EMBEDDING_PROVIDER=local               # "local" (sentence-transformers) or "ollama"
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+CHROMA_PERSIST_DIR=data/chroma_db
+RAG_TOP_K=5
+RAG_MIN_SIMILARITY=0.3
 
-### Final (Feb 21–22): Demo Ready → v0.3.0
+# --- Obsidian Export ---
+OBSIDIAN_VAULT_PATH=
+OBSIDIAN_EXPORT_FOLDER=VoiceVault
+OBSIDIAN_FRONTMATTER=true
+OBSIDIAN_WIKILINKS=true
 
-- Demo scenario: 8-hour simulated recording
-- RAG demo: natural language query across all recordings
-- Obsidian vault integration demo
-- Presentation slides + demo video
-- README & documentation polish
+# --- Application ---
+APP_HOST=0.0.0.0
+APP_PORT=8000
+LOG_LEVEL=INFO
+
+# --- WebSocket Authentication ---
+WS_AUTH_ENABLED=false
+WS_AUTH_TOKEN=
+
+# --- CORS ---
+CORS_ORIGINS=["http://localhost:8501","http://localhost:3000"]
+
+# --- Storage ---
+DATABASE_URL=sqlite:///data/voicevault.db
+RECORDINGS_DIR=data/recordings
+EXPORTS_DIR=data/exports
+
+# --- Frontend (Next.js) ---
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
+```
+
+---
+
+## CI Pipeline
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on push to `main`/`develop` and PRs to `main`. Path-filtered jobs minimize unnecessary runs:
+
+| Job | Trigger | What it does |
+|-----|---------|-------------|
+| `changes` | Always | Detects which paths changed (backend/frontend) |
+| `lint` | Backend changed | Ruff check + format check + MyPy |
+| `test` | Backend changed | pytest (unit + integration + e2e) |
+| `security` | Backend changed | Bandit security scan |
+| `api-contract-check` | Backend or frontend changed | Verify OpenAPI + TS types are in sync |
+| `frontend-lint` | Frontend changed | ESLint + Prettier + tsc |
+| `frontend-test` | Frontend changed | Vitest unit tests |
+| `frontend-build` | Frontend changed | Next.js production build |
+| `summary` | Always | Aggregates all job results |
 
 ---
 
@@ -640,39 +764,41 @@ main            ← stable (demo-ready)
 type(scope): description
 
 # Types: feat, fix, docs, style, refactor, test, chore
-# Scopes: stt, llm, rag, ui, api, storage, classification, template, obsidian
+# Scopes: stt, llm, rag, ui, api, storage, classification, template, obsidian, frontend, infra, ci
 
 # Examples:
 feat(stt): add Whisper WebSocket streaming endpoint
 fix(classification): handle empty transcript edge case
+feat(frontend): add recording page with audio capture
 docs(wiki): update API reference for export endpoint
 test(llm): add unit tests for Claude provider
-chore(ci): update GitHub Actions Python matrix
+chore(infra): add unified dev orchestration with Makefile
+chore(ci): add frontend lint/test/build jobs with path filtering
 ```
 
 ---
 
 ## Tips for Working on This Codebase
 
-1. **Use uv, not pip**: 패키지 관리는 반드시 `uv pip install ...`로 수행. `pip`/`python -m venv` 사용 금지. Python 3.12는 `uv venv --python 3.12`로 관리.
-2. **Start with services**: Core logic is in `src/services/`. Understand the ABC interfaces first (`base.py` files).
-3. **Provider agnostic**: Always test with both Claude AND Ollama. Never assume one provider.
-4. **SQLite is sufficient**: Don't over-engineer the storage layer. Local-first is the principle.
-5. **Streamlit quirks**: Use `st.session_state` for persistent state across reruns. Streamlit re-executes the entire script on every interaction.
-6. **WebSocket**: Real-time transcription uses FastAPI WebSocket, not REST polling.
-7. **Templates are JSON**: Default templates in `templates/` dir, user custom templates in DB.
-8. **Hackathon mindset**: Working demo > Perfect code. Ship early, iterate fast.
-9. **Async everywhere**: All service methods should be `async`. Use `await` for I/O.
-10. **Test with real audio**: Use `tests/fixtures/sample_audio.wav` for realistic testing. Dummy data tests miss edge cases.
-11. **Claude rate limits**: 5 req/min on free tier. Always use `asyncio.Semaphore` for concurrent calls.
-12. **Token budget**: Each 1-min summary should be ≤ 50 tokens to keep costs manageable.
-13. **Cross-boundary is key UX**: The invisible hour boundaries + free time range selection is a major differentiator. Prioritize this feature.
-14. **RAG is core**: ChromaDB for vector storage, sentence-transformers for local embeddings. Embed every summary as it's created (incremental, not batch).
-15. **Embedding provider agnostic**: Like LLM, support both local (sentence-transformers) and Ollama (nomic-embed-text) embedding models.
-16. **ChromaDB is zero-config**: No separate server needed. It runs in-process with SQLite backend. Perfect for local-first.
-17. **Obsidian frontmatter**: Always include YAML frontmatter in exports. Fields: title, date, type, category, tags, keywords, speakers, recording_id, confidence.
-18. **Wikilinks from RAG**: Use RAG similarity to auto-generate `[[wikilinks]]` in exported Markdown, connecting related recordings.
-19. **Obsidian plugin is future**: MVP uses Streamlit UI + Obsidian-compatible Markdown export. Full Obsidian plugin (TypeScript) is the v1.0 goal.
+1. **Use `make` targets**: Always prefer `make dev`, `make test`, `make lint` over manual commands.
+2. **Use uv, not pip**: Backend 패키지 관리는 반드시 `uv pip install ...`로 수행. `pip`/`python -m venv` 사용 금지.
+3. **Use pnpm, not npm/yarn**: Frontend 패키지 관리는 `cd frontend && pnpm install`.
+4. **PYTHONPATH=backend**: Always set when running backend commands manually outside Make.
+5. **Start with services**: Core logic is in `backend/src/services/`. Understand the ABC interfaces first (`base.py` files).
+6. **Provider agnostic**: Always test with both Claude AND Ollama. Never assume one provider.
+7. **SQLite is sufficient**: Don't over-engineer the storage layer. Local-first is the principle.
+8. **WebSocket**: Real-time transcription uses FastAPI WebSocket, not REST polling. Frontend connects via `useWebSocket` hook.
+9. **Templates are JSON**: Default templates in `templates/` dir, user custom templates in DB.
+10. **Hackathon mindset**: Working demo > Perfect code. Ship early, iterate fast.
+11. **Async everywhere**: All backend service methods should be `async`. Use `await` for I/O.
+12. **Test with real audio**: Use `backend/tests/fixtures/` for realistic testing. Dummy data tests miss edge cases.
+13. **API contract**: After changing any API route, run `make gen-openapi && make gen-types` to keep TypeScript types in sync.
+14. **RAG is core**: ChromaDB for vector storage, sentence-transformers for local embeddings. Embed every summary as it's created.
+15. **ChromaDB is zero-config**: No separate server needed. Runs in-process with SQLite backend.
+16. **Obsidian frontmatter**: Always include YAML frontmatter in exports.
+17. **Docker services**: `docker-compose.yml` runs backend (port 8000) + frontend (port 3000). Ollama is optional (`--profile ollama`).
+18. **Frontend state**: Zustand for client state (recording session), React Query for server state (API data).
+19. **Path aliases**: In frontend, use `@/` imports (maps to `frontend/src/`).
 
 ---
 
