@@ -42,6 +42,23 @@ export interface TranscriptEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Post-recording status (server-side summary generation tracking)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tracks the server-side post-processing state after a recording stops:
+ *
+ *   idle → processing → complete
+ *                    ↘ error
+ *
+ * - idle:       No post-processing active (before recording or after reset).
+ * - processing: Backend is generating summaries / classifications.
+ * - complete:   Summaries are ready on the server.
+ * - error:      Summary generation failed.
+ */
+export type PostRecordingStatus = "idle" | "processing" | "complete" | "error";
+
+// ---------------------------------------------------------------------------
 // Summary entry
 // ---------------------------------------------------------------------------
 
@@ -93,6 +110,10 @@ interface RecordingState {
   summaries: SummaryEntry[];
   addTranscript: (data: WsTranscriptData) => void;
   addSummary: (data: WsSummaryData) => void;
+
+  // ── D3: Post-recording status tracking ──
+  postRecordingStatus: PostRecordingStatus;
+  setPostRecordingStatus: (status: PostRecordingStatus) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +181,7 @@ export const useRecordingStore = create<RecordingState>((set) => ({
       wsState: "disconnected",
       transcripts: [],
       summaries: [],
+      postRecordingStatus: "idle",
     }),
 
   // ── C2 ──
@@ -205,4 +227,8 @@ export const useRecordingStore = create<RecordingState>((set) => ({
         },
       ],
     })),
+
+  // ── D3 ──
+  postRecordingStatus: "idle",
+  setPostRecordingStatus: (postRecordingStatus) => set({ postRecordingStatus }),
 }));

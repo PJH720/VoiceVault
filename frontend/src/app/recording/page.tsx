@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useMicrophonePermission } from "@/hooks/use-microphone-permission";
 import { useMediaDevices } from "@/hooks/use-media-devices";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useSummaryPolling } from "@/hooks/useSummaryPolling";
 import { useRecordingStore } from "@/stores/recording";
 import { recordingsApi } from "@/lib/api/recordings";
+import { Spinner } from "@/components/ui/Spinner";
 import type { WsErrorData } from "@/types/ws-messages";
 
 import { PermissionGate } from "@/components/recording/PermissionGate";
@@ -31,6 +34,11 @@ export default function RecordingPage() {
   const errorMessage = useRecordingStore((s) => s.errorMessage);
   const transcripts = useRecordingStore((s) => s.transcripts);
   const summaries = useRecordingStore((s) => s.summaries);
+
+  const postRecordingStatus = useRecordingStore((s) => s.postRecordingStatus);
+
+  // ── D3: Poll for summaries after recording stops ──
+  useSummaryPolling();
 
   const setSelectedDeviceId = useRecordingStore((s) => s.setSelectedDeviceId);
   const requestStart = useRecordingStore((s) => s.requestStart);
@@ -184,6 +192,57 @@ export default function RecordingPage() {
               summaries={summaries}
               isRecording={isRecording}
             />
+          )}
+
+          {/* D3: Post-recording status banner */}
+          {phase === "stopped" && postRecordingStatus === "processing" && (
+            <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+              <Spinner size="sm" />
+              <span>Generating summaries…</span>
+            </div>
+          )}
+
+          {phase === "stopped" && postRecordingStatus === "complete" && (
+            <Link
+              href={`/summaries?recording=${currentRecordingId}`}
+              className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 transition-colors hover:bg-green-100 dark:border-green-800 dark:bg-green-950/50 dark:text-green-300 dark:hover:bg-green-900/50"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-5 w-5 shrink-0"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>
+                Summaries ready — <span className="underline">view them now</span>
+              </span>
+            </Link>
+          )}
+
+          {phase === "stopped" && postRecordingStatus === "error" && (
+            <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="h-5 w-5 shrink-0"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>Summary generation failed. You can retry from the summaries page.</span>
+            </div>
           )}
         </div>
       </PermissionGate>

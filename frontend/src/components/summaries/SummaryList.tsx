@@ -10,16 +10,23 @@ import { useMinuteSummaries, useHourSummaries } from "@/hooks/useSummaries";
 
 interface SummaryListProps {
   recordingId: number;
+  /** When true, summaries are polled at a short interval for live updates. */
+  isProcessing?: boolean;
 }
 
 const MINUTE_SKELETON_COUNT = 6;
 const HOUR_SKELETON_COUNT = 2;
+const PROCESSING_REFETCH_MS = 5_000;
 
-export function SummaryList({ recordingId }: SummaryListProps) {
+export function SummaryList({ recordingId, isProcessing }: SummaryListProps) {
   const [tab, setTab] = useState<SummaryTab>("minute");
 
-  const minute = useMinuteSummaries(recordingId);
-  const hour = useHourSummaries(recordingId);
+  const minute = useMinuteSummaries(recordingId, {
+    refetchInterval: isProcessing ? PROCESSING_REFETCH_MS : false,
+  });
+  const hour = useHourSummaries(recordingId, {
+    refetchInterval: isProcessing ? PROCESSING_REFETCH_MS : false,
+  });
 
   const active = tab === "minute" ? minute : hour;
   const skeletonCount =
