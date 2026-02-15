@@ -110,6 +110,61 @@ Query: "LangChain Agent 설계 패턴에 대해 뭐라고 했지?"
 
 ---
 
+### v0.4.0 - Frontend/Backend Split + TypeScript Migration
+
+**상태**: ✅ Complete
+
+| # | Task | Priority | 상태 |
+|---|------|----------|------|
+| 1 | Backend directory split (`backend/src/`) | P0 | ✅ |
+| 2 | Next.js + TypeScript frontend scaffolding | P0 | ✅ |
+| 3 | Recording page migration (Next.js) | P0 | ✅ |
+| 4 | Summaries page migration (Next.js) | P0 | ✅ |
+| 5 | OpenAPI → TypeScript type generation pipeline | P0 | ✅ |
+| 6 | CI: frontend lint/test/build jobs | P1 | ✅ |
+| 7 | Docker Compose + Makefile orchestration | P1 | ✅ |
+| 8 | **Streamlit deprecation notice added** | P1 | ✅ |
+| 9 | Streamlit deprecation plan documented | P1 | ✅ |
+
+> **Streamlit 전략**: `src/ui/`는 유지하되 deprecation notice 추가.
+> 신규 UI 기능은 Next.js(`frontend/`)에만 추가. 버그 수정은 critical만 대응.
+> 자세한 내용은 [docs/streamlit-deprecation-plan.md](../docs/streamlit-deprecation-plan.md) 참조.
+
+---
+
+### v0.5.0 - RAG Search + Export UI + Obsidian Integration
+
+**상태**: 📋 Planned
+
+| # | Task | Priority | 상태 |
+|---|------|----------|------|
+| 1 | RAG Search page (Next.js) | P1 | ▶ |
+| 2 | Export page — Obsidian Markdown (Next.js) | P1 | ▶ |
+| 3 | Obsidian vault integration refactor | P1 | ▶ |
+| 4 | **Streamlit soft removal**: startup warning, docs updated to Next.js only | P2 | ▶ |
+
+> **Streamlit 제거 게이트**: P0+P1 기능(Recording, Summaries, RAG, Export)이
+> Next.js에서 완성되면 `src/ui/` 제거 준비 완료.
+
+---
+
+### v0.6.0 - Templates UI + Streamlit Complete Removal
+
+**상태**: 📋 Planned
+
+| # | Task | Priority | 상태 |
+|---|------|----------|------|
+| 1 | Templates page (Next.js) | P2 | ▶ |
+| 2 | **DELETE `src/ui/` directory** | P1 | ▶ |
+| 3 | Remove `streamlit` from `backend/requirements.txt` | P1 | ▶ |
+| 4 | Remove port 8501 from CORS config | P2 | ▶ |
+| 5 | Update CLAUDE.md, AGENTS.md — remove Streamlit refs | P2 | ▶ |
+
+> **완전 제거 조건**: P0+P1 기능 패리티 확인, Streamlit 관련 버그 리포트 30일 이상 없음,
+> CI가 streamlit 없이 통과. 자세한 기준은 [deprecation plan §3](../docs/streamlit-deprecation-plan.md#3-removal-criteria) 참조.
+
+---
+
 ## 향후 확장 계획
 
 ### Phase 2: 고급 기능 (2026 Q2)
