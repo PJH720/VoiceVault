@@ -1,7 +1,8 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="version">
+  <img src="https://img.shields.io/badge/version-0.4.0-blue" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/python-3.12-yellow" alt="python">
+  <img src="https://img.shields.io/badge/Next.js-16-black" alt="nextjs">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="platform">
 </p>
 
@@ -92,56 +93,106 @@ Export any recording as an Obsidian-compatible Markdown file, complete with:
 
 ---
 
+## Architecture
+
+VoiceVault is a monorepo with a Python backend and a Next.js frontend:
+
+```
+VoiceVault/
+├── backend/                   # Python (FastAPI + services)
+│   ├── src/
+│   │   ├── api/               # REST routes + WebSocket
+│   │   ├── core/              # Config, models, exceptions
+│   │   └── services/          # Business logic
+│   │       ├── audio/         # Recording + preprocessing
+│   │       ├── transcription/ # faster-whisper STT
+│   │       ├── summarization/ # 1-min / hour / range summaries
+│   │       ├── classification/# Zero-shot + template matching
+│   │       ├── llm/           # Claude / Ollama providers
+│   │       ├── rag/           # ChromaDB + embeddings + retriever
+│   │       └── storage/       # SQLite + Obsidian export
+│   ├── tests/                 # pytest (unit/integration/e2e/stress)
+│   ├── scripts/               # Dev utilities
+│   ├── pyproject.toml
+│   └── requirements.txt
+│
+├── frontend/                  # Next.js 16 + TypeScript
+│   ├── src/
+│   │   ├── app/               # App Router pages (recording, summaries)
+│   │   ├── components/        # React components (ui, recording, summaries)
+│   │   ├── hooks/             # Custom hooks (WebSocket, audio capture)
+│   │   ├── lib/               # API client, utilities
+│   │   ├── stores/            # Zustand state management
+│   │   └── types/             # TypeScript types (auto-generated from OpenAPI)
+│   ├── e2e/                   # Playwright E2E tests
+│   ├── package.json
+│   └── Dockerfile
+│
+├── templates/                 # Classification template JSON files
+├── docs/                      # OpenAPI spec (openapi.json)
+├── docker-compose.yml         # Backend + Frontend + Ollama (optional)
+├── Dockerfile                 # Backend Docker image
+└── Makefile                   # Unified dev commands
+```
+
+### Data Flow
+
+```
+Microphone → WebSocket → faster-whisper STT → Real-time Transcript → SQLite
+    │                                                 │
+    │                                          Every 60s → LLM Summarize
+    │                                                 │
+    │                                          1-min Summary → SQLite + ChromaDB
+    │
+    ▼ (Recording Stop)
+Collect all summaries → Hour Integration → Zero-shot Classification
+    │                                            │
+    │                                     Template Matching → Segments
+    │                                            │
+    ▼                                     Obsidian Markdown Export
+RAG Query → Embed → ChromaDB Search → Re-rank → LLM Answer with Citations
+```
+
+---
+
 ## Getting Started
 
-### What You Need
+### Prerequisites
 
 - **macOS, Linux, or Windows** (macOS recommended)
 - A working **microphone**
 - ~2 GB of free disk space (for AI models)
+- **[uv](https://docs.astral.sh/uv/)** (Python package manager)
+- **[Node.js 22+](https://nodejs.org/)** and **[pnpm](https://pnpm.io/)**
 
 ### Option 1: Quick Setup (Recommended)
 
-1. **Download and install [uv](https://docs.astral.sh/uv/)** — a fast Python manager:
+1. **Install tooling:**
 
    ```bash
-   # macOS / Linux
-   curl -LsSf https://astral.sh/uv/install.sh | sh
+   # uv (Python)
+   curl -LsSf https://astral.sh/uv/install.sh | sh   # or: brew install uv
 
-   # or with Homebrew
-   brew install uv
+   # pnpm (Node.js)
+   corepack enable && corepack prepare pnpm@latest --activate
    ```
 
-2. **Clone VoiceVault:**
+2. **Clone and setup:**
 
    ```bash
    git clone https://github.com/PJH720/VoiceVault.git
    cd VoiceVault
+   cp .env.example .env          # Configure your environment
+   make setup                    # Installs backend + frontend deps + Whisper model
    ```
 
-3. **Run the setup script** — it handles everything automatically:
+3. **Start developing:**
 
    ```bash
-   bash scripts/setup_dev.sh
+   make dev   # Starts backend (port 8000) + frontend (port 3000) concurrently
    ```
 
-   This will install Python 3.12, download AI models, and configure the environment. Follow the on-screen prompts.
-
-4. **Start VoiceVault** (two terminal windows):
-
-   ```bash
-   # Terminal 1 — Backend
-   source .venv/bin/activate
-   uvicorn src.api.app:app --reload --port 8000
-   ```
-
-   ```bash
-   # Terminal 2 — Interface
-   source .venv/bin/activate
-   streamlit run src/ui/app.py
-   ```
-
-5. **Open your browser** at **http://localhost:8501** — you're ready to record!
+4. **Open your browser** at **http://localhost:3000** — you're ready to record!
 
 ### Option 2: Docker (One Command)
 
@@ -150,10 +201,17 @@ If you have [Docker](https://www.docker.com/products/docker-desktop/) installed:
 ```bash
 git clone https://github.com/PJH720/VoiceVault.git
 cd VoiceVault
-docker-compose up -d
+cp .env.example .env
+make up                          # or: docker compose up -d
 ```
 
-Open **http://localhost:8501** and you're done.
+Open **http://localhost:3000** and you're done.
+
+To include Ollama (local LLM) in Docker:
+
+```bash
+make up-ollama                   # or: docker compose --profile ollama up -d
+```
 
 ---
 
@@ -266,12 +324,15 @@ Later that evening:
 
 ## Custom Templates
 
-VoiceVault comes with four built-in templates:
+VoiceVault comes with seven built-in templates:
 
 - **Lecture** — structured notes with key concepts and definitions
 - **Meeting** — agenda items, decisions, and action items
 - **Conversation** — participants, topics, and memorable moments
 - **Memo** — personal thoughts and ideas
+- **Person** — contact/person notes
+- **English Vocabulary** — vocabulary study entries
+- **Incident** — incident report documentation
 
 You can create your own templates to match any recording scenario. Templates are simple JSON files — see the `templates/` folder for examples.
 
@@ -301,12 +362,12 @@ You can create your own templates to match any recording scenario. Templates are
 - The first summary may take 10–15 seconds; subsequent ones are faster
 
 **"I get a connection error"**
-- Make sure the backend is running on port 8000
-- Check the API URL in the sidebar (should be `http://localhost:8000`)
+- Make sure the backend is running on port 8000: `make dev-backend`
+- Check the frontend can reach `http://localhost:8000`
 
 **"Docker won't start"**
 - Ensure Docker Desktop is running
-- Try `docker-compose down` then `docker-compose up -d` again
+- Try `make down` then `make up` again
 
 For more help, check the [FAQ & Troubleshooting](wiki/FAQ-&-Troubleshooting.md) guide or [open an issue](https://github.com/PJH720/VoiceVault/issues).
 
@@ -316,22 +377,51 @@ For more help, check the [FAQ & Troubleshooting](wiki/FAQ-&-Troubleshooting.md) 
 
 VoiceVault is open source and built with:
 
-- **Backend:** FastAPI + WebSocket (real-time audio streaming)
-- **Frontend:** Streamlit (multi-page web app)
+- **Backend:** Python 3.12 · FastAPI · WebSocket (real-time audio streaming)
+- **Frontend:** Next.js 16 · React 19 · TypeScript · Tailwind CSS · Zustand
 - **Speech-to-Text:** faster-whisper (CTranslate2)
-- **LLM:** Ollama (local) or Claude API
+- **LLM:** Ollama (local) or Claude API (cloud)
 - **Vector Search:** ChromaDB + sentence-transformers
-- **Database:** SQLite (async via SQLAlchemy)
+- **Database:** SQLite (async via SQLAlchemy + aiosqlite)
+- **Testing:** pytest (backend) · Vitest + Playwright (frontend)
+- **CI:** GitHub Actions with path-filtered backend/frontend jobs
+- **API Contract:** OpenAPI schema → auto-generated TypeScript types
 
 See the **[wiki/](./wiki/)** for detailed documentation — architecture, API reference, data schema, deployment, and contribution guidelines.
 
-```bash
-# Run tests
-pytest tests/ -v
+### Make Targets
 
-# Lint & format
-ruff check src/ tests/ --fix
-ruff format src/ tests/
+```bash
+# Development
+make dev              # Run backend + frontend concurrently
+make dev-backend      # Backend only (port 8000)
+make dev-frontend     # Frontend only (port 3000)
+
+# Testing
+make test             # Run all tests (backend + frontend)
+make test-backend     # pytest
+make test-frontend    # vitest
+
+# Linting
+make lint             # Lint all code
+make lint-backend     # ruff check + format check
+make lint-frontend    # eslint + prettier + tsc
+
+# Code Generation
+make gen-openapi      # Export OpenAPI schema to docs/openapi.json
+make gen-types        # Generate TypeScript types from OpenAPI spec
+
+# Docker
+make up               # Start backend + frontend
+make up-ollama        # Start with Ollama included
+make down             # Stop all services
+make logs             # Stream logs
+make health           # Check service health
+make seed             # Seed demo data
+make clean            # Stop services + remove volumes
+
+# Setup
+make setup            # Full project setup (backend + frontend + models)
 ```
 
 ---
@@ -345,6 +435,10 @@ ruff format src/ tests/
 - [x] Obsidian Markdown export
 - [x] Hourly hierarchical summaries
 - [x] Cross-boundary time range extraction
+- [x] Next.js frontend with TypeScript
+- [x] OpenAPI → TypeScript type generation
+- [x] Docker Compose orchestration (backend + frontend + Ollama)
+- [x] CI pipeline with path-filtered jobs
 - [ ] Obsidian community plugin (embedded UI + RAG search)
 - [ ] Speaker diarization (who said what)
 - [ ] Mobile companion app
