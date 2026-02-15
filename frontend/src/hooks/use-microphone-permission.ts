@@ -1,0 +1,57 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+export type PermissionStatus = "prompt" | "granted" | "denied" | "unsupported";
+
+export function useMicrophonePermission() {
+  const [status, setStatus] = useState<PermissionStatus>("prompt");
+
+  useEffect(() => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus("unsupported");
+      return;
+    }
+
+    let permissionStatus: PermissionStatus | undefined;
+
+    navigator.permissions
+      .query({ name: "microphone" as PermissionName })
+      .then((result) => {
+        permissionStatus = result.state as PermissionStatus;
+        setStatus(permissionStatus);
+
+        const handleChange = () => {
+          setStatus(result.state as PermissionStatus);
+        };
+        result.addEventListener("change", handleChange);
+      })
+      .catch(() => {
+        // permissions.query not supported (e.g. Firefox) — remain "prompt"
+      });
+  }, []);
+
+  const request = useCallback(async (): Promise<PermissionStatus> => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus("unsupported");
+      return "unsupported";
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Immediately release the stream — we only needed it for the permission grant
+      stream.getTracks().forEach((track) => track.stop());
+      setStatus("granted");
+      return "granted";
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        setStatus("denied");
+        return "denied";
+      }
+      setStatus("denied");
+      return "denied";
+    }
+  }, []);
+
+  return { status, request };
+}
