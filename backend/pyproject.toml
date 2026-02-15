@@ -1,8 +1,8 @@
 [project]
 name = "voicevault"
-version = "0.2.0"
+version = "0.4.0"
 description = "AI-powered voice recording system with transcription, summarization, classification, and RAG-powered search. Obsidian-compatible export."
-readme = "README.md"
+readme = "../README.md"
 requires-python = ">=3.11,<3.13"
 license = { text = "MIT" }
 authors = [
@@ -21,7 +21,6 @@ dependencies = [
     # Web Framework
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
-    "streamlit>=1.40.0",
     "python-multipart>=0.0.18",
     "websockets>=13.1",
 
@@ -86,11 +85,12 @@ requires = ["setuptools>=75.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+src = ["src"]
 exclude = [
     ".git",
     ".venv",
@@ -122,6 +122,7 @@ ignore = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
