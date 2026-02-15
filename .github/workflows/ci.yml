@@ -12,11 +12,38 @@ env:
 
 jobs:
   # ===========================================================================
-  # Linting & Formatting
+  # Path Filter — determine which jobs to run
+  # ===========================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'requirements*.txt'
+              - 'pyproject.toml'
+            frontend:
+              - 'frontend/**'
+
+  # ===========================================================================
+  # Backend — Linting & Formatting
   # ===========================================================================
   lint:
-    name: Lint & Format Check
+    name: "Backend: Lint & Format"
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     defaults:
       run:
         working-directory: backend
@@ -45,11 +72,13 @@ jobs:
         run: uvx mypy src/ --ignore-missing-imports
 
   # ===========================================================================
-  # Testing
+  # Backend — Testing
   # ===========================================================================
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: "Backend: Test (Python ${{ matrix.python-version }})"
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     defaults:
       run:
         working-directory: backend
@@ -110,11 +139,13 @@ jobs:
           fail_ci_if_error: false
 
   # ===========================================================================
-  # Security Scanning
+  # Backend — Security Scanning
   # ===========================================================================
   security:
-    name: Security Scan
+    name: "Backend: Security Scan"
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     defaults:
       run:
         working-directory: backend
@@ -147,6 +178,8 @@ jobs:
   api-contract-check:
     name: API Contract Check
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
 
     steps:
       - name: Checkout code
@@ -216,25 +249,172 @@ jobs:
           fi
 
   # ===========================================================================
+  # Frontend — Lint & Type Check
+  # ===========================================================================
+  frontend-lint:
+    name: "Frontend: Lint & Type Check"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run TypeScript type check
+        run: pnpm type-check
+
+      - name: Run ESLint
+        run: pnpm lint
+
+  # ===========================================================================
+  # Frontend — Unit Tests (Vitest)
+  # ===========================================================================
+  frontend-test:
+    name: "Frontend: Test (Vitest)"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+
+  # ===========================================================================
+  # Frontend — Build Verification
+  # ===========================================================================
+  frontend-build:
+    name: "Frontend: Build"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js
+        run: pnpm build
+
+  # ===========================================================================
   # Summary
   # ===========================================================================
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [lint, test, security, api-contract-check]
+    needs: [changes, lint, test, security, api-contract-check, frontend-lint, frontend-test, frontend-build]
     if: always()
 
     steps:
       - name: Check results
+        env:
+          BACKEND_CHANGED: ${{ needs.changes.outputs.backend }}
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          API_CONTRACT_RESULT: ${{ needs.api-contract-check.result }}
+          FE_LINT_RESULT: ${{ needs.frontend-lint.result }}
+          FE_TEST_RESULT: ${{ needs.frontend-test.result }}
+          FE_BUILD_RESULT: ${{ needs.frontend-build.result }}
         run: |
-          echo "Lint: ${{ needs.lint.result }}"
-          echo "Test: ${{ needs.test.result }}"
-          echo "Security: ${{ needs.security.result }}"
-          echo "API Contract: ${{ needs.api-contract-check.result }}"
+          echo "=== Path Changes ==="
+          echo "Backend changed: $BACKEND_CHANGED"
+          echo "Frontend changed: $FRONTEND_CHANGED"
+          echo ""
+          echo "=== Backend Results ==="
+          echo "Lint: $LINT_RESULT"
+          echo "Test: $TEST_RESULT"
+          echo "Security: $SECURITY_RESULT"
+          echo ""
+          echo "=== Frontend Results ==="
+          echo "Frontend Lint: $FE_LINT_RESULT"
+          echo "Frontend Test: $FE_TEST_RESULT"
+          echo "Frontend Build: $FE_BUILD_RESULT"
+          echo ""
+          echo "=== Shared ==="
+          echo "API Contract: $API_CONTRACT_RESULT"
 
-          if [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.test.result }}" != "success" ] || \
-             [ "${{ needs.api-contract-check.result }}" != "success" ]; then
-            echo "CI checks failed"
+          FAILED=false
+
+          # Check backend jobs
+          for result in "$LINT_RESULT" "$TEST_RESULT"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              FAILED=true
+            fi
+          done
+
+          # Check frontend jobs
+          for result in "$FE_LINT_RESULT" "$FE_TEST_RESULT" "$FE_BUILD_RESULT"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              FAILED=true
+            fi
+          done
+
+          # Check API contract
+          if [ "$API_CONTRACT_RESULT" != "success" ] && [ "$API_CONTRACT_RESULT" != "skipped" ]; then
+            FAILED=true
+          fi
+
+          if [ "$FAILED" = "true" ]; then
+            echo ""
+            echo "CI checks failed!"
             exit 1
           fi
+
+          echo ""
+          echo "All CI checks passed!"
