@@ -1,4 +1,4 @@
-.PHONY: build up down logs health seed clean up-ollama dev-api dev-ui gen-openapi lint test
+.PHONY: build up down logs health seed clean up-ollama dev-api dev-ui gen-openapi gen-types lint test
 
 # ── Docker ──────────────────────────────────────────
 
@@ -52,6 +52,10 @@ dev-ui:
 # Export OpenAPI schema to docs/openapi.json
 gen-openapi:
 	PYTHONPATH=backend python backend/scripts/export_openapi.py
+
+# Generate TypeScript types from OpenAPI spec
+gen-types:
+	cd frontend && pnpm gen:types
 
 # ── Quality ─────────────────────────────────────────
 
