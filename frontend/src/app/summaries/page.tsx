@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { SummaryList } from "@/components/summaries/SummaryList";
 import { useRecordings } from "@/hooks/useRecordings";
-import { ApiError } from "@/lib/api-client";
 import type { RecordingResponse, RecordingStatus } from "@/types/api";
 
 const STATUS_LABELS: Record<RecordingStatus, string> = {
@@ -75,29 +76,36 @@ export default function SummariesPage() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
-          <p className="font-medium">Failed to load recordings</p>
-          <p className="mt-1">
-            {error instanceof ApiError
-              ? error.message
-              : "An unexpected error occurred."}
-          </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-3"
-            onClick={() => refetch()}
-          >
-            Retry
-          </Button>
-        </div>
+        <ErrorState
+          title="Failed to load recordings"
+          error={error}
+          onRetry={() => refetch()}
+        />
       )}
 
       {/* Empty */}
       {recordings && recordings.length === 0 && (
-        <p className="py-16 text-center text-zinc-400">
-          No recordings found. Start a recording to see summaries here.
-        </p>
+        <EmptyState
+          icon={
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-10 w-10"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="m12 8 4 4-4 4" />
+              <path d="M8 12h8" />
+            </svg>
+          }
+          title="No recordings found"
+          description="Start a recording to see summaries here."
+        />
       )}
 
       {/* Recordings list */}
