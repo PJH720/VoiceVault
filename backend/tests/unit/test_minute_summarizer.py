@@ -6,7 +6,8 @@ import pytest
 
 from src.core.exceptions import SummarizationError
 from src.core.models import MinuteSummaryResult
-from src.services.summarization.minute_summarizer import MinuteSummarizer, _strip_code_fences
+from src.core.utils import strip_code_fences
+from src.services.summarization.minute_summarizer import MinuteSummarizer
 
 
 @pytest.fixture
@@ -218,20 +219,20 @@ class TestUserContext:
 
 
 class TestMarkdownFenceStripping:
-    """Tests for _strip_code_fences helper."""
+    """Tests for strip_code_fences helper."""
 
     def test_json_with_code_fence(self):
         raw = '```json\n{"summary": "test", "keywords": ["AI"], "topic": "AI"}\n```'
-        result = json.loads(_strip_code_fences(raw))
+        result = json.loads(strip_code_fences(raw))
         assert result["summary"] == "test"
 
     def test_json_with_plain_fence(self):
         raw = '```\n{"summary": "test", "keywords": [], "topic": ""}\n```'
-        result = json.loads(_strip_code_fences(raw))
+        result = json.loads(strip_code_fences(raw))
         assert result["summary"] == "test"
 
     def test_clean_json_unchanged(self):
         raw = '{"summary": "test", "keywords": ["AI"], "topic": "lecture"}'
-        result = json.loads(_strip_code_fences(raw))
+        result = json.loads(strip_code_fences(raw))
         assert result["summary"] == "test"
         assert result["topic"] == "lecture"
