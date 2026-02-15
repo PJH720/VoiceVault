@@ -1,81 +1,89 @@
 "use client";
 
 import { useState } from "react";
-import { Spinner } from "@/components/ui/Spinner";
-import { Button } from "@/components/ui/Button";
 import { MinuteSummaryCard, HourSummaryCard } from "./SummaryCard";
+import { SummaryTabs, type SummaryTab } from "./SummaryTabs";
+import { SummaryCardSkeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { useMinuteSummaries, useHourSummaries } from "@/hooks/useSummaries";
-import { ApiError } from "@/lib/api-client";
-
-type Tab = "minute" | "hour";
 
 interface SummaryListProps {
   recordingId: number;
 }
 
+const MINUTE_SKELETON_COUNT = 6;
+const HOUR_SKELETON_COUNT = 2;
+
 export function SummaryList({ recordingId }: SummaryListProps) {
-  const [tab, setTab] = useState<Tab>("minute");
+  const [tab, setTab] = useState<SummaryTab>("minute");
 
   const minute = useMinuteSummaries(recordingId);
   const hour = useHourSummaries(recordingId);
 
   const active = tab === "minute" ? minute : hour;
+  const skeletonCount =
+    tab === "minute" ? MINUTE_SKELETON_COUNT : HOUR_SKELETON_COUNT;
 
   return (
-    <div className="space-y-4">
-      {/* Tab bar */}
-      <div className="flex gap-2">
-        <Button
-          variant={tab === "minute" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => setTab("minute")}
-        >
-          Minute summaries
-        </Button>
-        <Button
-          variant={tab === "hour" ? "primary" : "secondary"}
-          size="sm"
-          onClick={() => setTab("hour")}
-        >
-          Hour summaries
-        </Button>
-      </div>
-
+    <SummaryTabs
+      value={tab}
+      onChange={setTab}
+      minuteCount={minute.data?.length}
+      hourCount={hour.data?.length}
+    >
       {/* Loading */}
       {active.isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Spinner size="lg" />
+        <div
+          className={
+            tab === "minute"
+              ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              : "grid gap-4 sm:grid-cols-1 lg:grid-cols-2"
+          }
+        >
+          {Array.from({ length: skeletonCount }, (_, i) => (
+            <SummaryCardSkeleton key={i} />
+          ))}
         </div>
       )}
 
       {/* Error */}
       {active.error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
-          <p className="font-medium">Failed to load summaries</p>
-          <p className="mt-1">
-            {active.error instanceof ApiError
-              ? active.error.message
-              : "An unexpected error occurred."}
-          </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-3"
-            onClick={() => active.refetch()}
-          >
-            Retry
-          </Button>
-        </div>
+        <ErrorState
+          title="Failed to load summaries"
+          error={active.error}
+          onRetry={() => active.refetch()}
+        />
       )}
 
       {/* Empty */}
       {active.data && active.data.length === 0 && (
-        <p className="py-8 text-center text-sm text-zinc-400">
-          No {tab} summaries yet for this recording.
-        </p>
+        <EmptyState
+          icon={
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-10 w-10"
+              aria-hidden="true"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+              <path d="M14 2v6h6" />
+              <path d="M16 13H8" />
+              <path d="M16 17H8" />
+              <path d="M10 9H8" />
+            </svg>
+          }
+          title={`No ${tab} summaries yet`}
+          description="Summaries will appear here once the recording is processed."
+        />
       )}
 
-      {/* Cards */}
+      {/* Minute cards */}
       {tab === "minute" && minute.data && minute.data.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {minute.data.map((s) => (
@@ -84,6 +92,7 @@ export function SummaryList({ recordingId }: SummaryListProps) {
         </div>
       )}
 
+      {/* Hour cards */}
       {tab === "hour" && hour.data && hour.data.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
           {hour.data.map((s) => (
@@ -91,6 +100,6 @@ export function SummaryList({ recordingId }: SummaryListProps) {
           ))}
         </div>
       )}
-    </div>
+    </SummaryTabs>
   );
 }
