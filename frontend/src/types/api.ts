@@ -1,23 +1,30 @@
 /**
- * API response types matching backend Pydantic models.
+ * API types for VoiceVault frontend.
  *
- * Field names use snake_case to match the JSON wire format from FastAPI.
- * Keep in sync with backend/src/core/models.py.
+ * Schema-backed types are re-exported from the auto-generated file
+ * (api.generated.ts) produced by openapi-typescript against docs/openapi.json.
+ * Run `pnpm gen:types` to regenerate after backend model changes.
+ *
+ * Only frontend-specific types that have no OpenAPI counterpart are defined
+ * directly in this file.
  */
+
+import type { components } from "./api.generated";
+
+// ---------------------------------------------------------------------------
+// Helper – shorthand accessor for schema types
+// ---------------------------------------------------------------------------
+
+type Schema = components["schemas"];
 
 // ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
 
-export type RecordingStatus =
-  | "active"
-  | "processing"
-  | "completed"
-  | "failed"
-  | "imported";
+export type RecordingStatus = Schema["RecordingStatus"];
 
 // ---------------------------------------------------------------------------
-// Error
+// Error (frontend-only – not in OpenAPI spec)
 // ---------------------------------------------------------------------------
 
 /** Standard error body returned by the backend error_handler middleware. */
@@ -31,226 +38,71 @@ export interface ApiErrorBody {
 // Health
 // ---------------------------------------------------------------------------
 
-export interface HealthResponse {
-  status: string;
-  version: string;
-  timestamp: string;
-}
+export type HealthResponse = Schema["HealthResponse"];
 
 // ---------------------------------------------------------------------------
 // Recording
 // ---------------------------------------------------------------------------
 
-export interface RecordingResponse {
-  id: number;
-  title: string | null;
-  context: string | null;
-  status: RecordingStatus;
-  started_at: string;
-  ended_at: string | null;
-  total_minutes: number;
-  audio_path: string | null;
-}
-
-export interface RecordingCreateRequest {
-  title?: string;
-  context?: string;
-}
-
-export interface DeleteRecordingResponse {
-  recording_id: number;
-  db_deleted: boolean;
-  audio_deleted: boolean;
-  exports_deleted: number;
-  vectors_deleted: number;
-}
-
-export interface ProcessRecordingResponse {
-  recording_id: number;
-  status: string;
-  total_minutes: number;
-  transcripts_created: number;
-  summaries_created: number;
-  embeddings_created: number;
-}
-
-export interface SyncResponse {
-  scanned: number;
-  new_imports: number;
-  already_exists: number;
-  errors: string[];
-}
-
-export interface OrphanRecord {
-  recording_id: number;
-  audio_path: string | null;
-  reason: string;
-}
-
-export interface OrphanFile {
-  file_path: string;
-  reason: string;
-}
-
-export interface ConsistencyResponse {
-  total_db_records: number;
-  total_fs_files: number;
-  orphan_records: OrphanRecord[];
-  orphan_files: OrphanFile[];
-  healthy_count: number;
-}
+export type RecordingResponse = Schema["RecordingResponse"];
+export type RecordingCreateRequest = Schema["RecordingCreate"];
+export type DeleteRecordingResponse = Schema["DeleteRecordingResponse"];
+export type ProcessRecordingResponse = Schema["ProcessRecordingResponse"];
+export type SyncResponse = Schema["SyncResponse"];
+export type OrphanRecord = Schema["OrphanRecord"];
+export type OrphanFile = Schema["OrphanFile"];
+export type ConsistencyResponse = Schema["ConsistencyResponse"];
+export type CleanupRequest = Schema["CleanupRequest"];
+export type CleanupResponse = Schema["CleanupResponse"];
 
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 
-export interface TranscriptionCorrection {
-  original: string;
-  corrected: string;
-  reason: string;
-}
-
-export interface SummaryResponse {
-  id: number;
-  recording_id: number;
-  minute_index: number;
-  summary_text: string;
-  keywords: string[];
-  confidence: number;
-  corrections: TranscriptionCorrection[];
-  created_at: string;
-}
-
-export interface HourSummaryResponse {
-  id: number;
-  recording_id: number;
-  hour_index: number;
-  summary_text: string;
-  keywords: string[];
-  topic_segments: Record<string, unknown>[];
-  token_count: number;
-  model_used: string;
-  created_at: string;
-}
-
-export interface ExtractRangeRequest {
-  start_minute: number;
-  end_minute: number;
-}
-
-export interface ExtractRangeResponse {
-  recording_id: number;
-  start_minute: number;
-  end_minute: number;
-  summary_text: string;
-  keywords: string[];
-  included_minutes: number[];
-  source_count: number;
-  model_used: string;
-}
+export type TranscriptionCorrection = Schema["TranscriptionCorrection"];
+export type SummaryResponse = Schema["SummaryResponse"];
+export type HourSummaryResponse = Schema["HourSummaryResponse"];
+export type ExtractRangeRequest = Schema["ExtractRangeRequest"];
+export type ExtractRangeResponse = Schema["ExtractRangeResponse"];
 
 // ---------------------------------------------------------------------------
 // Classification
 // ---------------------------------------------------------------------------
 
-export interface ClassificationResponse {
-  id: number;
-  recording_id: number;
-  template_name: string;
-  start_minute: number;
-  end_minute: number;
-  confidence: number;
-  result: Record<string, unknown>;
-  export_path: string | null;
-  created_at: string;
-}
+export type ClassificationResponse = Schema["ClassificationResponse"];
 
 // ---------------------------------------------------------------------------
 // Template
 // ---------------------------------------------------------------------------
 
-export interface TemplateResponse {
-  id: number;
-  name: string;
-  display_name: string;
-  triggers: string[];
-  output_format: string;
-  fields: Record<string, unknown>[];
-  icon: string;
-  priority: number;
-  is_default: boolean;
-  is_active: boolean;
-  created_at: string;
-}
+export type TemplateResponse = Schema["TemplateResponse"];
+export type TemplateCreateRequest = Schema["TemplateCreate"];
 
-export interface TemplateCreateRequest {
-  name: string;
-  display_name: string;
-  triggers: string[];
-  output_format?: string;
-  fields: Record<string, unknown>[];
-  icon: string;
-  priority: number;
-}
-
-export interface TemplateUpdateRequest {
-  display_name?: string;
-  triggers?: string[];
-  output_format?: string;
-  fields?: Record<string, unknown>[];
-  icon?: string;
-  priority?: number;
+/** Partial update – frontend-only convenience type. */
+export type TemplateUpdateRequest = Partial<TemplateCreateRequest> & {
   is_active?: boolean;
-}
+};
 
 // ---------------------------------------------------------------------------
 // RAG
 // ---------------------------------------------------------------------------
 
-export interface RAGQueryRequest {
-  query: string;
-  top_k?: number;
-  min_similarity?: number;
-  date_from?: string;
-  date_to?: string;
-  category?: string;
-  keywords?: string[];
-}
-
-export interface RAGSource {
-  recording_id: number;
-  minute_index: number;
-  summary_text: string;
-  similarity: number;
-  date: string;
-  category: string;
-}
-
-export interface RAGQueryResponse {
-  answer: string;
-  sources: RAGSource[];
-  model_used: string;
-  query_time_ms: number;
-}
-
-export interface ReindexResponse {
-  reindexed: number;
-  errors: number;
-  total_in_store: number;
-}
+export type RAGQueryRequest = Schema["RAGQueryRequest"];
+export type RAGSource = Schema["RAGSource"];
+export type RAGQueryResponse = Schema["RAGQueryResponse"];
+export type ReindexResponse = Schema["ReindexResponse"];
+export type ReindexDetailResponse = Schema["ReindexDetailResponse"];
 
 // ---------------------------------------------------------------------------
 // Export (Obsidian)
 // ---------------------------------------------------------------------------
 
-export interface ObsidianExportRequest {
-  format?: string;
-  include_transcript?: boolean;
-  vault_path?: string;
-}
+export type ObsidianExportRequest = Schema["ObsidianExportRequest"];
+export type ObsidianExportResponse = Schema["ObsidianExportResponse"];
 
-export interface ObsidianExportResponse {
-  file_path: string;
-  markdown_content: string;
-  frontmatter: Record<string, unknown>;
-}
+// ---------------------------------------------------------------------------
+// Validation (from OpenAPI)
+// ---------------------------------------------------------------------------
+
+export type ValidationError = Schema["ValidationError"];
+export type HTTPValidationError = Schema["HTTPValidationError"];
