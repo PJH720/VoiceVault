@@ -7,6 +7,7 @@ auto-classifies recordings into structured notes, and uses RAG to connect
 knowledge across your entire vault.
 
 **Context**: 서강대학교 러너톤 2026 해커톤 (2-week MVP)
+**Current Version**: v0.2.0 (Week 2 Milestone - Classification + RAG + Obsidian Complete)
 **Stack**: Python 3.12 (uv) | FastAPI | Streamlit | faster-whisper | Claude/Ollama | SQLite | ChromaDB
 **Tagline**: "Record your day, let AI organize it"
 **Deployment Targets**: Standalone web app (MVP) → Obsidian plugin (v1.0)
@@ -614,6 +615,10 @@ EXPORTS_DIR=data/exports
 - **Validate** all user inputs (Pydantic models handle this)
 - **Sanitize** file paths (prevent directory traversal attacks)
 - **Rate limit** API endpoints (Claude API: 5 req/min → use asyncio.Semaphore)
+- **WebSocket Authentication** (v0.2.0+): Enable `WS_AUTH_ENABLED=true` for non-localhost deployments
+  - Generate token: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+  - Client must include token in WebSocket URL: `?token=your-token`
+  - Prevents unauthorized access to recording sessions
 
 ---
 
