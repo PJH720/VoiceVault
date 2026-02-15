@@ -2,6 +2,12 @@
 VoiceVault Streamlit UI — main entry point.
 
 Run with: ``streamlit run src/ui/app.py``
+
+.. deprecated::
+    This Streamlit UI is deprecated as of v0.4.0 and will be removed in v0.6.0.
+    The Next.js frontend (``frontend/``) is the primary UI going forward.
+    New features will only be added to the Next.js frontend.
+    See docs/streamlit-deprecation-plan.md for the full migration timeline.
 """
 
 # ---------------------------------------------------------------------------
@@ -74,6 +80,11 @@ if _css_path.exists():
 with st.sidebar:
     st.title("\U0001f399\ufe0f VoiceVault")
     st.caption("Record your day, let AI organize it")
+    st.warning(
+        "**Deprecated UI** — This Streamlit interface is deprecated as of v0.4.0. "
+        "Please use the Next.js frontend at http://localhost:3000. "
+        "This UI will be removed in v0.6.0."
+    )
     st.divider()
     st.session_state.api_base_url = st.text_input(
         "Backend API URL",
