@@ -1,6 +1,6 @@
 [project]
 name = "voicevault"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI-powered voice recording system with transcription, summarization, classification, and RAG-powered search. Obsidian-compatible export."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"

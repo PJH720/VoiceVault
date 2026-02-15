@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version">
+  <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/python-3.12-yellow" alt="python">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="platform">
@@ -211,6 +211,26 @@ CLAUDE_API_KEY=your-key-here
 ```
 
 Get an API key at [console.anthropic.com](https://console.anthropic.com).
+
+### Security & WebSocket Authentication
+
+By default, VoiceVault runs without authentication for local use. If you're deploying to a remote server or want to add security, enable WebSocket token authentication:
+
+```bash
+# Generate a secure token
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Add to .env
+WS_AUTH_ENABLED=true
+WS_AUTH_TOKEN=your-generated-token-here
+```
+
+The WebSocket client will need to include the token in the connection URL:
+```
+ws://your-server:8000/ws/transcribe?recording_id=123&token=your-token
+```
+
+**Note:** Authentication is recommended for any non-localhost deployment to prevent unauthorized access to your recording sessions.
 
 ---
 
