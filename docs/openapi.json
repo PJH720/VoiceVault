@@ -1,0 +1,2098 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VoiceVault",
+    "description": "AI-powered voice recorder with transcription, summarization, and classification.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Create Recording",
+        "description": "Start a new recording session.",
+        "operationId": "create_recording_api_v1_recordings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RecordingCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "List Recordings",
+        "description": "List all recordings with optional filters.",
+        "operationId": "list_recordings_api_v1_recordings_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecordingResponse"
+                  },
+                  "title": "Response List Recordings Api V1 Recordings Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/sync": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Sync Recordings",
+        "description": "Scan recordings directory and import unregistered audio files.",
+        "operationId": "sync_recordings_api_v1_recordings_sync_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/consistency": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Check Consistency",
+        "description": "Check DB ↔ filesystem consistency for orphan records/files.",
+        "operationId": "check_consistency_api_v1_recordings_consistency_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsistencyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/consistency/cleanup": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Consistency Cleanup",
+        "description": "Clean up orphan records or files discovered by consistency check.\n\nSupported actions:\n- ``delete_records``: Remove DB records with no audio file on disk.\n- ``delete_files``: Remove audio files with no matching DB record.\n- ``import_files``: Import orphan files into the DB via filesystem sync.\n\nArgs:\n    body: Action type and the record IDs or file paths to process.",
+        "operationId": "consistency_cleanup_api_v1_recordings_consistency_cleanup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}": {
+      "delete": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Delete Recording",
+        "description": "Delete a recording and clean up associated files and vectors.",
+        "operationId": "delete_recording_api_v1_recordings__recording_id__delete",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteRecordingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Get Recording",
+        "description": "Get details for a single recording.",
+        "operationId": "get_recording_api_v1_recordings__recording_id__get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/audio": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Get Recording Audio",
+        "description": "Serve the WAV audio file for a recording.",
+        "operationId": "get_recording_audio_api_v1_recordings__recording_id__audio_get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/process": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Process Recording",
+        "description": "Process an imported recording: transcribe, summarize, and embed.\n\nRuns the full offline pipeline for recordings imported via filesystem sync\n(as opposed to live WebSocket recording). Steps:\n1. Validate the recording exists and has an audio file.\n2. Transcribe the entire audio file via faster-whisper.\n3. Group segments by minute and create per-minute transcripts.\n4. Summarize each minute and embed into ChromaDB.\n5. Finalize the recording status to \"completed\".\n\nArgs:\n    recording_id: ID of the imported recording to process.\n\nRaises:\n    VoiceVaultError: If the recording is active, already processed, or missing audio.",
+        "operationId": "process_recording_api_v1_recordings__recording_id__process_post",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessRecordingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/stop": {
+      "patch": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Stop Recording",
+        "description": "Stop an active recording and trigger post-processing.",
+        "operationId": "stop_recording_api_v1_recordings__recording_id__stop_patch",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/classifications": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Get Classifications",
+        "description": "Get classification results for a recording.",
+        "operationId": "get_classifications_api_v1_recordings__recording_id__classifications_get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClassificationResponse"
+                  },
+                  "title": "Response Get Classifications Api V1 Recordings  Recording Id  Classifications Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/export": {
+      "post": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Export Recording",
+        "description": "Export recording as Obsidian-compatible Markdown.\n\nGenerates a Markdown file with YAML frontmatter, template-driven sections,\nand optional ``[[wikilinks]]`` to related recordings discovered via RAG.\n\nArgs:\n    recording_id: ID of the recording to export.\n    body: Optional export configuration (format, vault path, etc.).",
+        "operationId": "export_recording_api_v1_recordings__recording_id__export_post",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ObsidianExportRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObsidianExportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/summaries": {
+      "get": {
+        "tags": [
+          "summaries"
+        ],
+        "summary": "List Summaries",
+        "description": "List 1-minute summaries for a recording.",
+        "operationId": "list_summaries_api_v1_recordings__recording_id__summaries_get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SummaryResponse"
+                  },
+                  "title": "Response List Summaries Api V1 Recordings  Recording Id  Summaries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/hour-summaries": {
+      "get": {
+        "tags": [
+          "summaries"
+        ],
+        "summary": "List Hour Summaries",
+        "description": "List hour-level summaries for a recording.\n\nReturns cached hour summaries if available. Otherwise generates\nthem on-demand from existing minute summaries using hierarchical\ncompression.",
+        "operationId": "list_hour_summaries_api_v1_recordings__recording_id__hour_summaries_get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HourSummaryResponse"
+                  },
+                  "title": "Response List Hour Summaries Api V1 Recordings  Recording Id  Hour Summaries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recordings/{recording_id}/extract": {
+      "post": {
+        "tags": [
+          "summaries"
+        ],
+        "summary": "Extract Range",
+        "description": "Cross-boundary range extraction and re-summarization.\n\nAllows users to select any time range (e.g., minute 40–80) spanning\nhour boundaries. Fetches 1-min summaries in that range and produces\na single unified summary via the LLM.\n\nArgs:\n    recording_id: ID of the recording.\n    body: Start and end minute for the range to extract.",
+        "operationId": "extract_range_api_v1_recordings__recording_id__extract_post",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractRangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractRangeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rag/reindex": {
+      "post": {
+        "tags": [
+          "rag"
+        ],
+        "summary": "Reindex Summaries",
+        "description": "Rebuild the ChromaDB vector index from all existing summaries.\n\nIterates over every recording and re-embeds all their minute summaries.\nUseful after changing the embedding model or recovering from data loss.",
+        "operationId": "reindex_summaries_api_v1_rag_reindex_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReindexDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rag/query": {
+      "post": {
+        "tags": [
+          "rag"
+        ],
+        "summary": "Rag Query",
+        "description": "Search past recordings with a natural-language query.\n\nPipeline: embed query -> ChromaDB similarity search -> metadata filter\n-> LLM generates a grounded answer with source citations.\nThe query and results are also persisted for analytics.",
+        "operationId": "rag_query_api_v1_rag_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RAGQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RAGQueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rag/similar/{recording_id}": {
+      "get": {
+        "tags": [
+          "rag"
+        ],
+        "summary": "Rag Similar",
+        "description": "Find recordings similar to the given recording via vector similarity.",
+        "operationId": "rag_similar_api_v1_rag_similar__recording_id__get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          },
+          {
+            "name": "top_k",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 5,
+              "title": "Top K"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RAGSource"
+                  },
+                  "title": "Response Rag Similar Api V1 Rag Similar  Recording Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "List Templates",
+        "description": "List all templates, optionally filtering to active only.",
+        "operationId": "list_templates_api_v1_templates_get",
+        "parameters": [
+          {
+            "name": "active_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Active Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateResponse"
+                  },
+                  "title": "Response List Templates Api V1 Templates Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Create Template",
+        "description": "Create a new classification template.",
+        "operationId": "create_template_api_v1_templates_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/{template_id}": {
+      "patch": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Update Template",
+        "description": "Update an existing template.",
+        "operationId": "update_template_api_v1_templates__template_id__patch",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Delete Template",
+        "description": "Soft-delete a template by setting is_active=False.",
+        "operationId": "delete_template_api_v1_templates__template_id__delete",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClassificationResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "template_name": {
+            "type": "string",
+            "title": "Template Name"
+          },
+          "start_minute": {
+            "type": "integer",
+            "title": "Start Minute"
+          },
+          "end_minute": {
+            "type": "integer",
+            "title": "End Minute"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "default": 0.0
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result"
+          },
+          "export_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Export Path"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "recording_id",
+          "template_name",
+          "start_minute",
+          "end_minute",
+          "created_at"
+        ],
+        "title": "ClassificationResponse",
+        "description": "A classification result for a recording segment."
+      },
+      "CleanupRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "record_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Record Ids"
+          },
+          "file_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "File Paths"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "CleanupRequest",
+        "description": "Request body for consistency cleanup actions."
+      },
+      "CleanupResponse": {
+        "properties": {
+          "processed": {
+            "type": "integer",
+            "title": "Processed",
+            "default": 0
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "title": "CleanupResponse",
+        "description": "Response from consistency cleanup."
+      },
+      "ConsistencyResponse": {
+        "properties": {
+          "total_db_records": {
+            "type": "integer",
+            "title": "Total Db Records",
+            "default": 0
+          },
+          "total_fs_files": {
+            "type": "integer",
+            "title": "Total Fs Files",
+            "default": 0
+          },
+          "orphan_records": {
+            "items": {
+              "$ref": "#/components/schemas/OrphanRecord"
+            },
+            "type": "array",
+            "title": "Orphan Records"
+          },
+          "orphan_files": {
+            "items": {
+              "$ref": "#/components/schemas/OrphanFile"
+            },
+            "type": "array",
+            "title": "Orphan Files"
+          },
+          "healthy_count": {
+            "type": "integer",
+            "title": "Healthy Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ConsistencyResponse",
+        "description": "Response from DB ↔ filesystem consistency check."
+      },
+      "DeleteRecordingResponse": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "db_deleted": {
+            "type": "boolean",
+            "title": "Db Deleted",
+            "default": true
+          },
+          "audio_deleted": {
+            "type": "boolean",
+            "title": "Audio Deleted",
+            "default": false
+          },
+          "exports_deleted": {
+            "type": "integer",
+            "title": "Exports Deleted",
+            "default": 0
+          },
+          "vectors_deleted": {
+            "type": "integer",
+            "title": "Vectors Deleted",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_id"
+        ],
+        "title": "DeleteRecordingResponse",
+        "description": "Response from recording deletion with file cleanup."
+      },
+      "ExtractRangeRequest": {
+        "properties": {
+          "start_minute": {
+            "type": "integer",
+            "title": "Start Minute"
+          },
+          "end_minute": {
+            "type": "integer",
+            "title": "End Minute"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_minute",
+          "end_minute"
+        ],
+        "title": "ExtractRangeRequest",
+        "description": "POST /recordings/{id}/extract request body.\n\nAllows users to select any arbitrary minute range for re-summarization.\nThe range can span hour boundaries transparently."
+      },
+      "ExtractRangeResponse": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "start_minute": {
+            "type": "integer",
+            "title": "Start Minute"
+          },
+          "end_minute": {
+            "type": "integer",
+            "title": "End Minute"
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "included_minutes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Included Minutes"
+          },
+          "source_count": {
+            "type": "integer",
+            "title": "Source Count",
+            "default": 0
+          },
+          "model_used": {
+            "type": "string",
+            "title": "Model Used",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_id",
+          "start_minute",
+          "end_minute",
+          "summary_text"
+        ],
+        "title": "ExtractRangeResponse",
+        "description": "Response from cross-boundary range extraction."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": "0.1.0"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp"
+        ],
+        "title": "HealthResponse",
+        "description": "GET /health response."
+      },
+      "HourSummaryResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "hour_index": {
+            "type": "integer",
+            "title": "Hour Index"
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "topic_segments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Topic Segments"
+          },
+          "token_count": {
+            "type": "integer",
+            "title": "Token Count",
+            "default": 0
+          },
+          "model_used": {
+            "type": "string",
+            "title": "Model Used",
+            "default": ""
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "recording_id",
+          "hour_index",
+          "summary_text",
+          "created_at"
+        ],
+        "title": "HourSummaryResponse",
+        "description": "A single hour-level summary."
+      },
+      "ObsidianExportRequest": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "title": "Format",
+            "default": "obsidian"
+          },
+          "include_transcript": {
+            "type": "boolean",
+            "title": "Include Transcript",
+            "default": false
+          },
+          "vault_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vault Path"
+          }
+        },
+        "type": "object",
+        "title": "ObsidianExportRequest",
+        "description": "POST /recordings/{id}/export request body."
+      },
+      "ObsidianExportResponse": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path"
+          },
+          "markdown_content": {
+            "type": "string",
+            "title": "Markdown Content"
+          },
+          "frontmatter": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Frontmatter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "markdown_content"
+        ],
+        "title": "ObsidianExportResponse",
+        "description": "Response from an Obsidian Markdown export."
+      },
+      "OrphanFile": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path"
+          },
+          "file_name": {
+            "type": "string",
+            "title": "File Name"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes",
+            "default": 0
+          },
+          "modified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "file_name"
+        ],
+        "title": "OrphanFile",
+        "description": "An audio file on disk with no matching DB record."
+      },
+      "OrphanRecord": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "audio_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Path"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "started_at"
+        ],
+        "title": "OrphanRecord",
+        "description": "A DB recording whose audio file is missing from disk."
+      },
+      "ProcessRecordingResponse": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "completed"
+          },
+          "total_minutes": {
+            "type": "integer",
+            "title": "Total Minutes",
+            "default": 0
+          },
+          "transcripts_created": {
+            "type": "integer",
+            "title": "Transcripts Created",
+            "default": 0
+          },
+          "summaries_created": {
+            "type": "integer",
+            "title": "Summaries Created",
+            "default": 0
+          },
+          "embeddings_created": {
+            "type": "integer",
+            "title": "Embeddings Created",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_id"
+        ],
+        "title": "ProcessRecordingResponse",
+        "description": "Response from processing an imported recording."
+      },
+      "RAGQueryRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Query"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K",
+            "default": 5
+          },
+          "min_similarity": {
+            "type": "number",
+            "title": "Min Similarity",
+            "default": 0.3
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "RAGQueryRequest",
+        "description": "POST /rag/query request body.\n\nSupports natural-language queries with optional metadata filters\nfor date range, category, and keyword narrowing."
+      },
+      "RAGQueryResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/RAGSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "model_used": {
+            "type": "string",
+            "title": "Model Used",
+            "default": ""
+          },
+          "query_time_ms": {
+            "type": "integer",
+            "title": "Query Time Ms",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "title": "RAGQueryResponse",
+        "description": "Response from a RAG search query."
+      },
+      "RAGSource": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "minute_index": {
+            "type": "integer",
+            "title": "Minute Index"
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text"
+          },
+          "similarity": {
+            "type": "number",
+            "title": "Similarity"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_id",
+          "minute_index",
+          "summary_text",
+          "similarity",
+          "date"
+        ],
+        "title": "RAGSource",
+        "description": "A single source reference within a RAG answer."
+      },
+      "RecordingCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "title": "RecordingCreate",
+        "description": "POST /recordings request body (optional fields)."
+      },
+      "RecordingResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecordingStatus"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "total_minutes": {
+            "type": "integer",
+            "title": "Total Minutes",
+            "default": 0
+          },
+          "audio_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "started_at"
+        ],
+        "title": "RecordingResponse",
+        "description": "Standard recording representation returned by the API."
+      },
+      "RecordingStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "processing",
+          "completed",
+          "failed",
+          "imported"
+        ],
+        "title": "RecordingStatus",
+        "description": "Possible states for a recording session.\n\nLifecycle: active -> processing -> completed | failed\nImported recordings start directly as \"imported\"."
+      },
+      "ReindexDetailResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "completed"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ReindexResponse"
+          }
+        },
+        "type": "object",
+        "title": "ReindexDetailResponse",
+        "description": "Detailed response from a reindex operation."
+      },
+      "ReindexResponse": {
+        "properties": {
+          "reindexed": {
+            "type": "integer",
+            "title": "Reindexed",
+            "default": 0
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors",
+            "default": 0
+          },
+          "total_in_store": {
+            "type": "integer",
+            "title": "Total In Store",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ReindexResponse",
+        "description": "Response from a reindex operation."
+      },
+      "SummaryResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "minute_index": {
+            "type": "integer",
+            "title": "Minute Index"
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "default": 0.0
+          },
+          "corrections": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptionCorrection"
+            },
+            "type": "array",
+            "title": "Corrections"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "recording_id",
+          "minute_index",
+          "summary_text",
+          "created_at"
+        ],
+        "title": "SummaryResponse",
+        "description": "A single 1-minute summary."
+      },
+      "SyncResponse": {
+        "properties": {
+          "scanned": {
+            "type": "integer",
+            "title": "Scanned",
+            "default": 0
+          },
+          "new_imports": {
+            "type": "integer",
+            "title": "New Imports",
+            "default": 0
+          },
+          "already_exists": {
+            "type": "integer",
+            "title": "Already Exists",
+            "default": 0
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "title": "SyncResponse",
+        "description": "Response from filesystem → DB sync operation."
+      },
+      "TemplateCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "default": ""
+          },
+          "triggers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Triggers"
+          },
+          "output_format": {
+            "type": "string",
+            "title": "Output Format",
+            "default": "markdown"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "default": ""
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TemplateCreate",
+        "description": "POST /templates request body."
+      },
+      "TemplateResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "default": ""
+          },
+          "triggers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Triggers"
+          },
+          "output_format": {
+            "type": "string",
+            "title": "Output Format",
+            "default": "markdown"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "default": ""
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "default": 0
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "default": false
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "TemplateResponse",
+        "description": "Standard template representation returned by the API."
+      },
+      "TranscriptionCorrection": {
+        "properties": {
+          "original": {
+            "type": "string",
+            "title": "Original"
+          },
+          "corrected": {
+            "type": "string",
+            "title": "Corrected"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "original",
+          "corrected"
+        ],
+        "title": "TranscriptionCorrection",
+        "description": "A single STT error correction made by the LLM summarizer."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
