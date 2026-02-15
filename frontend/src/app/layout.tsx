@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Providers from "@/components/providers";
+import Providers from "./providers";
 import Header from "@/components/layout/header";
 import "./globals.css";
 
@@ -32,7 +32,9 @@ export default function RootLayout({
       >
         <Providers>
           <Header />
-          <main>{children}</main>
+          <main className="mx-auto max-w-5xl px-4 py-6 pb-20 sm:pb-6">
+            {children}
+          </main>
         </Providers>
       </body>
     </html>
