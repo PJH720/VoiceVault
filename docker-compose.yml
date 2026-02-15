@@ -9,6 +9,7 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
+      - PYTHONPATH=/app/backend
       - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/voicevault.db}
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OLLAMA_BASE_URL=http://ollama:11434
@@ -33,7 +34,8 @@ services:
       - EXPORTS_DIR=${EXPORTS_DIR:-data/exports}
     volumes:
       - ./data:/app/data
-      - ./src:/app/src:ro
+      - ./backend/src:/app/backend/src:ro
+      - ./templates:/app/templates:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s
@@ -60,7 +62,7 @@ services:
       - STREAMLIT_SERVER_HEADLESS=true
       - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
     volumes:
-      - ./src:/app/src:ro
+      - ./src/ui:/app/src/ui:ro
     depends_on:
       api:
         condition: service_healthy

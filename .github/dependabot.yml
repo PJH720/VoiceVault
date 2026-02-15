@@ -15,7 +15,7 @@ updates:
 
   # Python (pip) — keep Python dependencies up to date
   - package-ecosystem: "pip"
-    directory: "/"
+    directory: "/backend"
     schedule:
       interval: "weekly"
     commit-message:

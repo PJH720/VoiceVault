@@ -1,5 +1,12 @@
 # Multi-stage Dockerfile for VoiceVault
 # Optimized for production with ~800MB final image size
+#
+# Layout after restructure (PR #98):
+#   backend/src/       — FastAPI + services (PYTHONPATH=backend)
+#   backend/tests/     — pytest tests
+#   backend/scripts/   — utility scripts
+#   src/ui/            — Streamlit frontend (stays at repo root)
+#   templates/         — classification template JSON files
 
 # =============================================================================
 # Stage 1: Base - Common system dependencies
@@ -27,11 +34,11 @@ WORKDIR /app
 # =============================================================================
 FROM base AS builder
 
-# Copy dependency files
-COPY pyproject.toml requirements.txt ./
+# Copy dependency files from backend/
+COPY backend/pyproject.toml backend/requirements.txt ./backend/
 
 # Install Python dependencies to ~/.local
-RUN pip install --user --no-warn-script-location -r requirements.txt
+RUN pip install --user --no-warn-script-location -r backend/requirements.txt
 
 # =============================================================================
 # Stage 3: Runtime - Final lean image
@@ -41,13 +48,15 @@ FROM base AS runtime
 # Copy installed packages from builder
 COPY --from=builder /root/.local /root/.local
 
-# Update PATH to include user packages
-ENV PATH=/root/.local/bin:$PATH
+# Update PATH to include user packages; set PYTHONPATH so `from src.xxx` resolves
+ENV PATH=/root/.local/bin:$PATH \
+    PYTHONPATH=/app/backend
 
 # Copy application code
-COPY src/ ./src/
+COPY backend/src/ ./backend/src/
+COPY backend/scripts/ ./backend/scripts/
 COPY templates/ ./templates/
-COPY scripts/ ./scripts/
+COPY src/ui/ ./src/ui/
 
 # Create data directories
 RUN mkdir -p /app/data/recordings /app/data/exports /app/data/chroma_db /app/data/logs && \
