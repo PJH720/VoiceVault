@@ -1,19 +1,24 @@
-/** Shared TypeScript types for VoiceVault frontend. */
+/**
+ * Shared TypeScript types for VoiceVault frontend.
+ *
+ * Re-exports API types for convenience.
+ * Domain-specific types that don't come from the API can live here.
+ */
 
-export interface Recording {
-  id: number;
-  started_at: string;
-  ended_at: string | null;
-  status: "recording" | "completed" | "error";
-  total_minutes: number;
-}
+export type {
+  RecordingStatus,
+  RecordingResponse,
+  RecordingCreateRequest,
+  SummaryResponse,
+  HourSummaryResponse,
+  ClassificationResponse,
+  TemplateResponse,
+  RAGQueryRequest,
+  RAGQueryResponse,
+  RAGSource,
+  ObsidianExportResponse,
+} from "./api";
 
-export interface Summary {
-  id: number;
-  recording_id: number;
-  minute_index: number;
-  summary_text: string;
-  keywords: string[];
-  speakers: string[];
-  confidence: number;
-}
+// Legacy aliases — keep until all consumers migrate to @/types/api
+export type Recording = import("./api").RecordingResponse;
+export type Summary = import("./api").SummaryResponse;
