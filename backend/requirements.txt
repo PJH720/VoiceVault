@@ -13,7 +13,7 @@ faster-whisper>=1.1.0
 soundfile>=0.12.1
 sounddevice>=0.5.1
 pydub>=0.25.1
-numpy>=1.26.0,<2.0.0
+numpy>=1.26.0,<3.0.0
 
 # LLM Providers
 anthropic>=0.39.0
