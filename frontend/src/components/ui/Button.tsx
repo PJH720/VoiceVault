@@ -1,7 +1,7 @@
 import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/cn";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "cyan";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -10,18 +10,59 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary:
-    "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200",
-  secondary:
-    "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800",
-  ghost:
-    "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
+  // Brutalist primary — solid white on dark, hard border
+  primary: [
+    "border font-mono uppercase tracking-widest",
+    "text-[var(--bg)] bg-[var(--fg)]",
+    "border-[var(--fg)]",
+    "hover:bg-[var(--fg-2)] hover:border-[var(--fg-2)]",
+    "active:translate-x-[2px] active:translate-y-[2px]",
+    "disabled:bg-[var(--surface-3)] disabled:text-[var(--fg-3)] disabled:border-[var(--border-2)]",
+  ].join(" "),
+
+  // Secondary — outlined
+  secondary: [
+    "border font-mono uppercase tracking-widest",
+    "text-[var(--fg)] bg-transparent",
+    "border-[var(--border-2)]",
+    "hover:border-[var(--fg-2)] hover:bg-[var(--surface-2)]",
+    "active:translate-x-[1px] active:translate-y-[1px]",
+    "disabled:text-[var(--fg-3)] disabled:border-[var(--border)]",
+  ].join(" "),
+
+  // Ghost — no border, subtle
+  ghost: [
+    "font-mono uppercase tracking-widest",
+    "text-[var(--fg-2)] bg-transparent",
+    "hover:text-[var(--fg)] hover:bg-[var(--surface-2)]",
+    "disabled:text-[var(--fg-3)]",
+  ].join(" "),
+
+  // Danger — for destructive / stop actions
+  danger: [
+    "border font-mono uppercase tracking-widest",
+    "text-[var(--red)] bg-[var(--red-dim)]",
+    "border-[var(--red)]",
+    "hover:bg-[var(--red)] hover:text-[var(--bg)]",
+    "active:translate-x-[2px] active:translate-y-[2px]",
+    "disabled:opacity-40",
+  ].join(" "),
+
+  // Cyan — for primary audio/record action
+  cyan: [
+    "border font-mono uppercase tracking-widest",
+    "text-[var(--cyan)] bg-[var(--cyan-dim)]",
+    "border-[var(--cyan)]",
+    "hover:bg-[var(--cyan)] hover:text-[var(--bg)]",
+    "active:translate-x-[2px] active:translate-y-[2px]",
+    "disabled:opacity-40",
+  ].join(" "),
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
+  sm: "h-7 px-3 text-[10px]",
+  md: "h-9 px-4 text-xs",
+  lg: "h-11 px-6 text-sm",
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -29,7 +70,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center transition-all duration-75",
+        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--cyan)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg)]",
+        "disabled:pointer-events-none",
         variantStyles[variant],
         sizeStyles[size],
         className,
