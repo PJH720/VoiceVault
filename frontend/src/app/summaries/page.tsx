@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Spinner } from "@/components/ui/Spinner";
 import { Button } from "@/components/ui/Button";
@@ -49,24 +49,24 @@ export default function SummariesPage() {
   );
 }
 
+function getInitialRecordingId(searchParams: URLSearchParams): number | null {
+  const recordingParam = searchParams.get("recording");
+  if (recordingParam !== null) {
+    const id = Number(recordingParam);
+    if (!Number.isNaN(id) && id > 0) return id;
+  }
+  return null;
+}
+
 function SummariesContent() {
   const searchParams = useSearchParams();
 
   const [statusFilter, setStatusFilter] = useState<
     RecordingStatus | undefined
   >();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-
-  // D3: Auto-select recording from query param (e.g. /summaries?recording=5)
-  useEffect(() => {
-    const recordingParam = searchParams.get("recording");
-    if (recordingParam !== null) {
-      const id = Number(recordingParam);
-      if (!Number.isNaN(id) && id > 0) {
-        setSelectedId(id);
-      }
-    }
-  }, [searchParams]);
+  const [selectedId, setSelectedId] = useState<number | null>(() =>
+    getInitialRecordingId(searchParams),
+  );
 
   const { data: recordings, isLoading, error, refetch } = useRecordings({
     status: statusFilter,

@@ -195,8 +195,15 @@ class TestStandardizedFrontmatter:
         fm = build_standardized_frontmatter(recording, None, None, [])
 
         required_keys = [
-            "id", "title", "date", "time", "duration_minutes",
-            "type", "created_by", "exported_at", "source_db_id",
+            "id",
+            "title",
+            "date",
+            "time",
+            "duration_minutes",
+            "type",
+            "created_by",
+            "exported_at",
+            "source_db_id",
         ]
         for key in required_keys:
             assert key in fm, f"Missing required key: {key}"

@@ -32,8 +32,11 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'src/**'
+              - 'tests/**'
               - 'requirements*.txt'
               - 'pyproject.toml'
+              - 'pytest.ini'
             frontend:
               - 'frontend/**'
             plugin:
@@ -47,9 +50,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - name: Checkout code
@@ -64,13 +64,12 @@ jobs:
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Run Ruff (linting)
-        run: uvx ruff check src/ tests/
+        run: uvx ruff check src/ tests/ backend/src/
 
       - name: Run Ruff (formatting check)
-        run: uvx ruff format --check src/ tests/
+        run: uvx ruff format --check src/ tests/ backend/src/
 
       - name: Run MyPy (type checking)
-        # Continue on error for hackathon context
         continue-on-error: true
         run: uvx mypy src/ --ignore-missing-imports
 
@@ -82,9 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    defaults:
-      run:
-        working-directory: backend
 
     strategy:
       matrix:
@@ -104,7 +100,6 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install system dependencies
-        working-directory: .
         run: |
           sudo apt-get update
           sudo apt-get install -y libsndfile1 ffmpeg
@@ -113,6 +108,7 @@ jobs:
         run: uv venv --python ${{ matrix.python-version }}
 
       - name: Install Python dependencies
+        working-directory: backend
         run: |
           uv pip install -r requirements.txt
           uv pip install -e ".[dev]"
@@ -136,7 +132,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.12'
         with:
-          file: ./backend/coverage.xml
+          file: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false

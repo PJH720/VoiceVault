@@ -48,7 +48,7 @@ class PluginAuthMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Invalid API key", "code": "AUTH_REQUIRED"},
             )
 
-        token = auth_header[len("Bearer "):]
+        token = auth_header[len("Bearer ") :]
         if token != settings.plugin_api_key:
             return JSONResponse(
                 status_code=401,

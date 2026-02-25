@@ -33,7 +33,6 @@ from src.services.storage.repository import RecordingRepository
 logger = logging.getLogger(__name__)
 
 
-
 # ---------------------------------------------------------------------------
 # VaultAdapter — standardized vault file management
 # ---------------------------------------------------------------------------
@@ -155,7 +154,6 @@ def build_standardized_frontmatter(
         "tags": all_keywords[:10],
         "related": [],
     }
-
 
 
 # Icon mapping for template names without a stored icon
