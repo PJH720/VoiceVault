@@ -349,8 +349,16 @@ Desktop.ini
 *.swo
 *~
 
+### Obsidian Plugin Dev ###
+plugin/.hotreload
+
 ### Project Documentation & Assets ###
 CLAUDE.md
+AGENTS.md
 png/
 pre-research/
 project plan & architecture/
+
+### macOS Duplicate Files ###
+*\ 2.*
+*\ 2/

@@ -75,7 +75,17 @@ class Settings(BaseSettings):
     ws_auth_token: str = ""
 
     # --- CORS ---
-    cors_origins: list[str] = ["http://localhost:8501", "http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:8501",
+        "http://localhost:3000",
+        "app://obsidian.md",
+        "capacitor://localhost",
+    ]
+
+    # --- Plugin Auth ---
+    # Bearer token for Obsidian Plugin API authentication.
+    # If empty, authentication is skipped (open access).
+    plugin_api_key: str = ""
 
     # --- Storage ---
     # Paths are relative to the project root; absolute paths also supported

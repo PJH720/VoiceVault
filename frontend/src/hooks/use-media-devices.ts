@@ -40,16 +40,34 @@ export function useMediaDevices(permissionGranted: boolean): UseMediaDevicesRetu
 
   // Enumerate when permission is granted
   useEffect(() => {
-    if (permissionGranted) {
-      enumerate();
-    }
-  }, [permissionGranted, enumerate]);
+    if (!permissionGranted) return;
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+
+    let cancelled = false;
+    navigator.mediaDevices.enumerateDevices().then((allDevices) => {
+      if (cancelled) return;
+      const audioInputs = allDevices
+        .filter((d) => d.kind === "audioinput")
+        .map((d, i) => ({
+          deviceId: d.deviceId,
+          label: d.label || `Microphone ${i + 1}`,
+        }));
+      setDevices(audioInputs);
+      setSelectedDeviceId((prev) => {
+        if (prev && audioInputs.some((d) => d.deviceId === prev)) return prev;
+        return audioInputs[0]?.deviceId ?? null;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [permissionGranted]);
 
   // Listen for device hot-plug/unplug
   useEffect(() => {
     if (!permissionGranted) return;
 
-    const handler = () => enumerate();
+    const handler = () => void enumerate();
     navigator.mediaDevices.addEventListener("devicechange", handler);
     return () => navigator.mediaDevices.removeEventListener("devicechange", handler);
   }, [permissionGranted, enumerate]);

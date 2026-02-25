@@ -95,7 +95,9 @@ Export any recording as an Obsidian-compatible Markdown file, complete with:
 
 ## Architecture
 
-VoiceVault is a monorepo with a Python backend and a Next.js frontend:
+VoiceVault is a monorepo with a Python backend, a Next.js frontend, and an Obsidian plugin:
+
+> **Note:** The Streamlit UI (`src/ui/`) is deprecated. The Next.js frontend is the primary UI.
 
 ```
 VoiceVault/

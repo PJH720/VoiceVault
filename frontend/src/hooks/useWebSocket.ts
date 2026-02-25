@@ -8,7 +8,7 @@
  * callbacks for each server message type.
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useInsertionEffect } from "react";
 
 import { useRecordingStore } from "@/stores/recording";
 import {
@@ -69,10 +69,12 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   const onSummaryRef = useRef(options.onSummary);
   const onErrorRef = useRef(options.onError);
   const onStateChangeRef = useRef(options.onStateChange);
-  onTranscriptRef.current = options.onTranscript;
-  onSummaryRef.current = options.onSummary;
-  onErrorRef.current = options.onError;
-  onStateChangeRef.current = options.onStateChange;
+  useInsertionEffect(() => {
+    onTranscriptRef.current = options.onTranscript;
+    onSummaryRef.current = options.onSummary;
+    onErrorRef.current = options.onError;
+    onStateChangeRef.current = options.onStateChange;
+  });
 
   const clientRef = useRef<VoiceVaultWsClient | null>(null);
 

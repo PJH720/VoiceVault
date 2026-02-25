@@ -169,8 +169,12 @@ for rec in recordings:
             if classifications:
                 best = max(classifications, key=lambda c: c.get("confidence", 0))
                 _icon_map = {
-                    "lecture": "📚", "meeting": "💼", "conversation": "💬",
-                    "memo": "📝", "person": "👤", "english_vocabulary": "📖",
+                    "lecture": "📚",
+                    "meeting": "💼",
+                    "conversation": "💬",
+                    "memo": "📝",
+                    "person": "👤",
+                    "english_vocabulary": "📖",
                     "incident": "🚨",
                 }
                 cat = best.get("category", "unknown")

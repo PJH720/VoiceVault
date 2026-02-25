@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useInsertionEffect, useRef, useState } from "react";
 import { useRecordingStore } from "@/stores/recording";
 import {
   createCaptureNodes,
@@ -56,7 +56,9 @@ export function useAudioCapture(
   const bufferRef = useRef<Float32Array[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onChunkRef = useRef(onChunk);
-  onChunkRef.current = onChunk;
+  useInsertionEffect(() => {
+    onChunkRef.current = onChunk;
+  });
 
   /** Flush accumulated Float32 samples → resample → PCM16 → callback. */
   const flush = useCallback(() => {

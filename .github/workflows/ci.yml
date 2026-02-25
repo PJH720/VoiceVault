@@ -20,6 +20,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      plugin: ${{ steps.filter.outputs.plugin }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,10 +32,15 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'src/**'
+              - 'tests/**'
               - 'requirements*.txt'
               - 'pyproject.toml'
+              - 'pytest.ini'
             frontend:
               - 'frontend/**'
+            plugin:
+              - 'plugin/**'
 
   # ===========================================================================
   # Backend — Linting & Formatting
@@ -44,9 +50,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - name: Checkout code
@@ -61,13 +64,12 @@ jobs:
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Run Ruff (linting)
-        run: uvx ruff check src/ tests/
+        run: uvx ruff check src/ tests/ backend/src/
 
       - name: Run Ruff (formatting check)
-        run: uvx ruff format --check src/ tests/
+        run: uvx ruff format --check src/ tests/ backend/src/
 
       - name: Run MyPy (type checking)
-        # Continue on error for hackathon context
         continue-on-error: true
         run: uvx mypy src/ --ignore-missing-imports
 
@@ -79,9 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    defaults:
-      run:
-        working-directory: backend
 
     strategy:
       matrix:
@@ -101,7 +100,6 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install system dependencies
-        working-directory: .
         run: |
           sudo apt-get update
           sudo apt-get install -y libsndfile1 ffmpeg
@@ -110,6 +108,7 @@ jobs:
         run: uv venv --python ${{ matrix.python-version }}
 
       - name: Install Python dependencies
+        working-directory: backend
         run: |
           uv pip install -r requirements.txt
           uv pip install -e ".[dev]"
@@ -133,7 +132,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.12'
         with:
-          file: ./backend/coverage.xml
+          file: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
@@ -203,7 +202,7 @@ jobs:
       - name: Regenerate OpenAPI schema
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
-        run: python backend/scripts/export_openapi.py
+        run: backend/.venv/bin/python backend/scripts/export_openapi.py
 
       # -- Frontend: regenerate api.generated.ts --
       - name: Set up Node.js
@@ -224,6 +223,9 @@ jobs:
       - name: Regenerate TypeScript types
         working-directory: frontend
         run: pnpm gen:types
+
+      - name: Regenerate Plugin TypeScript types
+        run: node scripts/generate-plugin-types.mjs
 
       # -- Diff check --
       - name: Check for uncommitted changes
@@ -351,12 +353,42 @@ jobs:
         run: pnpm build
 
   # ===========================================================================
+  # Plugin — Type Check & Build
+  # ===========================================================================
+  plugin-check:
+    name: "Plugin: Type Check & Build"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.plugin == 'true'
+    defaults:
+      run:
+        working-directory: plugin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Build plugin
+        run: npm run build
+
+  # ===========================================================================
   # Summary
   # ===========================================================================
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [changes, lint, test, security, api-contract-check, frontend-lint, frontend-test, frontend-build]
+    needs: [changes, lint, test, security, api-contract-check, frontend-lint, frontend-test, frontend-build, plugin-check]
     if: always()
 
     steps:
@@ -371,6 +403,7 @@ jobs:
           FE_LINT_RESULT: ${{ needs.frontend-lint.result }}
           FE_TEST_RESULT: ${{ needs.frontend-test.result }}
           FE_BUILD_RESULT: ${{ needs.frontend-build.result }}
+          PLUGIN_RESULT: ${{ needs.plugin-check.result }}
         run: |
           echo "=== Path Changes ==="
           echo "Backend changed: $BACKEND_CHANGED"
@@ -385,6 +418,9 @@ jobs:
           echo "Frontend Lint: $FE_LINT_RESULT"
           echo "Frontend Test: $FE_TEST_RESULT"
           echo "Frontend Build: $FE_BUILD_RESULT"
+          echo ""
+          echo "=== Plugin Results ==="
+          echo "Plugin: $PLUGIN_RESULT"
           echo ""
           echo "=== Shared ==="
           echo "API Contract: $API_CONTRACT_RESULT"
@@ -404,6 +440,11 @@ jobs:
               FAILED=true
             fi
           done
+
+          # Check plugin job
+          if [ "$PLUGIN_RESULT" != "success" ] && [ "$PLUGIN_RESULT" != "skipped" ]; then
+            FAILED=true
+          fi
 
           # Check API contract
           if [ "$API_CONTRACT_RESULT" != "success" ] && [ "$API_CONTRACT_RESULT" != "skipped" ]; then
