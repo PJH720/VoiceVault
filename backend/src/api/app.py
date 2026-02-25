@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import websocket
 from src.api.middleware.error_handler import register_error_handlers
+from src.api.middleware.plugin_auth import PluginAuthMiddleware
 from src.api.routes import rag, recording, summary, template
 from src.core.config import get_settings
 from src.core.models import HealthResponse
@@ -64,12 +65,20 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # -- Plugin Auth Middleware --
+    app.add_middleware(PluginAuthMiddleware)
+
     # -- Error handlers --
     register_error_handlers(app)
 
     # -- Health check (root-level, not under /api/v1) --
     @app.get("/health", response_model=HealthResponse, tags=["system"])
     async def health() -> HealthResponse:
+        return HealthResponse(timestamp=datetime.now(UTC))
+
+    # -- Health check (versioned, for Obsidian Plugin) --
+    @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
+    async def health_v1() -> HealthResponse:
         return HealthResponse(timestamp=datetime.now(UTC))
 
     # -- REST routes --
