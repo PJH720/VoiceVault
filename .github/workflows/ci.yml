@@ -20,6 +20,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      plugin: ${{ steps.filter.outputs.plugin }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,6 +36,8 @@ jobs:
               - 'pyproject.toml'
             frontend:
               - 'frontend/**'
+            plugin:
+              - 'plugin/**'
 
   # ===========================================================================
   # Backend — Linting & Formatting
@@ -225,6 +228,9 @@ jobs:
         working-directory: frontend
         run: pnpm gen:types
 
+      - name: Regenerate Plugin TypeScript types
+        run: node scripts/generate-plugin-types.mjs
+
       # -- Diff check --
       - name: Check for uncommitted changes
         run: |
@@ -351,12 +357,42 @@ jobs:
         run: pnpm build
 
   # ===========================================================================
+  # Plugin — Type Check & Build
+  # ===========================================================================
+  plugin-check:
+    name: "Plugin: Type Check & Build"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.plugin == 'true'
+    defaults:
+      run:
+        working-directory: plugin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Build plugin
+        run: npm run build
+
+  # ===========================================================================
   # Summary
   # ===========================================================================
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [changes, lint, test, security, api-contract-check, frontend-lint, frontend-test, frontend-build]
+    needs: [changes, lint, test, security, api-contract-check, frontend-lint, frontend-test, frontend-build, plugin-check]
     if: always()
 
     steps:
@@ -371,6 +407,7 @@ jobs:
           FE_LINT_RESULT: ${{ needs.frontend-lint.result }}
           FE_TEST_RESULT: ${{ needs.frontend-test.result }}
           FE_BUILD_RESULT: ${{ needs.frontend-build.result }}
+          PLUGIN_RESULT: ${{ needs.plugin-check.result }}
         run: |
           echo "=== Path Changes ==="
           echo "Backend changed: $BACKEND_CHANGED"
@@ -385,6 +422,9 @@ jobs:
           echo "Frontend Lint: $FE_LINT_RESULT"
           echo "Frontend Test: $FE_TEST_RESULT"
           echo "Frontend Build: $FE_BUILD_RESULT"
+          echo ""
+          echo "=== Plugin Results ==="
+          echo "Plugin: $PLUGIN_RESULT"
           echo ""
           echo "=== Shared ==="
           echo "API Contract: $API_CONTRACT_RESULT"
@@ -404,6 +444,11 @@ jobs:
               FAILED=true
             fi
           done
+
+          # Check plugin job
+          if [ "$PLUGIN_RESULT" != "success" ] && [ "$PLUGIN_RESULT" != "skipped" ]; then
+            FAILED=true
+          fi
 
           # Check API contract
           if [ "$API_CONTRACT_RESULT" != "success" ] && [ "$API_CONTRACT_RESULT" != "skipped" ]; then
