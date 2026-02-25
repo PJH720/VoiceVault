@@ -7,6 +7,8 @@ import { cn } from "@/lib/cn";
 const NAV_ITEMS = [
   { href: "/recording", label: "Recording", icon: "🎙" },
   { href: "/summaries", label: "Summaries", icon: "📝" },
+  { href: "/rag", label: "Search", icon: "🔍" },
+  { href: "/export", label: "Export", icon: "📤" },
 ] as const;
 
 export default function Navigation() {
