@@ -44,6 +44,54 @@
   --purple:    #b48eff;   /* obsidian export */
   --purple-dim:#1e0a3d;
   --purple-glow:rgba(180, 142, 255, 0.12);
+
+  /* ── Semantic Status Aliases ── */
+  --status-pass:    var(--green);
+  --status-pass-dim: var(--green-dim);
+  --status-warn:    var(--amber);
+  --status-warn-dim: var(--amber-dim);
+  --status-fail:    var(--red);
+  --status-fail-dim: var(--red-dim);
+  --status-info:    var(--cyan);
+  --status-info-dim: var(--cyan-dim);
+
+  /* ── Shadow Scale ── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-glow-cyan: 0 0 12px var(--cyan-glow);
+  --shadow-glow-green: 0 0 12px var(--green-glow);
+  --shadow-glow-red: 0 0 12px var(--red-glow);
+
+  /* ── Animation Duration ── */
+  --duration-fast:   100ms;
+  --duration-normal: 200ms;
+  --duration-slow:   300ms;
+  --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-snap:    cubic-bezier(0, 0, 0.2, 1);
+
+  /* ── Z-Index Scale ── */
+  --z-base:     0;
+  --z-raised:   10;
+  --z-dropdown: 100;
+  --z-sticky:   150;
+  --z-modal:    200;
+  --z-toast:    300;
+
+  /* ── Spacing Scale Aliases (semantic) ── */
+  --space-1:  0.25rem;   /* 4px */
+  --space-2:  0.5rem;    /* 8px */
+  --space-3:  0.75rem;   /* 12px */
+  --space-4:  1rem;      /* 16px */
+  --space-6:  1.5rem;    /* 24px */
+  --space-8:  2rem;      /* 32px */
+  --space-12: 3rem;      /* 48px */
+  --space-16: 4rem;      /* 64px */
+
+  /* ── Border Radius (brutalist: mostly 0, small rounding only for pills) ── */
+  --radius-none: 0;
+  --radius-sm:   2px;
+  --radius-pill: 9999px;
 }
 
 /* ── Tailwind v4 Theme Extension ── */
@@ -81,6 +129,37 @@
 
   /* Border radius — brutalist: zero radius everywhere */
   --radius: 0px;
+
+  /* Status colors */
+  --color-status-pass:     var(--status-pass);
+  --color-status-pass-dim: var(--status-pass-dim);
+  --color-status-warn:     var(--status-warn);
+  --color-status-warn-dim: var(--status-warn-dim);
+  --color-status-fail:     var(--status-fail);
+  --color-status-fail-dim: var(--status-fail-dim);
+  --color-status-info:     var(--status-info);
+  --color-status-info-dim: var(--status-info-dim);
+
+  /* Shadows */
+  --shadow-sm:        var(--shadow-sm);
+  --shadow-md:        var(--shadow-md);
+  --shadow-lg:        var(--shadow-lg);
+  --shadow-glow-cyan: var(--shadow-glow-cyan);
+
+  /* Animation */
+  --duration-fast:   var(--duration-fast);
+  --duration-normal: var(--duration-normal);
+  --duration-slow:   var(--duration-slow);
+
+  /* Z-index */
+  --z-dropdown: var(--z-dropdown);
+  --z-modal:    var(--z-modal);
+  --z-toast:    var(--z-toast);
+
+  /* Border radius */
+  --radius-none: var(--radius-none);
+  --radius-sm:   var(--radius-sm);
+  --radius-pill: var(--radius-pill);
 }
 
 /* ── Base ── */
@@ -234,3 +313,78 @@ code, kbd, pre {
   transform: translate(0, 0);
   box-shadow: none;
 }
+
+/* ============================================================================
+   Typography Utility Classes
+   Named semantic classes for consistent text styling — eliminates ad-hoc
+   font-mono text-xs uppercase tracking-widest chains across all components.
+   ============================================================================ */
+
+.text-prompt {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;        /* 10px */
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+.text-section-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;         /* 12px */
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+
+.text-metric {
+  font-family: var(--font-mono);
+  font-size: 1.875rem;        /* 30px */
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+
+.text-metric-sm {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;         /* 20px */
+  font-weight: 700;
+  line-height: 1;
+  color: var(--fg);
+}
+
+.text-body-mono {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;        /* 14px */
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+
+.text-caption {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;        /* 10px */
+  line-height: 1.4;
+  color: var(--fg-3);
+}
+
+.text-code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;       /* 13px */
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+/* Accent color modifiers — compose with any .text-* class */
+.text-accent-cyan   { color: var(--cyan); }
+.text-accent-green  { color: var(--green); }
+.text-accent-amber  { color: var(--amber); }
+.text-accent-red    { color: var(--red); }
+.text-accent-purple { color: var(--purple); }
+
+.text-status-pass   { color: var(--status-pass); }
+.text-status-warn   { color: var(--status-warn); }
+.text-status-fail   { color: var(--status-fail); }
+.text-status-info   { color: var(--status-info); }

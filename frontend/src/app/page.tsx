@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 const NAV_ITEMS = [
@@ -50,10 +52,7 @@ export default function Home() {
           className="border-l-2 pl-4"
           style={{ borderColor: "var(--cyan)" }}
         >
-          <p
-            className="font-mono text-xs uppercase tracking-widest"
-            style={{ color: "var(--fg-2)" }}
-          >
+          <p className="text-section-label">
             $ SYSTEM.INIT // VoiceVault
           </p>
           <h1
@@ -100,10 +99,7 @@ export default function Home() {
               >
                 {value}
               </span>
-              <span
-                className="text-[10px] uppercase tracking-widest"
-                style={{ color: "var(--fg-3)" }}
-              >
+              <span className="text-caption">
                 {label}
               </span>
             </div>
@@ -113,10 +109,7 @@ export default function Home() {
 
       {/* ── Feature grid ── */}
       <section className="mt-10 space-y-2">
-        <p
-          className="font-mono text-xs uppercase tracking-widest"
-          style={{ color: "var(--fg-3)" }}
-        >
+        <p className="text-prompt">
           // MODULES
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -141,10 +134,7 @@ export default function Home() {
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span
-                      className="font-mono text-xs"
-                      style={{ color: "var(--fg-3)" }}
-                    >
+                    <span className="text-caption">
                       // {num}
                     </span>
                     <span
@@ -168,8 +158,7 @@ export default function Home() {
                   </p>
                 </div>
                 <span
-                  className="mt-0.5 shrink-0 font-mono text-xs transition-transform duration-100 group-hover:translate-x-0.5"
-                  style={{ color: "var(--fg-3)" }}
+                  className="mt-0.5 shrink-0 text-caption transition-transform duration-100 group-hover:translate-x-0.5"
                 >
                   →
                 </span>
@@ -181,8 +170,8 @@ export default function Home() {
 
       {/* ── Footer ── */}
       <footer
-        className="mt-10 border-t pt-4 font-mono text-xs"
-        style={{ borderColor: "var(--border)", color: "var(--fg-3)" }}
+        className="mt-10 border-t pt-4 text-caption"
+        style={{ borderColor: "var(--border)" }}
       >
         <span>VOICEVAULT · AI VOICE INTELLIGENCE · v0.5.0</span>
       </footer>
