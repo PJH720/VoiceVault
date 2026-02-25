@@ -33,6 +33,7 @@ from src.services.storage.repository import RecordingRepository
 logger = logging.getLogger(__name__)
 
 
+
 # ---------------------------------------------------------------------------
 # VaultAdapter — standardized vault file management
 # ---------------------------------------------------------------------------
@@ -154,6 +155,7 @@ def build_standardized_frontmatter(
         "tags": all_keywords[:10],
         "related": [],
     }
+
 
 
 # Icon mapping for template names without a stored icon
@@ -494,7 +496,6 @@ async def export_recording_to_markdown(
         classification.export_path = str(file_path)
         await session.flush()
 
-    # Parse frontmatter dict for response (reuse already-generated fm_text)
     fm_dict: dict = {}
     if fm_text:
         fm_body = fm_text.strip().removeprefix("---").removesuffix("---").strip()
