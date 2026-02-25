@@ -206,7 +206,7 @@ jobs:
       - name: Regenerate OpenAPI schema
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
-        run: python backend/scripts/export_openapi.py
+        run: backend/.venv/bin/python backend/scripts/export_openapi.py
 
       # -- Frontend: regenerate api.generated.ts --
       - name: Set up Node.js

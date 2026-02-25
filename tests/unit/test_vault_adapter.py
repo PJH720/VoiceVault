@@ -4,14 +4,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from src.core.exceptions import ExportError
 from src.services.storage.export import (
     VaultAdapter,
     build_standardized_frontmatter,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

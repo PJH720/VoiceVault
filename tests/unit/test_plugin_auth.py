@@ -3,9 +3,8 @@
 from unittest.mock import patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from httpx import ASGITransport, AsyncClient
 
 from src.api.middleware.plugin_auth import PluginAuthMiddleware
 
