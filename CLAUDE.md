@@ -75,7 +75,7 @@ VoiceVault/
 │   ├── core/                      # config.py, models.py, exceptions.py, utils.py
 │   ├── services/                  # All business logic (same structure as backend/src/services/)
 │   ├── api/                       # FastAPI app, routes, websocket, middleware
-│   └── ui/                        # Streamlit frontend (deprecated — see frontend/)
+│   └── ui/                        # [DEPRECATED] Streamlit frontend — do NOT modify, will be removed in v0.6.0
 │
 ├── backend/                       # v0.4.0 backend — slightly newer, run by Makefile dev server
 │   └── src/                       # Same structure as root src/; differs by: configurable CORS,
@@ -267,7 +267,7 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000
 - **Claude API rate limit**: 5 req/min on free tier; use `asyncio.Semaphore` for concurrent calls.
 - **1-min summary target**: ≤ 50 tokens to keep costs low.
 - **ChromaDB runs in-process** (zero-config, no separate server), persists to `data/chroma_db/`.
-- **Streamlit (`src/ui/`)** is deprecated in favor of the Next.js frontend; do not add features to it.
+- **[DEPRECATED] Streamlit (`src/ui/`)** is deprecated and will be removed in v0.6.0. Do NOT add features to it. Use the Next.js frontend (`frontend/`) exclusively.
 - **After any API change**: run `make gen-openapi && make gen-types` to keep TypeScript types in sync.
 - **pnpm only**: Frontend uses pnpm. Never use npm or yarn.
 - **uv only**: Backend uses uv. Never use pip or python -m venv directly.

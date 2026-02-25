@@ -24,6 +24,12 @@ if _project_root not in sys.path:
 
 import streamlit as st  # noqa: E402
 
+st.warning(
+    "Streamlit UI is deprecated. Use the Next.js frontend instead: "
+    "`cd frontend && pnpm dev` (http://localhost:3000). "
+    "This UI will be removed in v0.6.0."
+)
+
 from src.core.config import get_settings  # noqa: E402
 from src.ui.utils import open_folder_in_explorer  # noqa: E402
 
