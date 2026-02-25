@@ -9,32 +9,47 @@ interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-  className,
-}: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center py-12 text-center",
+        "flex flex-col items-center justify-center border py-12 text-center",
         className,
       )}
+      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
     >
       {icon && (
-        <div className="mb-3 text-zinc-300 dark:text-zinc-600">{icon}</div>
+        <div className="mb-4" style={{ color: "var(--fg-3)" }}>
+          {icon}
+        </div>
       )}
-      <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+      <p
+        className="font-mono text-xs font-bold uppercase tracking-widest"
+        style={{ color: "var(--fg-2)" }}
+      >
         {title}
       </p>
       {description && (
-        <p className="mt-1 max-w-sm text-sm text-zinc-400 dark:text-zinc-500">
+        <p
+          className="mt-2 max-w-sm text-xs leading-relaxed"
+          style={{ color: "var(--fg-3)" }}
+        >
           {description}
         </p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
+  );
+}
+
+/** Inline empty variant — no border/bg, just centered text */
+export function InlineEmpty({ message }: { message: string }) {
+  return (
+    <p
+      className="py-8 text-center font-mono text-xs uppercase tracking-widest"
+      style={{ color: "var(--fg-3)" }}
+    >
+      {message}
+    </p>
   );
 }

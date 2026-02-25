@@ -10,7 +10,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = "Something went wrong",
+  title = "Error",
   error,
   onRetry,
   className,
@@ -18,23 +18,102 @@ export function ErrorState({
   const message =
     error instanceof ApiError
       ? error.message
-      : "An unexpected error occurred.";
+      : error instanceof Error
+        ? error.message
+        : "An unexpected error occurred.";
 
   return (
     <div
       role="alert"
-      className={cn(
-        "rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400",
-        className,
-      )}
+      className={cn("border-l-2 p-4", className)}
+      style={{
+        background:      "var(--red-dim)",
+        borderColor:     "var(--border)",
+        borderLeftColor: "var(--red)",
+      }}
     >
-      <p className="font-medium">{title}</p>
-      <p className="mt-1">{message}</p>
+      <p
+        className="font-mono text-[10px] font-bold uppercase tracking-widest"
+        style={{ color: "var(--red)" }}
+      >
+        ⚠ {title}
+      </p>
+      <p className="mt-1 text-xs" style={{ color: "var(--fg-2)" }}>
+        {message}
+      </p>
       {onRetry && (
-        <Button variant="secondary" size="sm" className="mt-3" onClick={onRetry}>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mt-3"
+          onClick={onRetry}
+        >
           Retry
         </Button>
       )}
+    </div>
+  );
+}
+
+/** Inline banner variants for processing, success, warning, error */
+export type BannerVariant = "info" | "success" | "warning" | "error";
+
+const bannerStyles: Record<
+  BannerVariant,
+  { bg: string; borderLeft: string; label: string; labelColor: string }
+> = {
+  info: {
+    bg: "var(--cyan-dim)",
+    borderLeft: "var(--cyan)",
+    label: "INFO",
+    labelColor: "var(--cyan)",
+  },
+  success: {
+    bg: "var(--green-dim)",
+    borderLeft: "var(--green)",
+    label: "OK",
+    labelColor: "var(--green)",
+  },
+  warning: {
+    bg: "var(--amber-dim)",
+    borderLeft: "var(--amber)",
+    label: "WARN",
+    labelColor: "var(--amber)",
+  },
+  error: {
+    bg: "var(--red-dim)",
+    borderLeft: "var(--red)",
+    label: "ERR",
+    labelColor: "var(--red)",
+  },
+};
+
+interface BannerProps {
+  variant: BannerVariant;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Banner({ variant, children, className }: BannerProps) {
+  const { bg, borderLeft, label, labelColor } = bannerStyles[variant];
+  return (
+    <div
+      className={cn("flex items-start gap-3 border border-l-2 p-3", className)}
+      style={{
+        background:      bg,
+        borderColor:     "var(--border)",
+        borderLeftColor: borderLeft,
+      }}
+    >
+      <span
+        className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-widest"
+        style={{ color: labelColor }}
+      >
+        {label}
+      </span>
+      <span className="text-xs leading-relaxed" style={{ color: "var(--fg-2)" }}>
+        {children}
+      </span>
     </div>
   );
 }

@@ -1,26 +1,236 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   VoiceVault · Brutalist Terminal Design System
+   Inspired by openclaw.cmdspace.work — adapted for voice-recorder identity
+   Dark-only. No light mode. No compromises.
+   ============================================================================ */
+
+/* ── Design Tokens ── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surface stack */
+  --bg:        #0c0c0c;
+  --surface:   #141414;
+  --surface-2: #1c1c1c;
+  --surface-3: #252525;
+
+  /* Borders */
+  --border:    #2a2a2a;
+  --border-2:  #3d3d3d;
+  --border-3:  #555555;
+
+  /* Typography */
+  --fg:        #e2e2e2;
+  --fg-2:      #8c8c8c;
+  --fg-3:      #4c4c4c;
+
+  /* ── VoiceVault Palette ── */
+  --cyan:      #00ccff;   /* audio / microphone / live */
+  --cyan-dim:  #003d4d;
+  --cyan-glow: rgba(0, 204, 255, 0.15);
+
+  --green:     #00e87a;   /* connected / success */
+  --green-dim: #003d20;
+  --green-glow:rgba(0, 232, 122, 0.12);
+
+  --amber:     #ffaa00;   /* processing / warning */
+  --amber-dim: #3d2800;
+  --amber-glow:rgba(255, 170, 0, 0.12);
+
+  --red:       #ff3b3b;   /* error / stop recording */
+  --red-dim:   #3d0a0a;
+  --red-glow:  rgba(255, 59, 59, 0.15);
+
+  --purple:    #b48eff;   /* obsidian export */
+  --purple-dim:#1e0a3d;
+  --purple-glow:rgba(180, 142, 255, 0.12);
 }
 
+/* ── Tailwind v4 Theme Extension ── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans:  var(--font-geist-sans);
+  --font-mono:  var(--font-geist-mono);
+
+  /* Surface */
+  --color-bg:        var(--bg);
+  --color-surface:   var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  /* Border */
+  --color-border:    var(--border);
+  --color-border-2:  var(--border-2);
+  --color-border-3:  var(--border-3);
+
+  /* Typography */
+  --color-fg:        var(--fg);
+  --color-fg-2:      var(--fg-2);
+  --color-fg-3:      var(--fg-3);
+
+  /* Accents */
+  --color-cyan:      var(--cyan);
+  --color-cyan-dim:  var(--cyan-dim);
+  --color-green:     var(--green);
+  --color-green-dim: var(--green-dim);
+  --color-amber:     var(--amber);
+  --color-amber-dim: var(--amber-dim);
+  --color-red:       var(--red);
+  --color-red-dim:   var(--red-dim);
+  --color-purple:    var(--purple);
+  --color-purple-dim:var(--purple-dim);
+
+  /* Border radius — brutalist: zero radius everywhere */
+  --radius: 0px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ── */
+html {
+  color-scheme: dark;
+  background: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Custom scrollbar ── */
+::-webkit-scrollbar          { width: 5px; height: 5px; }
+::-webkit-scrollbar-track    { background: var(--bg); }
+::-webkit-scrollbar-thumb    { background: var(--border-2); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-3); }
+
+/* ── Selection ── */
+::selection { background: var(--cyan-dim); color: var(--cyan); }
+
+/* ── Focus ring ── */
+:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* ── Monospace elements ── */
+code, kbd, pre {
+  font-family: var(--font-geist-mono), ui-monospace, "Cascadia Code", monospace;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Animations
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Recording pulse — red dot throb */
+@keyframes rec-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.5);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 6px rgba(255, 59, 59, 0);
+  }
+}
+
+/* Cursor blink — terminal aesthetic */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Scan line — audio loading effect */
+@keyframes scan {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Live waveform bars */
+@keyframes wave-1 {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1.0); }
+}
+@keyframes wave-2 {
+  0%, 100% { transform: scaleY(0.6); }
+  40%       { transform: scaleY(1.0); }
+  80%       { transform: scaleY(0.2); }
+}
+@keyframes wave-3 {
+  0%, 100% { transform: scaleY(0.8); }
+  60%       { transform: scaleY(0.2); }
+}
+
+/* Glow pulse — for active/connected indicators */
+@keyframes glow-cyan {
+  0%, 100% { box-shadow: 0 0 4px 0 rgba(0, 204, 255, 0.4); }
+  50%       { box-shadow: 0 0 12px 2px rgba(0, 204, 255, 0.6); }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Utility classes
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Terminal prompt prefix */
+.term-prompt::before {
+  content: "$ ";
+  color: var(--cyan);
+  font-family: var(--font-geist-mono), monospace;
+}
+
+/* Section comment prefix */
+.section-comment::before {
+  content: "// ";
+  color: var(--fg-3);
+  font-family: var(--font-geist-mono), monospace;
+}
+
+/* Recording dot — pulsing red circle */
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--red);
+  border-radius: 50%;
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+
+/* Live waveform indicator */
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+}
+.waveform span {
+  display: block;
+  width: 2px;
+  background: var(--cyan);
+  transform-origin: bottom;
+}
+.waveform span:nth-child(1) { height: 100%; animation: wave-1 0.9s ease-in-out infinite; }
+.waveform span:nth-child(2) { height: 100%; animation: wave-2 0.9s ease-in-out infinite 0.15s; }
+.waveform span:nth-child(3) { height: 100%; animation: wave-3 0.9s ease-in-out infinite 0.30s; }
+.waveform span:nth-child(4) { height: 100%; animation: wave-1 0.9s ease-in-out infinite 0.45s; }
+.waveform span:nth-child(5) { height: 100%; animation: wave-2 0.9s ease-in-out infinite 0.60s; }
+
+/* Terminal cursor */
+.cursor-blink {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  background: var(--cyan);
+  vertical-align: text-bottom;
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* Brutalist hover lift */
+.brutalist-hover {
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.brutalist-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 2px 2px 0 var(--border-3);
+}
+.brutalist-hover:active {
+  transform: translate(0, 0);
+  box-shadow: none;
 }
