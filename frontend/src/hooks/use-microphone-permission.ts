@@ -4,22 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 
 export type PermissionStatus = "prompt" | "granted" | "denied" | "unsupported";
 
+function getInitialStatus(): PermissionStatus {
+  if (typeof navigator === "undefined") return "prompt";
+  if (!navigator.mediaDevices?.getUserMedia) return "unsupported";
+  return "prompt";
+}
+
 export function useMicrophonePermission() {
-  const [status, setStatus] = useState<PermissionStatus>("prompt");
+  const [status, setStatus] = useState<PermissionStatus>(getInitialStatus);
 
   useEffect(() => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus("unsupported");
-      return;
-    }
+    if (!navigator.mediaDevices?.getUserMedia) return;
 
-    let permissionStatus: PermissionStatus | undefined;
+    let cancelled = false;
 
     navigator.permissions
       .query({ name: "microphone" as PermissionName })
       .then((result) => {
-        permissionStatus = result.state as PermissionStatus;
-        setStatus(permissionStatus);
+        if (cancelled) return;
+        setStatus(result.state as PermissionStatus);
 
         const handleChange = () => {
           setStatus(result.state as PermissionStatus);
@@ -29,6 +32,10 @@ export function useMicrophonePermission() {
       .catch(() => {
         // permissions.query not supported (e.g. Firefox) — remain "prompt"
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const request = useCallback(async (): Promise<PermissionStatus> => {

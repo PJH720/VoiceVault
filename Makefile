@@ -55,9 +55,10 @@ lint-frontend:
 gen-openapi:
 	PYTHONPATH=backend python backend/scripts/export_openapi.py
 
-# Generate TypeScript types from OpenAPI spec
+# Generate TypeScript types from OpenAPI spec (frontend + plugin)
 gen-types:
 	cd frontend && pnpm gen:types
+	node scripts/generate-plugin-types.mjs
 
 # ── Setup ──────────────────────────────────────
 

@@ -32,6 +32,130 @@ from src.services.storage.repository import RecordingRepository
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# VaultAdapter — standardized vault file management
+# ---------------------------------------------------------------------------
+
+
+class VaultAdapter:
+    """Manages Obsidian vault file I/O with standardized folder structure.
+
+    Encapsulates vault path resolution, folder creation, and file writing
+    for Obsidian-compatible Markdown exports.
+
+    Folder structure: ``{vault_root}/{export_folder}/YYYY-MM-DD/[분류] 제목 - HH:MM.md``
+    """
+
+    def __init__(self, vault_root: Path | None = None) -> None:
+        settings = get_settings()
+        self._vault_root = vault_root or (
+            Path(settings.obsidian_vault_path) if settings.obsidian_vault_path else None
+        )
+        self._export_folder = settings.obsidian_export_folder
+
+    def get_export_path(
+        self,
+        recording: Recording,
+        classification_type: str,
+        title: str | None = None,
+    ) -> Path:
+        """Build the full export file path with date-based folder structure.
+
+        Pattern: ``VoiceVault/Recordings/YYYY-MM-DD/[분류] 제목 - HH:MM.md``
+        """
+        title_text = title or recording.title or "Untitled Recording"
+        date_str = recording.started_at.strftime("%Y-%m-%d") if recording.started_at else "undated"
+        time_str = recording.started_at.strftime("%H:%M") if recording.started_at else "00:00"
+
+        safe_title = _sanitize_filename(title_text)
+        filename = f"[{classification_type}] {safe_title} - {time_str}.md"
+        filename = _sanitize_filename(filename)
+
+        base = self._vault_root or Path(get_settings().exports_dir)
+        return base / self._export_folder / date_str / filename
+
+    def ensure_folder_structure(self, date_str: str) -> None:
+        """Create the date-based folder if it doesn't exist."""
+        base = self._vault_root or Path(get_settings().exports_dir)
+        folder = base / self._export_folder / date_str
+        folder.mkdir(parents=True, exist_ok=True)
+
+    def write_markdown(self, path: Path, content: str, overwrite: bool = True) -> None:
+        """Write Markdown content to the vault.
+
+        Args:
+            path: Target file path.
+            content: Markdown string to write.
+            overwrite: If False and file exists, skip writing.
+
+        Raises:
+            ExportError: If file writing fails.
+        """
+        if not overwrite and path.exists():
+            logger.info("Skipping existing file: %s", path)
+            return
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            path.write_text(content, encoding="utf-8")
+        except OSError as exc:
+            raise ExportError(detail=f"Failed to write file: {exc}") from exc
+
+
+def build_standardized_frontmatter(
+    recording: Recording,
+    classification: Classification | None,
+    template: Template | None,
+    summaries: list[Summary],
+) -> dict[str, Any]:
+    """Build ADR-002 §2.4 compliant frontmatter as a dictionary.
+
+    Required fields: id, title, date, time, duration_minutes, type,
+    created_by, exported_at, source_db_id.
+
+    Optional fields: speakers, keywords, confidence, tags, related.
+    """
+    from datetime import UTC, datetime
+
+    icon = _get_icon(template, classification)
+    display_name = _get_display_name(template, classification)
+    title_text = recording.title or "Untitled Recording"
+    category = classification.template_name if classification else "memo"
+
+    all_keywords: list[str] = []
+    all_speakers: list[str] = []
+    for s in summaries:
+        if s.keywords:
+            for kw in s.keywords:
+                if kw and kw not in all_keywords:
+                    all_keywords.append(kw)
+        if s.speakers:
+            for sp in s.speakers:
+                if sp and sp not in all_speakers:
+                    all_speakers.append(sp)
+
+    duration_minutes = recording.total_minutes or 0
+    confidence = classification.confidence if classification else 0.0
+
+    return {
+        "id": recording.id,
+        "title": f"{icon} {display_name} - {title_text}",
+        "date": recording.started_at.strftime("%Y-%m-%d") if recording.started_at else "",
+        "time": recording.started_at.strftime("%H:%M") if recording.started_at else "",
+        "duration_minutes": duration_minutes,
+        "type": category,
+        "created_by": "VoiceVault",
+        "exported_at": datetime.now(UTC).isoformat(),
+        "source_db_id": recording.id,
+        "speakers": all_speakers,
+        "keywords": all_keywords[:20],
+        "confidence": round(confidence, 2),
+        "tags": all_keywords[:10],
+        "related": [],
+    }
+
+
 # Icon mapping for template names without a stored icon
 _DEFAULT_ICONS: dict[str, str] = {
     "lecture": "\U0001f4da",
@@ -314,8 +438,10 @@ async def export_recording_to_markdown(
     # Build markdown parts
     parts: list[str] = []
 
+    fm_text = ""
     if settings.obsidian_frontmatter:
-        parts.append(_build_frontmatter(recording, classification, template, summaries))
+        fm_text = _build_frontmatter(recording, classification, template, summaries)
+        parts.append(fm_text)
 
     body = _build_body(recording, classification, template, summaries, hour_summaries)
     if body:
@@ -368,11 +494,8 @@ async def export_recording_to_markdown(
         classification.export_path = str(file_path)
         await session.flush()
 
-    # Parse frontmatter dict for response
     fm_dict: dict = {}
-    if settings.obsidian_frontmatter:
-        fm_text = _build_frontmatter(recording, classification, template, summaries)
-        # Strip --- delimiters
+    if fm_text:
         fm_body = fm_text.strip().removeprefix("---").removesuffix("---").strip()
         try:
             fm_dict = yaml.safe_load(fm_body) or {}

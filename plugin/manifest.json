@@ -1,0 +1,10 @@
+{
+  "id": "voicevault",
+  "name": "VoiceVault",
+  "version": "0.5.0",
+  "minAppVersion": "1.4.0",
+  "description": "AI voice recorder with RAG search and Obsidian vault integration",
+  "author": "Jae-hyun Park",
+  "authorUrl": "https://github.com/PJH720/VoiceVault",
+  "isDesktopOnly": false
+}
