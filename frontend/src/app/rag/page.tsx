@@ -1,23 +1,25 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useCallback } from "react";
 import Link from "next/link";
-import { Spinner } from "@/components/ui/Spinner";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
+import { AlertCallout } from "@/components/ui/AlertCallout";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useRAGSearch } from "@/hooks/useRAGSearch";
 import type { RAGQueryRequest, RAGSource } from "@/types/api";
-
-const CATEGORY_OPTIONS = ["All", "lecture", "conversation", "memo", "other"] as const;
 
 export default function RAGPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center py-16">
-          <Spinner size="lg" />
+        <div className="mx-auto max-w-4xl space-y-6 p-6">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-10 w-full" />
         </div>
       }
     >
@@ -28,150 +30,138 @@ export default function RAGPage() {
 
 function RAGContent() {
   const [query, setQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [category, setCategory] = useState<string>("All");
-
   const { search, data, isPending, isError, error, reset } = useRAGSearch();
 
-  function handleSearch() {
+  const handleSearch = useCallback(() => {
     if (!query.trim()) return;
-
     const request: RAGQueryRequest = {
       query: query.trim(),
-      top_k: 5,
+      top_k: 10,
       min_similarity: 0.3,
     };
-
-    if (dateFrom) request.date_from = dateFrom;
-    if (dateTo) request.date_to = dateTo;
-    if (category !== "All") request.category = category;
-
     search(request);
-  }
+  }, [query, search]);
+
+  const topScore =
+    data?.sources && data.sources.length > 0
+      ? Math.max(...data.sources.map((s) => s.similarity))
+      : null;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <h1 className="text-2xl font-bold">RAG Search</h1>
+      <SectionHeader title="RAG SEARCH" desc="Natural-language search across all transcriptions" />
 
       {/* Query input */}
-      <div className="space-y-4">
-        <textarea
+      <div className="flex items-center gap-2">
+        <span
+          className="shrink-0 font-mono text-sm font-bold"
+          style={{ color: "var(--cyan)" }}
+        >
+          &gt;
+        </span>
+        <input
+          type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask a question about your recordings..."
-          rows={3}
-          className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500"
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              handleSearch();
-            }
+            if (e.key === "Enter") handleSearch();
+          }}
+          placeholder="Ask a question about your recordings..."
+          className="flex-1 border-b-2 bg-transparent font-mono text-sm transition-colors focus:outline-none"
+          style={{
+            color: "var(--fg)",
+            borderColor: "var(--border-2)",
+          }}
+          onFocus={(e) => {
+            (e.currentTarget as HTMLInputElement).style.borderColor = "var(--cyan)";
+          }}
+          onBlur={(e) => {
+            (e.currentTarget as HTMLInputElement).style.borderColor = "var(--border-2)";
           }}
         />
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              From
-            </label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              To
-            </label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Category
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-            >
-              {CATEGORY_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt === "All" ? "All categories" : opt}
-                </option>
-              ))}
-            </select>
-          </div>
-
+        <Button
+          size="sm"
+          variant="cyan"
+          onClick={handleSearch}
+          disabled={isPending || !query.trim()}
+        >
+          Search
+        </Button>
+        {(data || isError) && (
           <Button
-            onClick={handleSearch}
-            disabled={isPending || !query.trim()}
-            className="gap-2"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              reset();
+              setQuery("");
+            }}
           >
-            {isPending && <Spinner size="sm" />}
-            Search
+            Clear
           </Button>
-          {(data || isError) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                reset();
-                setQuery("");
-                setDateFrom("");
-                setDateTo("");
-                setCategory("All");
-              }}
-            >
-              Clear
-            </Button>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* Loading */}
+      {isPending && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+      )}
 
       {/* Error */}
       {isError && (
-        <ErrorState
-          title="Search failed"
-          error={error}
-          onRetry={handleSearch}
-        />
+        <AlertCallout variant="error" title="Search failed">
+          {error?.message ?? "An unexpected error occurred."}
+        </AlertCallout>
       )}
 
       {/* Results */}
       {data && (
         <div className="space-y-4">
+          {/* Metric cards */}
+          <div className="grid grid-cols-3 gap-2">
+            <MetricCard
+              value={data.sources?.length ?? 0}
+              label="Results"
+              variant="info"
+            />
+            <MetricCard
+              value={topScore !== null ? `${Math.round(topScore * 100)}%` : "—"}
+              label="Top Score"
+              variant="accent"
+            />
+            <MetricCard
+              value={data.query_time_ms > 0 ? `${data.query_time_ms}ms` : "—"}
+              label="Query Time"
+            />
+          </div>
+
           {/* Answer */}
-          <Card>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-zinc-800 dark:text-zinc-200">
-                {data.answer}
+          <Card className="p-4">
+            <p
+              className="text-xs leading-relaxed whitespace-pre-wrap"
+              style={{ color: "var(--fg-2)" }}
+            >
+              {data.answer}
+            </p>
+            {data.model_used && (
+              <p className="mt-2 text-[10px]" style={{ color: "var(--fg-3)" }}>
+                model: {data.model_used}
               </p>
-              {data.query_time_ms > 0 && (
-                <p className="mt-2 text-xs text-zinc-400">
-                  {data.query_time_ms}ms &middot; {data.model_used}
-                </p>
-              )}
-            </CardContent>
+            )}
           </Card>
 
-          {/* Sources */}
+          {/* Source cards */}
           {data.sources && data.sources.length > 0 ? (
-            <div className="space-y-2">
-              <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                Sources ({data.sources.length})
-              </h2>
-              {data.sources.map((source, i) => (
-                <SourceCard key={`${source.recording_id}-${source.minute_index}-${i}`} source={source} />
-              ))}
-            </div>
+            data.sources.map((source, i) => (
+              <SourceCard key={`${source.recording_id}-${source.minute_index}-${i}`} source={source} />
+            ))
           ) : (
             <EmptyState
               title="No sources found"
@@ -194,42 +184,44 @@ function RAGContent() {
 
 function SourceCard({ source }: { source: RAGSource }) {
   const similarityPct = Math.round(source.similarity * 100);
-  const truncatedText =
-    source.summary_text.length > 200
-      ? source.summary_text.slice(0, 200) + "..."
+  const excerpt =
+    source.summary_text.length > 300
+      ? source.summary_text.slice(0, 300) + "..."
       : source.summary_text;
 
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            {truncatedText}
-          </p>
-          <div className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
-            <span>{source.date}</span>
-            {source.category && (
-              <>
-                <span>&middot;</span>
-                <span className="capitalize">{source.category}</span>
-              </>
-            )}
-            <span>&middot;</span>
-            <Link
-              href={`/summaries?recording=${source.recording_id}`}
-              className="text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-            >
-              View recording
-            </Link>
-          </div>
+    <Card className="space-y-3 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "var(--fg-3)" }}>
+            {source.date}
+          </span>
+          {source.category && (
+            <>
+              <span style={{ color: "var(--fg-3)" }}>·</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest capitalize" style={{ color: "var(--fg-3)" }}>
+                {source.category}
+              </span>
+            </>
+          )}
         </div>
-        <span
-          className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-          title="Similarity score"
-        >
-          {similarityPct}%
-        </span>
+        <MetricCard
+          value={`${similarityPct}%`}
+          label="relevance"
+          variant={similarityPct >= 70 ? "pass" : similarityPct >= 40 ? "warn" : "fail"}
+          className="px-2 py-1"
+        />
       </div>
+
+      <CodeBlock code={excerpt} language="markdown" />
+
+      <Link
+        href={`/summaries?recording=${source.recording_id}`}
+        className="inline-block font-mono text-[10px] uppercase tracking-widest transition-colors focus-visible:ring-1 focus-visible:ring-[var(--cyan)]"
+        style={{ color: "var(--cyan)" }}
+      >
+        View recording →
+      </Link>
     </Card>
   );
 }
