@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode, useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { getQueryClient } from "@/lib/query-client";
@@ -29,6 +29,25 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("ErrorBoundary caught:", error, info.componentStack);
+    // #region agent log
+    fetch("http://127.0.0.1:7246/ingest/34638976-2389-45ac-9e64-67cf3b5f9b44", {
+      method: "POST",
+      mode: "no-cors",
+      body: JSON.stringify({
+        runId: "pre-fix-eb-1",
+        hypothesisId: "H15_H16",
+        location: "src/app/providers.tsx:ErrorBoundary:componentDidCatch",
+        message: "error boundary captured runtime error",
+        data: {
+          errorName: error.name,
+          errorMessage: error.message,
+          stackPreview: typeof error.stack === "string" ? error.stack.slice(0, 600) : "",
+          componentStack: info.componentStack?.slice(0, 1200) ?? "",
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
   }
 
   render() {
@@ -62,6 +81,75 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 export default function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
+  // #region agent log
+  fetch("http://127.0.0.1:7246/ingest/34638976-2389-45ac-9e64-67cf3b5f9b44", {
+    method: "POST",
+    mode: "no-cors",
+    body: JSON.stringify({
+      runId: "pre-fix-eb-1",
+      hypothesisId: "H17",
+      location: "src/app/providers.tsx:Providers:render",
+      message: "providers rendered",
+      data: {
+        hasWindow: typeof window !== "undefined",
+        pathname: typeof window !== "undefined" ? window.location.pathname : "server",
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  useEffect(() => {
+    const send = (payload: Record<string, unknown>) => {
+      // #region agent log
+      fetch("http://127.0.0.1:7246/ingest/34638976-2389-45ac-9e64-67cf3b5f9b44", {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          runId: "pre-fix-global-1",
+          hypothesisId: "H19_H20",
+          location: "src/app/providers.tsx:global-error-listeners",
+          message: "captured global runtime error",
+          data: {
+            pathname: typeof window !== "undefined" ? window.location.pathname : "server",
+            ...payload,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+    };
+
+    const onError = (event: ErrorEvent) => {
+      send({
+        type: "error",
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+      });
+    };
+
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      send({
+        type: "unhandledrejection",
+        reason:
+          typeof reason === "string"
+            ? reason
+            : reason && typeof reason.message === "string"
+              ? reason.message
+              : "unknown",
+      });
+    };
+
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
 
   return (
     <ErrorBoundary>
