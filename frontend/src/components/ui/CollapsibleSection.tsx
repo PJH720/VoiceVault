@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 interface CollapsibleSectionProps {
@@ -17,6 +17,7 @@ export function CollapsibleSection({
   className,
 }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const contentId = useId();
 
   return (
     <div className={cn("border-b", className)} style={{ borderColor: "var(--border)" }}>
@@ -26,13 +27,14 @@ export function CollapsibleSection({
         className="flex w-full items-center gap-2 py-2 font-mono text-xs uppercase tracking-widest transition-colors focus-visible:ring-1 focus-visible:ring-[var(--cyan)]"
         style={{ color: "var(--fg-2)" }}
         aria-expanded={open}
+        aria-controls={contentId}
       >
         <span className="text-[10px]" style={{ color: "var(--fg-3)" }}>
           {open ? "▼" : "▶"}
         </span>
         {title}
       </button>
-      {open && <div className="pb-3">{children}</div>}
+      {open && <div id={contentId} className="pb-3">{children}</div>}
     </div>
   );
 }

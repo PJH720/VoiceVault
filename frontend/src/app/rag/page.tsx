@@ -104,7 +104,7 @@ function RAGContent() {
       {/* Loading */}
       {isPending && (
         <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
@@ -125,7 +125,7 @@ function RAGContent() {
       {data && (
         <div className="space-y-4">
           {/* Metric cards */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <MetricCard
               value={data.sources?.length ?? 0}
               label="Results"

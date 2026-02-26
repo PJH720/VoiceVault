@@ -89,7 +89,7 @@ export default function Home() {
         </div>
 
         {/* MetricCards row */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <MetricCard value={totalRecordings} label="Recordings" variant="info" />
           <MetricCard value={completedCount} label="Summaries" variant="pass" />
           <MetricCard value={totalRecordings > 0 ? "ON" : "—"} label="Index" />

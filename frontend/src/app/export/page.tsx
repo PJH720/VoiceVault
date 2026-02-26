@@ -29,7 +29,7 @@ export default function ExportPage() {
       fallback={
         <div className="mx-auto max-w-4xl space-y-6 p-6">
           <Skeleton className="h-6 w-48" />
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Skeleton className="h-64" />
             <Skeleton className="h-64" />
           </div>
@@ -121,7 +121,7 @@ function ExportContent() {
     return (
       <div className="mx-auto max-w-5xl space-y-6 p-6">
         <Skeleton className="h-6 w-48" />
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
@@ -151,7 +151,7 @@ function ExportContent() {
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <SectionHeader title="EXPORT" desc="One-click Obsidian-compatible Markdown export" />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Left: Configure */}
         <Card className="space-y-4 p-4">
           <h3

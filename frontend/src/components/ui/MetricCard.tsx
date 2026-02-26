@@ -58,7 +58,7 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        "group border border-l-2 p-4 transition-shadow duration-100",
+        "group w-full border border-l-2 p-4 transition-shadow duration-100",
         className,
       )}
       style={{
