@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRecordings } from "@/hooks/useRecordings";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 
 const NAV_ITEMS = [
   {
@@ -42,6 +46,13 @@ const NAV_ITEMS = [
 ] as const;
 
 export default function Home() {
+  const { data: recordings } = useRecordings({ sort: "newest" });
+
+  const totalRecordings = recordings?.length ?? 0;
+  const completedCount = recordings?.filter((r) => r.status === "completed").length ?? 0;
+
+  const recent5 = recordings?.slice(0, 5) ?? [];
+
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col justify-between py-12">
 
@@ -77,6 +88,20 @@ export default function Home() {
           </p>
         </div>
 
+        {/* MetricCards row */}
+        <div className="grid grid-cols-3 gap-2">
+          <MetricCard value={totalRecordings} label="Recordings" variant="info" />
+          <MetricCard value={completedCount} label="Summaries" variant="pass" />
+          <MetricCard value={totalRecordings > 0 ? "ON" : "—"} label="Index" />
+        </div>
+
+        {/* Status badges */}
+        <div className="flex flex-wrap gap-2">
+          <Badge label="Backend" variant="green" dot />
+          <Badge label="WebSocket" variant="cyan" dot />
+          <Badge label="RAG" variant="green" dot />
+        </div>
+
         {/* Stat row */}
         <div
           className="flex flex-wrap gap-0 border font-mono text-xs"
@@ -106,6 +131,35 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* ── Recent recordings ── */}
+      {recent5.length > 0 && (
+        <section className="mt-6 space-y-2">
+          <p className="text-prompt">
+            // RECENT
+          </p>
+          <div className="space-y-1">
+            {recent5.map((rec) => (
+              <Link
+                key={rec.id}
+                href={`/summaries?recording=${rec.id}`}
+                className="flex items-center justify-between border p-2 transition-colors hover:bg-[var(--surface-2)] focus-visible:ring-1 focus-visible:ring-[var(--cyan)]"
+                style={{
+                  borderColor: "var(--border)",
+                  background: "var(--surface)",
+                }}
+              >
+                <span className="truncate font-mono text-xs" style={{ color: "var(--fg)" }}>
+                  {rec.title ?? `Recording #${rec.id}`}
+                </span>
+                <span className="shrink-0 font-mono text-[10px]" style={{ color: "var(--fg-3)" }}>
+                  {new Date(rec.started_at).toLocaleDateString()}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Feature grid ── */}
       <section className="mt-10 space-y-2">
@@ -173,7 +227,7 @@ export default function Home() {
         className="mt-10 border-t pt-4 text-caption"
         style={{ borderColor: "var(--border)" }}
       >
-        <span>VOICEVAULT · AI VOICE INTELLIGENCE · v0.5.0</span>
+        <span>VOICEVAULT · AI VOICE INTELLIGENCE · v0.6.0</span>
       </footer>
     </div>
   );
