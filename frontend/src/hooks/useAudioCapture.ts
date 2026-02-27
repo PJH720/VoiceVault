@@ -6,7 +6,7 @@ import {
   createCaptureNodes,
   type CaptureNodes,
 } from "@/lib/audio/audio-worklet-processor";
-import { encodePcm16Chunk, TARGET_SAMPLE_RATE } from "@/lib/audio/pcm-encoder";
+import { encodePcm16Chunk } from "@/lib/audio/pcm-encoder";
 
 /** Default interval (ms) between flushing buffered audio as PCM16 chunks. */
 const DEFAULT_FLUSH_INTERVAL_MS = 250;

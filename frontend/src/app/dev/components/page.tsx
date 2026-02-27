@@ -75,13 +75,13 @@ export default function ComponentCatalog() {
           className="font-mono text-[10px] uppercase tracking-widest"
           style={{ color: "var(--fg-3)" }}
         >
-          // DEV
+          {"// DEV"}
         </p>
         <h1
           className="mt-1 font-mono text-lg font-bold uppercase tracking-wider"
           style={{ color: "var(--fg)" }}
         >
-          $ COMPONENT.CATALOG // v0.6.0
+          {"$ COMPONENT.CATALOG // v0.6.0"}
         </h1>
       </div>
 
