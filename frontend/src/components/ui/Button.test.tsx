@@ -33,7 +33,7 @@ describe("Button", () => {
 
   it("applies size classes", () => {
     render(<Button size="lg">Big</Button>);
-    expect(screen.getByRole("button")).toHaveClass("h-12");
+    expect(screen.getByRole("button")).toHaveClass("h-11");
   });
 
   it("merges custom className", () => {

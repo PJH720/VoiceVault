@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRecordings } from "@/hooks/useRecordings";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
+
 
 const NAV_ITEMS = [
   {
@@ -136,7 +136,7 @@ export default function Home() {
       {recent5.length > 0 && (
         <section className="mt-6 space-y-2">
           <p className="text-prompt">
-            // RECENT
+            {"// RECENT"}
           </p>
           <div className="space-y-1">
             {recent5.map((rec) => (
@@ -164,7 +164,7 @@ export default function Home() {
       {/* ── Feature grid ── */}
       <section className="mt-10 space-y-2">
         <p className="text-prompt">
-          // MODULES
+          {"// MODULES"}
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {NAV_ITEMS.map(({ href, label, fullLabel, desc, accent, dim, num }) => (
@@ -189,7 +189,7 @@ export default function Home() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-caption">
-                      // {num}
+                      {"// "}{num}
                     </span>
                     <span
                       className="font-mono text-xs font-bold uppercase tracking-widest"

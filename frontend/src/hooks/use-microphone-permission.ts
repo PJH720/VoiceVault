@@ -15,7 +15,7 @@ export function useMicrophonePermission() {
 
   useEffect(() => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus("unsupported");
+      queueMicrotask(() => setStatus("unsupported"));
       return;
     }
 
