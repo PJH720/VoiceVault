@@ -22,6 +22,8 @@ const TARGET_SAMPLE_RATE = 16000
 export class WhisperService {
   private whisper: WhisperLike | null = null
   private modelSize: WhisperModelSize
+  public modelAvailable = false
+  private nativeModuleAvailable: boolean | null = null
   private readonly modelRoot: string
   private readonly pcmWindow: number[] = []
   private segmentIndex = 0
@@ -64,21 +66,36 @@ export class WhisperService {
       throw new Error(`Whisper model not found: ${this.modelSize}`)
     }
 
-    const moduleName = 'whisper-cpp-node'
-    const whisperModule = (await import(/* @vite-ignore */ moduleName)) as unknown as WhisperModule
-    const WhisperCtor = whisperModule.Whisper ?? whisperModule.default
-    if (!WhisperCtor) {
-      throw new Error('Whisper constructor not found in whisper-cpp-node')
+    if (this.nativeModuleAvailable === false) {
+      this.modelAvailable = false
+      throw new Error('whisper-cpp-node not available — using fallback')
     }
 
-    this.whisper = new WhisperCtor({
-      modelPath: this.getModelPath(),
-      coreMLEnabled: process.platform === 'darwin',
-      language: 'auto',
-      translate: false,
-      splitOnWord: true,
-      maxLen: 1
-    })
+    try {
+      const moduleName = 'whisper-cpp-node'
+      const whisperModule = (await import(/* @vite-ignore */ moduleName)) as unknown as WhisperModule
+      const WhisperCtor = whisperModule.Whisper ?? whisperModule.default
+      if (!WhisperCtor) {
+        this.nativeModuleAvailable = false
+        this.modelAvailable = false
+        throw new Error('Whisper constructor not found in whisper-cpp-node')
+      }
+      this.nativeModuleAvailable = true
+
+      this.whisper = new WhisperCtor({
+        modelPath: this.getModelPath(),
+        coreMLEnabled: process.platform === 'darwin',
+        language: 'auto',
+        translate: false,
+        splitOnWord: true,
+        maxLen: 1
+      })
+      this.modelAvailable = true
+    } catch (err) {
+      this.nativeModuleAvailable = false
+      this.modelAvailable = false
+      throw err
+    }
   }
 
   public async downloadModel(

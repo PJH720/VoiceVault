@@ -3,7 +3,36 @@ import path from 'node:path'
 import { BrowserWindow } from 'electron'
 import type { AudioLevelEvent } from '../../shared/types'
 import { AudioChannels } from '../../shared/ipc-channels'
-import { MicrophoneRecorder, type AudioChunk, type AudioMetadata } from 'native-audio-node'
+
+// native-audio-node is an optional native addon — may not be available
+type AudioChunk = { data: Buffer }
+type AudioMetadata = { sampleRate: number }
+type MicrophoneRecorderLike = {
+  on: (event: string, cb: (...args: unknown[]) => void) => void
+  start: () => Promise<void>
+  stop: () => Promise<void>
+}
+type NativeAudioModule = {
+  MicrophoneRecorder?: new (opts: Record<string, unknown>) => MicrophoneRecorderLike
+  default?: { MicrophoneRecorder?: new (opts: Record<string, unknown>) => MicrophoneRecorderLike }
+}
+
+let NativeAudioAvailable: boolean | null = null
+let MicrophoneRecorderCtor: (new (opts: Record<string, unknown>) => MicrophoneRecorderLike) | null = null
+
+async function loadNativeAudio(): Promise<boolean> {
+  if (NativeAudioAvailable !== null) return NativeAudioAvailable
+  try {
+    const moduleName = 'native-audio-node'
+    const mod = (await import(/* @vite-ignore */ moduleName)) as unknown as NativeAudioModule
+    MicrophoneRecorderCtor = mod.MicrophoneRecorder ?? mod.default?.MicrophoneRecorder ?? null
+    NativeAudioAvailable = MicrophoneRecorderCtor !== null
+  } catch {
+    NativeAudioAvailable = false
+    MicrophoneRecorderCtor = null
+  }
+  return NativeAudioAvailable
+}
 
 type StopResult = {
   audioPath: string
@@ -14,7 +43,7 @@ type StopResult = {
 const SAMPLE_RATE = 16000
 
 export class AudioCaptureService {
-  private recorder: MicrophoneRecorder | null = null
+  private recorder: MicrophoneRecorderLike | null = null
   private isRecording = false
   private startedAt = 0
   private audioPath: string | null = null
@@ -40,15 +69,20 @@ export class AudioCaptureService {
     this.metadata = null
 
     try {
-      this.recorder = new MicrophoneRecorder({
+      const hasNative = await loadNativeAudio()
+      if (!hasNative || !MicrophoneRecorderCtor) {
+        throw new Error('native-audio-node not available')
+      }
+      this.recorder = new MicrophoneRecorderCtor({
         sampleRate: SAMPLE_RATE,
         chunkDurationMs: 100,
         stereo: false
       })
-      this.recorder.on('metadata', (meta) => {
-        this.metadata = meta
+      this.recorder.on('metadata', (meta: unknown) => {
+        this.metadata = meta as AudioMetadata
       })
-      this.recorder.on('data', (chunk: AudioChunk) => {
+      this.recorder.on('data', (...args: unknown[]) => {
+        const chunk = args[0] as AudioChunk
         this.rawChunks.push(chunk.data)
         this.emitLevelFromChunk(chunk.data)
         const sampleRate = this.metadata?.sampleRate ?? SAMPLE_RATE
