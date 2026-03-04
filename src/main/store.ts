@@ -1,4 +1,3 @@
-import Store from 'electron-store'
 import { safeStorage } from 'electron'
 import type { CloudModelName, LlmModelName, SupportedLocale, UsageStats, WhisperModelSize } from '../shared/types'
 
@@ -15,61 +14,79 @@ type StoreShape = {
   translationTargetLanguage: string
 }
 
-const store = new Store<StoreShape>({
-  defaults: {
-    locale: 'ko',
-    whisperModel: 'base',
-    llmModel: 'gemma-2-3n-instruct-q4_k_m',
-    preferredLlmProvider: 'local',
-    cloudModel: 'claude-3-5-sonnet-20241022',
-    localOnlyMode: false,
-    usageStats: {
-      totalCost: 0,
-      totalRequests: 0,
-      lastReset: new Date().toISOString()
-    },
-    translationTargetLanguage: 'en'
-  }
-})
+type StoreInstance = {
+  get<K extends keyof StoreShape>(key: K): StoreShape[K]
+  set<K extends keyof StoreShape>(key: K, value: StoreShape[K]): void
+  delete(key: keyof StoreShape): void
+}
+
+let store: StoreInstance
+
+const defaults: StoreShape = {
+  locale: 'ko',
+  whisperModel: 'base',
+  llmModel: 'gemma-2-3n-instruct-q4_k_m',
+  preferredLlmProvider: 'local',
+  cloudModel: 'claude-3-5-sonnet-20241022',
+  localOnlyMode: false,
+  usageStats: {
+    totalCost: 0,
+    totalRequests: 0,
+    lastReset: new Date().toISOString()
+  },
+  translationTargetLanguage: 'en'
+}
+
+export async function initStore(): Promise<void> {
+  // electron-store v11+ is ESM-only; use dynamic import for CJS compat
+  const mod = await import('electron-store')
+  const Store = mod.default ?? mod
+  store = new (Store as unknown as new (opts: { defaults: StoreShape }) => StoreInstance)({ defaults })
+}
+
+function ensureStore(): StoreInstance {
+  if (!store) throw new Error('Store not initialized — call initStore() first')
+  return store
+}
 
 export function getLocale(): SupportedLocale {
-  return store.get('locale')
+  return ensureStore().get('locale')
 }
 
 export function setLocale(locale: SupportedLocale): SupportedLocale {
-  store.set('locale', locale)
+  ensureStore().set('locale', locale)
   return locale
 }
 
 export function getWhisperModel(): WhisperModelSize {
-  return store.get('whisperModel')
+  return ensureStore().get('whisperModel')
 }
 
 export function setWhisperModel(model: WhisperModelSize): WhisperModelSize {
-  store.set('whisperModel', model)
+  ensureStore().set('whisperModel', model)
   return model
 }
 
 export function getLlmModel(): LlmModelName {
-  return store.get('llmModel')
+  return ensureStore().get('llmModel')
 }
 
 export function setLlmModel(model: LlmModelName): LlmModelName {
-  store.set('llmModel', model)
+  ensureStore().set('llmModel', model)
   return model
 }
 
 export function setAnthropicApiKey(key: string): void {
   if (!key) {
-    store.delete('anthropicApiKey')
+    ensureStore().delete('anthropicApiKey')
     return
   }
   if (safeStorage.isEncryptionAvailable()) {
     const encrypted = safeStorage.encryptString(key)
-    store.set('anthropicApiKey', encrypted.toString('base64'))
+    ensureStore().set('anthropicApiKey', encrypted.toString('base64'))
     return
   }
-  store.set('anthropicApiKey', key)
+  ensureStore().set('anthropicApiKey', key)
 }
 
 export function getAnthropicApiKey(): string | null {
@@ -92,34 +109,34 @@ export function maskApiKey(key: string | null): string | null {
 }
 
 export function getPreferredLlmProvider(): 'local' | 'cloud' {
-  return store.get('preferredLlmProvider')
+  return ensureStore().get('preferredLlmProvider')
 }
 
 export function setPreferredLlmProvider(provider: 'local' | 'cloud'): 'local' | 'cloud' {
-  store.set('preferredLlmProvider', provider)
+  ensureStore().set('preferredLlmProvider', provider)
   return provider
 }
 
 export function getCloudModel(): CloudModelName {
-  return store.get('cloudModel')
+  return ensureStore().get('cloudModel')
 }
 
 export function setCloudModel(model: CloudModelName): CloudModelName {
-  store.set('cloudModel', model)
+  ensureStore().set('cloudModel', model)
   return model
 }
 
 export function getLocalOnlyMode(): boolean {
-  return store.get('localOnlyMode')
+  return ensureStore().get('localOnlyMode')
 }
 
 export function setLocalOnlyMode(enabled: boolean): boolean {
-  store.set('localOnlyMode', enabled)
+  ensureStore().set('localOnlyMode', enabled)
   return enabled
 }
 
 export function getUsageStats(): UsageStats {
-  return store.get('usageStats')
+  return ensureStore().get('usageStats')
 }
 
 export function addUsage(cost: number): UsageStats {
@@ -129,7 +146,7 @@ export function addUsage(cost: number): UsageStats {
     totalRequests: current.totalRequests + 1,
     lastReset: current.lastReset
   }
-  store.set('usageStats', next)
+  ensureStore().set('usageStats', next)
   return next
 }
 
@@ -139,24 +156,24 @@ export function resetUsageStats(): UsageStats {
     totalRequests: 0,
     lastReset: new Date().toISOString()
   }
-  store.set('usageStats', next)
+  ensureStore().set('usageStats', next)
   return next
 }
 
 export function getObsidianVaultPath(): string | null {
-  return store.get('obsidianVaultPath') ?? null
+  return ensureStore().get('obsidianVaultPath') ?? null
 }
 
 export function setObsidianVaultPath(path: string): string {
-  store.set('obsidianVaultPath', path)
+  ensureStore().set('obsidianVaultPath', path)
   return path
 }
 
 export function getTranslationTargetLanguage(): string {
-  return store.get('translationTargetLanguage')
+  return ensureStore().get('translationTargetLanguage')
 }
 
 export function setTranslationTargetLanguage(language: string): string {
-  store.set('translationTargetLanguage', language)
+  ensureStore().set('translationTargetLanguage', language)
   return language
 }
