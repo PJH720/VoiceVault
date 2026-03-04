@@ -81,6 +81,10 @@ export interface RecordingResult {
 export type WhisperModelSize = 'base' | 'small' | 'medium' | 'large-v3-turbo'
 export type LlmModelName = 'gemma-2-3n-instruct-q4_k_m' | 'llama-3.2-3b-instruct-q4_k_m'
 export type CloudModelName =
+  | 'claude-sonnet-4-5-20250514'
+  | 'claude-opus-4-6-20250612'
+  | 'claude-haiku-3-5-20241022'
+  // Legacy identifiers (still accepted by API)
   | 'claude-3-5-sonnet-20241022'
   | 'claude-3-opus-20240229'
   | 'claude-3-haiku-20240307'
