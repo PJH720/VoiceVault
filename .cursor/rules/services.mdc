@@ -1,0 +1,1665 @@
+---
+description: Native services, AI/ML pipeline, and data layer conventions for VoiceVault
+globs:
+  - "src/main/services/**/*.ts"
+  - "src/main/ipc/**/*.ts"
+---
+
+# VoiceVault — Native Services & AI/ML Pipeline Architecture
+
+## Service Architecture Overview
+
+**Core Principle:** All heavy compute, native modules, and AI/ML inference run in the **main process**. The renderer is a thin UI layer.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                      Main Process Services                      │
+│                   (Node.js + Native Addons)                     │
+├────────────────────────────────────────────────────────────────┤
+│  AudioCaptureService        → native-audio-node (CoreAudio)     │
+│  WhisperService             → whisper-cpp-node (CoreML)         │
+│  DiarizationService         → pyannote-cpp-node                 │
+│  LLMService                 → node-llama-cpp (GGUF models)      │
+│  DatabaseService            → better-sqlite3                    │
+│  VectorService              → Local embeddings + HNSW search    │
+│  ExportService              → Obsidian markdown, PDF            │
+└────────────────────────────────────────────────────────────────┘
+                              │
+                              │ IPC
+                              ▼
+┌────────────────────────────────────────────────────────────────┐
+│                      Renderer Process                           │
+│                   (React + UI, zero compute)                    │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Service Lifecycle
+Each service follows a consistent lifecycle:
+1. **Constructor** — Initialize state, no side effects
+2. **`initialize()`** — Load models, open connections (async)
+3. **`start()`** — Begin operations (e.g., start capture, start inference)
+4. **`stop()`** — Pause operations, preserve state
+5. **`cleanup()`** — Release resources, close connections, unload models
+
+---
+
+## 1. AudioCaptureService (native-audio-node / CoreAudio)
+
+### Responsibilities
+- Capture audio from microphone and/or system audio (macOS CoreAudio, Linux PulseAudio, Windows WASAPI)
+- Voice Activity Detection (VAD) to filter silence
+- Real-time PCM streaming to renderer (waveform visualization)
+- Save raw audio to disk (WAV format)
+
+### Dependencies
+```json
+{
+  "native-audio-node": "^1.0.0"  // CoreAudio bindings for Node.js
+}
+```
+
+### Service Implementation
+**File:** `src/main/services/AudioCaptureService.ts`
+
+```typescript
+import { EventEmitter } from 'events'
+import fs from 'fs'
+import path from 'path'
+import { app } from 'electron'
+import NativeAudio from 'native-audio-node'
+import type { AudioConfig, AudioChunk } from '@shared/types'
+
+export class AudioCaptureService extends EventEmitter {
+  private stream: NativeAudio.InputStream | null = null
+  private audioBuffer: Buffer[] = []
+  private isCapturing = false
+  private outputPath: string | null = null
+  private sampleRate = 16000  // Whisper requires 16kHz
+  
+  constructor() {
+    super()
+  }
+  
+  /**
+   * Get available audio input devices
+   */
+  getDevices(): Promise<NativeAudio.Device[]> {
+    return NativeAudio.getDevices()
+  }
+  
+  /**
+   * Start capturing audio from specified device
+   */
+  async startCapture(config: AudioConfig): Promise<void> {
+    if (this.isCapturing) {
+      throw new Error('Capture already in progress')
+    }
+    
+    this.isCapturing = true
+    this.audioBuffer = []
+    
+    // Generate output path
+    const timestamp = Date.now()
+    const userDataPath = app.getPath('userData')
+    this.outputPath = path.join(userDataPath, 'recordings', `${timestamp}.wav`)
+    
+    // Ensure directory exists
+    await fs.promises.mkdir(path.dirname(this.outputPath), { recursive: true })
+    
+    // Create native audio stream
+    this.stream = NativeAudio.createInputStream({
+      deviceId: config.deviceId,
+      sampleRate: this.sampleRate,
+      channels: 1,  // Mono for Whisper
+      format: 'float32',  // PCM float32
+      bufferSize: 4096
+    })
+    
+    // ✅ Stream audio chunks to renderer + accumulate for saving
+    this.stream.on('data', (chunk: Buffer) => {
+      this.audioBuffer.push(chunk)
+      
+      // Emit to renderer for waveform visualization
+      this.emit('chunk', {
+        data: chunk,
+        timestamp: Date.now()
+      } as AudioChunk)
+    })
+    
+    this.stream.on('error', (error: Error) => {
+      console.error('[AudioCaptureService] Stream error:', error)
+      this.emit('error', error)
+    })
+    
+    // Start the stream
+    this.stream.start()
+    console.log('[AudioCaptureService] Capture started:', this.outputPath)
+  }
+  
+  /**
+   * Stop capturing and save audio file
+   */
+  async stopCapture(): Promise<string> {
+    if (!this.isCapturing || !this.stream) {
+      throw new Error('No active capture')
+    }
+    
+    this.stream.stop()
+    this.stream = null
+    this.isCapturing = false
+    
+    // ✅ Write accumulated audio to WAV file
+    const audioData = Buffer.concat(this.audioBuffer)
+    await this.writeWavFile(this.outputPath!, audioData)
+    
+    console.log('[AudioCaptureService] Capture stopped, saved to:', this.outputPath)
+    
+    const savedPath = this.outputPath!
+    this.outputPath = null
+    this.audioBuffer = []
+    
+    return savedPath
+  }
+  
+  /**
+   * Write PCM audio data as WAV file
+   */
+  private async writeWavFile(outputPath: string, pcmData: Buffer): Promise<void> {
+    // WAV header (44 bytes)
+    const header = Buffer.alloc(44)
+    const dataSize = pcmData.length
+    const fileSize = dataSize + 44
+    
+    // "RIFF" chunk
+    header.write('RIFF', 0)
+    header.writeUInt32LE(fileSize - 8, 4)
+    header.write('WAVE', 8)
+    
+    // "fmt " subchunk
+    header.write('fmt ', 12)
+    header.writeUInt32LE(16, 16)  // Subchunk1Size (16 for PCM)
+    header.writeUInt16LE(3, 20)   // AudioFormat (3 = IEEE float)
+    header.writeUInt16LE(1, 22)   // NumChannels (1 = mono)
+    header.writeUInt32LE(this.sampleRate, 24)  // SampleRate
+    header.writeUInt32LE(this.sampleRate * 4, 28)  // ByteRate (SampleRate * BlockAlign)
+    header.writeUInt16LE(4, 32)   // BlockAlign (NumChannels * BitsPerSample / 8)
+    header.writeUInt16LE(32, 34)  // BitsPerSample (32 for float32)
+    
+    // "data" subchunk
+    header.write('data', 36)
+    header.writeUInt32LE(dataSize, 40)
+    
+    // Write header + PCM data
+    await fs.promises.writeFile(outputPath, Buffer.concat([header, pcmData]))
+  }
+  
+  /**
+   * Cleanup resources
+   */
+  cleanup(): void {
+    if (this.stream) {
+      this.stream.stop()
+      this.stream = null
+    }
+    this.audioBuffer = []
+    this.removeAllListeners()
+  }
+}
+```
+
+### IPC Handler
+**File:** `src/main/ipc/audio.ts`
+
+```typescript
+import { ipcMain, BrowserWindow } from 'electron'
+import { IpcChannels } from '@shared/ipc-channels'
+import { AudioCaptureService } from '@main/services/AudioCaptureService'
+
+export function registerAudioHandlers(
+  audioService: AudioCaptureService,
+  mainWindow: BrowserWindow
+): void {
+  // Get available devices
+  ipcMain.handle(IpcChannels.AUDIO_GET_DEVICES, async () => {
+    return audioService.getDevices()
+  })
+  
+  // Start capture
+  ipcMain.handle(IpcChannels.AUDIO_START, async (event, config) => {
+    await audioService.startCapture(config)
+  })
+  
+  // Stop capture
+  ipcMain.handle(IpcChannels.AUDIO_STOP, async () => {
+    const audioPath = await audioService.stopCapture()
+    return audioPath
+  })
+  
+  // ✅ Stream audio chunks to renderer
+  audioService.on('chunk', (chunk) => {
+    mainWindow.webContents.send(IpcChannels.AUDIO_CHUNK, chunk)
+  })
+  
+  audioService.on('error', (error) => {
+    mainWindow.webContents.send(IpcChannels.AUDIO_ERROR, error.message)
+  })
+}
+```
+
+---
+
+## 2. WhisperService (whisper-cpp-node with CoreML)
+
+### Responsibilities
+- Load Whisper GGML models (base, small, medium, large-v3-turbo)
+- Transcribe audio files to text
+- Stream transcript segments in real-time
+- Speaker diarization integration (post-processing)
+
+### Dependencies
+```json
+{
+  "whisper-cpp-node": "^2.0.0"  // whisper.cpp bindings with CoreML support
+}
+```
+
+### Service Implementation
+**File:** `src/main/services/WhisperService.ts`
+
+```typescript
+import { EventEmitter } from 'events'
+import path from 'path'
+import { app } from 'electron'
+import WhisperCpp from 'whisper-cpp-node'
+import fs from 'fs'
+import type { TranscriptSegment, WhisperConfig } from '@shared/types'
+
+export class WhisperService extends EventEmitter {
+  private model: WhisperCpp.Model | null = null
+  private currentJobId: string | null = null
+  private modelPath: string | null = null
+  
+  constructor() {
+    super()
+  }
+  
+  /**
+   * Initialize Whisper service with specified model
+   */
+  async initialize(modelName: string): Promise<void> {
+    const modelsDir = path.join(app.getPath('userData'), 'models')
+    this.modelPath = path.join(modelsDir, `ggml-${modelName}.bin`)
+    
+    // Check if model exists, download if not
+    if (!fs.existsSync(this.modelPath)) {
+      throw new Error(`Model not found: ${modelName}. Please download it first.`)
+    }
+    
+    console.log('[WhisperService] Loading model:', this.modelPath)
+    
+    // ✅ Load model with CoreML acceleration on macOS
+    this.model = await WhisperCpp.loadModel(this.modelPath, {
+      useCoreML: process.platform === 'darwin',  // Enable CoreML on macOS
+      useGPU: true,
+      numThreads: 4
+    })
+    
+    console.log('[WhisperService] Model loaded successfully')
+  }
+  
+  /**
+   * Transcribe audio file
+   */
+  async transcribe(
+    audioPath: string,
+    config?: WhisperConfig
+  ): Promise<string> {
+    if (!this.model) {
+      throw new Error('Whisper model not initialized')
+    }
+    
+    // Validate audio file exists
+    if (!fs.existsSync(audioPath)) {
+      throw new Error(`Audio file not found: ${audioPath}`)
+    }
+    
+    const jobId = `whisper-${Date.now()}`
+    this.currentJobId = jobId
+    
+    console.log('[WhisperService] Starting transcription:', { jobId, audioPath })
+    
+    // ✅ Streaming transcription
+    const segments: TranscriptSegment[] = []
+    
+    await this.model.transcribe(audioPath, {
+      language: config?.language || 'auto',
+      translate: config?.translate || false,
+      maxLen: 1,  // Single token inference for streaming
+      onSegment: (segment) => {
+        // Map whisper.cpp segment to our TranscriptSegment type
+        const transcriptSegment: TranscriptSegment = {
+          id: `${jobId}-${segment.index}`,
+          recordingId: '',  // Set by caller
+          text: segment.text.trim(),
+          startTime: segment.t0 / 100,  // Convert to seconds
+          endTime: segment.t1 / 100,
+          speaker: null  // Filled in by DiarizationService
+        }
+        
+        segments.push(transcriptSegment)
+        
+        // ✅ Emit segment to IPC handler (streaming to renderer)
+        this.emit('segment', transcriptSegment)
+      }
+    })
+    
+    console.log('[WhisperService] Transcription complete:', {
+      jobId,
+      segmentCount: segments.length
+    })
+    
+    this.currentJobId = null
+    return jobId
+  }
+  
+  /**
+   * Cancel active transcription
+   */
+  cancelTranscription(): void {
+    if (this.currentJobId) {
+      // whisper-cpp-node doesn't support cancellation yet
+      // Just reset state
+      this.currentJobId = null
+      console.log('[WhisperService] Transcription cancelled')
+    }
+  }
+  
+  /**
+   * Get available models
+   */
+  getAvailableModels(): string[] {
+    const modelsDir = path.join(app.getPath('userData'), 'models')
+    if (!fs.existsSync(modelsDir)) return []
+    
+    return fs.readdirSync(modelsDir)
+      .filter(file => file.startsWith('ggml-') && file.endsWith('.bin'))
+      .map(file => file.replace('ggml-', '').replace('.bin', ''))
+  }
+  
+  /**
+   * Download Whisper model
+   */
+  async downloadModel(modelName: string): Promise<void> {
+    const modelsDir = path.join(app.getPath('userData'), 'models')
+    await fs.promises.mkdir(modelsDir, { recursive: true })
+    
+    const modelUrl = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${modelName}.bin`
+    const outputPath = path.join(modelsDir, `ggml-${modelName}.bin`)
+    
+    console.log('[WhisperService] Downloading model:', { modelName, url: modelUrl })
+    
+    // ✅ Stream download with progress
+    const response = await fetch(modelUrl)
+    if (!response.ok) {
+      throw new Error(`Model download failed: ${response.statusText}`)
+    }
+    
+    const totalSize = parseInt(response.headers.get('content-length') || '0', 10)
+    let downloadedSize = 0
+    
+    const writer = fs.createWriteStream(outputPath)
+    const reader = response.body!.getReader()
+    
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      writer.write(value)
+      downloadedSize += value.length
+      
+      const progress = (downloadedSize / totalSize) * 100
+      this.emit('download-progress', { modelName, progress, downloadedSize, totalSize })
+    }
+    
+    writer.end()
+    console.log('[WhisperService] Model downloaded:', outputPath)
+  }
+  
+  /**
+   * Cleanup resources
+   */
+  cleanup(): void {
+    if (this.model) {
+      // Unload model to free memory
+      this.model = null
+    }
+    this.removeAllListeners()
+  }
+}
+```
+
+### IPC Handler
+**File:** `src/main/ipc/transcription.ts`
+
+```typescript
+import { ipcMain, BrowserWindow } from 'electron'
+import { IpcChannels } from '@shared/ipc-channels'
+import { WhisperService } from '@main/services/WhisperService'
+
+export function registerTranscriptionHandlers(
+  whisperService: WhisperService,
+  mainWindow: BrowserWindow
+): void {
+  // Get available models
+  ipcMain.handle(IpcChannels.WHISPER_GET_MODELS, () => {
+    return whisperService.getAvailableModels()
+  })
+  
+  // Download model
+  ipcMain.handle(IpcChannels.WHISPER_DOWNLOAD_MODEL, async (event, modelName: string) => {
+    await whisperService.downloadModel(modelName)
+  })
+  
+  // Initialize model
+  ipcMain.handle(IpcChannels.WHISPER_INIT, async (event, modelName: string) => {
+    await whisperService.initialize(modelName)
+  })
+  
+  // Transcribe audio
+  ipcMain.handle(IpcChannels.WHISPER_TRANSCRIBE, async (event, audioPath: string, config) => {
+    const jobId = await whisperService.transcribe(audioPath, config)
+    return jobId
+  })
+  
+  // Cancel transcription
+  ipcMain.handle(IpcChannels.WHISPER_CANCEL, () => {
+    whisperService.cancelTranscription()
+  })
+  
+  // ✅ Stream segments to renderer
+  whisperService.on('segment', (segment) => {
+    mainWindow.webContents.send(IpcChannels.WHISPER_CHUNK, segment)
+  })
+  
+  // Stream download progress
+  whisperService.on('download-progress', (progress) => {
+    mainWindow.webContents.send(IpcChannels.WHISPER_DOWNLOAD_PROGRESS, progress)
+  })
+}
+```
+
+---
+
+## 3. DiarizationService (pyannote-cpp-node)
+
+### Responsibilities
+- Speaker segmentation (who spoke when)
+- Speaker embeddings (voice fingerprints)
+- Speaker clustering (group segments by speaker)
+- Label transcript segments with speaker IDs
+
+### Dependencies
+```json
+{
+  "pyannote-cpp-node": "^1.0.0"  // pyannote-ggml bindings
+}
+```
+
+### Service Implementation
+**File:** `src/main/services/DiarizationService.ts`
+
+```typescript
+import { EventEmitter } from 'events'
+import path from 'path'
+import { app } from 'electron'
+import PyannoteNode from 'pyannote-cpp-node'
+import type { DiarizationSegment, TranscriptSegment } from '@shared/types'
+
+export class DiarizationService extends EventEmitter {
+  private model: PyannoteNode.Pipeline | null = null
+  private modelPath: string | null = null
+  
+  constructor() {
+    super()
+  }
+  
+  /**
+   * Initialize diarization pipeline
+   */
+  async initialize(): Promise<void> {
+    const modelsDir = path.join(app.getPath('userData'), 'models')
+    this.modelPath = path.join(modelsDir, 'pyannote-segmentation-3.0.gguf')
+    
+    console.log('[DiarizationService] Loading model:', this.modelPath)
+    
+    this.model = await PyannoteNode.loadPipeline(this.modelPath, {
+      useGPU: false,  // CPU inference (fast enough)
+      numThreads: 4
+    })
+    
+    console.log('[DiarizationService] Model loaded')
+  }
+  
+  /**
+   * Run diarization on audio file
+   */
+  async diarize(audioPath: string): Promise<DiarizationSegment[]> {
+    if (!this.model) {
+      throw new Error('Diarization model not initialized')
+    }
+    
+    console.log('[DiarizationService] Processing:', audioPath)
+    
+    // ✅ Run diarization pipeline
+    const result = await this.model.process(audioPath)
+    
+    // Map pyannote output to our DiarizationSegment format
+    const segments: DiarizationSegment[] = result.turns.map((turn, index) => ({
+      startTime: turn.start,
+      endTime: turn.end,
+      speaker: `speaker_${turn.speaker}`
+    }))
+    
+    console.log('[DiarizationService] Diarization complete:', {
+      segmentCount: segments.length,
+      speakers: new Set(segments.map(s => s.speaker)).size
+    })
+    
+    return segments
+  }
+  
+  /**
+   * Align diarization segments with transcript segments
+   */
+  alignWithTranscript(
+    transcriptSegments: TranscriptSegment[],
+    diarizationSegments: DiarizationSegment[]
+  ): TranscriptSegment[] {
+    // ✅ For each transcript segment, find overlapping diarization segment
+    return transcriptSegments.map(segment => {
+      const midpoint = (segment.startTime + segment.endTime) / 2
+      
+      // Find diarization segment that contains midpoint
+      const diarizationSegment = diarizationSegments.find(
+        d => d.startTime <= midpoint && midpoint <= d.endTime
+      )
+      
+      return {
+        ...segment,
+        speaker: diarizationSegment?.speaker || null
+      }
+    })
+  }
+  
+  /**
+   * Cleanup resources
+   */
+  cleanup(): void {
+    if (this.model) {
+      this.model = null
+    }
+    this.removeAllListeners()
+  }
+}
+```
+
+---
+
+## 4. LLMService (node-llama-cpp + optional Claude API)
+
+### Responsibilities
+- Load local GGUF models (Llama 3.2 3B, Gemma-3n, etc.)
+- Generate structured summaries from transcripts
+- Extract action items, discussion points, key statements
+- Optional Claude API fallback for higher quality
+
+### Dependencies
+```json
+{
+  "node-llama-cpp": "^3.0.0",
+  "@anthropic-ai/sdk": "^0.27.0"  // Optional
+}
+```
+
+### Service Implementation
+**File:** `src/main/services/LLMService.ts`
+
+```typescript
+import { EventEmitter } from 'events'
+import path from 'path'
+import { app } from 'electron'
+import { LlamaModel, LlamaContext, LlamaChatSession } from 'node-llama-cpp'
+import Anthropic from '@anthropic-ai/sdk'
+import type { RecordingSummary, TranscriptSegment } from '@shared/types'
+
+export class LLMService extends EventEmitter {
+  private model: LlamaModel | null = null
+  private context: LlamaContext | null = null
+  private anthropic: Anthropic | null = null
+  
+  constructor() {
+    super()
+    
+    // ✅ Initialize Claude API if key is available
+    if (process.env.ANTHROPIC_API_KEY) {
+      this.anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY
+      })
+    }
+  }
+  
+  /**
+   * Initialize local GGUF model
+   */
+  async initialize(modelName: string): Promise<void> {
+    const modelsDir = path.join(app.getPath('userData'), 'models')
+    const modelPath = path.join(modelsDir, modelName)
+    
+    console.log('[LLMService] Loading model:', modelPath)
+    
+    // ✅ Load GGUF model
+    this.model = await LlamaModel.load(modelPath, {
+      gpuLayers: 33,  // Offload layers to GPU (Metal on macOS)
+      contextSize: 4096
+    })
+    
+    this.context = await this.model.createContext({
+      contextSize: 4096
+    })
+    
+    console.log('[LLMService] Model loaded')
+  }
+  
+  /**
+   * Generate structured summary from transcript
+   */
+  async summarize(
+    segments: TranscriptSegment[],
+    useClaudeAPI = false
+  ): Promise<RecordingSummary> {
+    // Concatenate transcript text
+    const fullTranscript = segments
+      .map(s => `[${s.speaker || 'Unknown'}] ${s.text}`)
+      .join('\n')
+    
+    const prompt = this.buildSummaryPrompt(fullTranscript)
+    
+    if (useClaudeAPI && this.anthropic) {
+      return this.summarizeWithClaude(prompt)
+    } else {
+      return this.summarizeLocally(prompt)
+    }
+  }
+  
+  /**
+   * Build prompt for summarization
+   */
+  private buildSummaryPrompt(transcript: string): string {
+    return `You are an AI assistant that creates structured summaries of voice recordings.
+
+Given the following transcript, extract:
+1. A concise summary (2-3 sentences)
+2. Action items (if any)
+3. Key discussion points
+4. Important statements with speaker attribution
+5. Decisions made
+
+Transcript:
+${transcript}
+
+Respond in JSON format:
+{
+  "summary": "...",
+  "action_items": [{"task": "...", "assignee": "...", "deadline": "..."}],
+  "discussion_points": ["...", "..."],
+  "key_statements": [{"speaker": "...", "text": "...", "timestamp": "..."}],
+  "decisions": ["...", "..."]
+}
+
+JSON:`
+  }
+  
+  /**
+   * Summarize using local model
+   */
+  private async summarizeLocally(prompt: string): Promise<RecordingSummary> {
+    if (!this.model || !this.context) {
+      throw new Error('LLM model not initialized')
+    }
+    
+    console.log('[LLMService] Generating summary (local)...')
+    
+    const session = new LlamaChatSession({
+      contextSequence: this.context.getSequence()
+    })
+    
+    // ✅ Stream tokens to renderer
+    let fullResponse = ''
+    
+    await session.prompt(prompt, {
+      onTextChunk: (chunk: string) => {
+        fullResponse += chunk
+        this.emit('token', chunk)
+      },
+      maxTokens: 1024,
+      temperature: 0.7
+    })
+    
+    // Parse JSON response
+    try {
+      const jsonMatch = fullResponse.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error('No JSON found in response')
+      }
+      
+      const summary: RecordingSummary = JSON.parse(jsonMatch[0])
+      console.log('[LLMService] Summary generated (local)')
+      return summary
+    } catch (error) {
+      console.error('[LLMService] JSON parse failed:', error)
+      throw new Error('Failed to parse LLM response')
+    }
+  }
+  
+  /**
+   * Summarize using Claude API
+   */
+  private async summarizeWithClaude(prompt: string): Promise<RecordingSummary> {
+    if (!this.anthropic) {
+      throw new Error('Claude API not configured')
+    }
+    
+    console.log('[LLMService] Generating summary (Claude API)...')
+    
+    const message = await this.anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    })
+    
+    const response = message.content[0].text
+    
+    // Parse JSON response
+    const jsonMatch = response.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new Error('No JSON found in Claude response')
+    }
+    
+    const summary: RecordingSummary = JSON.parse(jsonMatch[0])
+    console.log('[LLMService] Summary generated (Claude API)')
+    return summary
+  }
+  
+  /**
+   * Cleanup resources
+   */
+  cleanup(): void {
+    if (this.context) {
+      this.context.dispose()
+      this.context = null
+    }
+    if (this.model) {
+      this.model.dispose()
+      this.model = null
+    }
+    this.removeAllListeners()
+  }
+}
+```
+
+---
+
+## 5. DatabaseService (better-sqlite3 schema & migrations)
+
+### Responsibilities
+- SQLite database initialization
+- Schema migrations
+- CRUD operations for recordings, transcripts, summaries
+- Full-text search (FTS5)
+
+### Service Implementation
+**File:** `src/main/services/DatabaseService.ts`
+
+```typescript
+import Database from 'better-sqlite3'
+import { app } from 'electron'
+import path from 'path'
+import fs from 'fs'
+import type { Recording, TranscriptSegment, RecordingSummary } from '@shared/types'
+
+export class DatabaseService {
+  private db: Database.Database
+  
+  constructor() {
+    const dbPath = path.join(app.getPath('userData'), 'voicevault.db')
+    console.log('[DatabaseService] Opening database:', dbPath)
+    
+    this.db = new Database(dbPath)
+    this.initialize()
+  }
+  
+  /**
+   * Initialize database schema
+   */
+  private initialize(): void {
+    // ✅ Enable WAL mode for better concurrency
+    this.db.pragma('journal_mode = WAL')
+    this.db.pragma('foreign_keys = ON')
+    
+    // Create tables
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS recordings (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        audioPath TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        createdAt INTEGER NOT NULL,
+        category TEXT,
+        language TEXT DEFAULT 'auto',
+        metadata TEXT
+      );
+      
+      CREATE TABLE IF NOT EXISTS transcript_segments (
+        id TEXT PRIMARY KEY,
+        recordingId TEXT NOT NULL,
+        text TEXT NOT NULL,
+        startTime REAL NOT NULL,
+        endTime REAL NOT NULL,
+        speaker TEXT,
+        FOREIGN KEY (recordingId) REFERENCES recordings(id) ON DELETE CASCADE
+      );
+      
+      CREATE TABLE IF NOT EXISTS summaries (
+        id TEXT PRIMARY KEY,
+        recordingId TEXT NOT NULL UNIQUE,
+        summary TEXT NOT NULL,
+        actionItems TEXT,
+        discussionPoints TEXT,
+        keyStatements TEXT,
+        decisions TEXT,
+        createdAt INTEGER NOT NULL,
+        FOREIGN KEY (recordingId) REFERENCES recordings(id) ON DELETE CASCADE
+      );
+      
+      CREATE TABLE IF NOT EXISTS speaker_profiles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        embedding BLOB,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+      );
+      
+      -- ✅ Full-text search indices
+      CREATE VIRTUAL TABLE IF NOT EXISTS transcript_fts USING fts5(
+        recordingId,
+        text,
+        content='transcript_segments',
+        content_rowid='rowid'
+      );
+      
+      -- Triggers to keep FTS index in sync
+      CREATE TRIGGER IF NOT EXISTS transcript_ai AFTER INSERT ON transcript_segments BEGIN
+        INSERT INTO transcript_fts(rowid, recordingId, text)
+        VALUES (new.rowid, new.recordingId, new.text);
+      END;
+      
+      CREATE TRIGGER IF NOT EXISTS transcript_ad AFTER DELETE ON transcript_segments BEGIN
+        DELETE FROM transcript_fts WHERE rowid = old.rowid;
+      END;
+      
+      CREATE TRIGGER IF NOT EXISTS transcript_au AFTER UPDATE ON transcript_segments BEGIN
+        UPDATE transcript_fts SET text = new.text WHERE rowid = new.rowid;
+      END;
+    `)
+    
+    // Create indices
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_segments_recording ON transcript_segments(recordingId);
+      CREATE INDEX IF NOT EXISTS idx_recordings_created ON recordings(createdAt DESC);
+      CREATE INDEX IF NOT EXISTS idx_recordings_category ON recordings(category);
+    `)
+    
+    console.log('[DatabaseService] Database initialized')
+  }
+  
+  /**
+   * Insert new recording
+   */
+  insertRecording(recording: Recording): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO recordings (id, title, audioPath, duration, createdAt, category, language, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    
+    stmt.run(
+      recording.id,
+      recording.title,
+      recording.audioPath,
+      recording.duration,
+      recording.createdAt,
+      recording.category || null,
+      recording.language || 'auto',
+      JSON.stringify(recording.metadata || {})
+    )
+  }
+  
+  /**
+   * Get all recordings
+   */
+  getRecordings(filters?: {
+    category?: string
+    startDate?: number
+    endDate?: number
+  }): Recording[] {
+    let query = 'SELECT * FROM recordings WHERE 1=1'
+    const params: any[] = []
+    
+    if (filters?.category) {
+      query += ' AND category = ?'
+      params.push(filters.category)
+    }
+    if (filters?.startDate) {
+      query += ' AND createdAt >= ?'
+      params.push(filters.startDate)
+    }
+    if (filters?.endDate) {
+      query += ' AND createdAt <= ?'
+      params.push(filters.endDate)
+    }
+    
+    query += ' ORDER BY createdAt DESC'
+    
+    const stmt = this.db.prepare(query)
+    const rows = stmt.all(...params) as any[]
+    
+    return rows.map(row => ({
+      ...row,
+      metadata: JSON.parse(row.metadata || '{}')
+    }))
+  }
+  
+  /**
+   * Get recording by ID
+   */
+  getRecording(id: string): Recording | null {
+    const stmt = this.db.prepare('SELECT * FROM recordings WHERE id = ?')
+    const row = stmt.get(id) as any
+    
+    if (!row) return null
+    
+    return {
+      ...row,
+      metadata: JSON.parse(row.metadata || '{}')
+    }
+  }
+  
+  /**
+   * Insert transcript segments (bulk)
+   */
+  insertTranscriptSegments(segments: TranscriptSegment[]): void {
+    const insert = this.db.prepare(`
+      INSERT INTO transcript_segments (id, recordingId, text, startTime, endTime, speaker)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `)
+    
+    // ✅ Use transaction for bulk insert (10-100x faster)
+    const insertMany = this.db.transaction((segments: TranscriptSegment[]) => {
+      for (const seg of segments) {
+        insert.run(seg.id, seg.recordingId, seg.text, seg.startTime, seg.endTime, seg.speaker)
+      }
+    })
+    
+    insertMany(segments)
+  }
+  
+  /**
+   * Get transcript segments for recording
+   */
+  getTranscriptSegments(recordingId: string): TranscriptSegment[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM transcript_segments 
+      WHERE recordingId = ? 
+      ORDER BY startTime ASC
+    `)
+    return stmt.all(recordingId) as TranscriptSegment[]
+  }
+  
+  /**
+   * Insert or update summary
+   */
+  upsertSummary(recordingId: string, summary: RecordingSummary): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO summaries (id, recordingId, summary, actionItems, discussionPoints, keyStatements, decisions, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(recordingId) DO UPDATE SET
+        summary = excluded.summary,
+        actionItems = excluded.actionItems,
+        discussionPoints = excluded.discussionPoints,
+        keyStatements = excluded.keyStatements,
+        decisions = excluded.decisions
+    `)
+    
+    stmt.run(
+      `summary-${recordingId}`,
+      recordingId,
+      summary.summary,
+      JSON.stringify(summary.action_items || []),
+      JSON.stringify(summary.discussion_points || []),
+      JSON.stringify(summary.key_statements || []),
+      JSON.stringify(summary.decisions || []),
+      Date.now()
+    )
+  }
+  
+  /**
+   * Full-text search across transcripts
+   */
+  searchTranscripts(query: string, limit = 50): Array<{
+    recordingId: string
+    text: string
+    snippet: string
+  }> {
+    const stmt = this.db.prepare(`
+      SELECT 
+        recordingId,
+        text,
+        snippet(transcript_fts, 1, '<mark>', '</mark>', '...', 32) as snippet
+      FROM transcript_fts
+      WHERE transcript_fts MATCH ?
+      ORDER BY rank
+      LIMIT ?
+    `)
+    
+    return stmt.all(query, limit) as any[]
+  }
+  
+  /**
+   * Delete recording and all associated data
+   */
+  deleteRecording(id: string): void {
+    // ✅ Foreign key cascade will delete segments and summaries
+    const stmt = this.db.prepare('DELETE FROM recordings WHERE id = ?')
+    stmt.run(id)
+    
+    // Also delete audio file
+    const recording = this.getRecording(id)
+    if (recording && fs.existsSync(recording.audioPath)) {
+      fs.unlinkSync(recording.audioPath)
+    }
+  }
+  
+  /**
+   * Cleanup resources
+   */
+  cleanup(): void {
+    this.db.close()
+  }
+}
+```
+
+---
+
+## 6. VectorService (Embeddings + Search)
+
+### Responsibilities
+- Generate embeddings for transcript segments and summaries
+- Store embeddings in SQLite (or dedicated vector DB)
+- Perform semantic search (RAG pipeline)
+- Return results with citations (recording ID, timestamp, speaker)
+
+### Service Implementation
+**File:** `src/main/services/VectorService.ts`
+
+```typescript
+import Database from 'better-sqlite3'
+import { app } from 'electron'
+import path from 'path'
+import type { TranscriptSegment, SearchResult } from '@shared/types'
+
+export class VectorService {
+  private db: Database.Database
+  private embeddingModel: any  // TODO: Load local embedding model (e.g., MiniLM ONNX)
+  
+  constructor() {
+    const dbPath = path.join(app.getPath('userData'), 'vectors.db')
+    this.db = new Database(dbPath)
+    this.initialize()
+  }
+  
+  private initialize(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS embeddings (
+        id TEXT PRIMARY KEY,
+        recordingId TEXT NOT NULL,
+        segmentId TEXT,
+        text TEXT NOT NULL,
+        embedding BLOB NOT NULL,
+        metadata TEXT
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_embeddings_recording ON embeddings(recordingId);
+    `)
+    
+    // TODO: Load embedding model (e.g., all-MiniLM-L6-v2)
+    // this.embeddingModel = await loadOnnxModel('all-MiniLM-L6-v2.onnx')
+  }
+  
+  /**
+   * Generate embedding for text
+   */
+  private async embed(text: string): Promise<Float32Array> {
+    // TODO: Implement with local embedding model
+    // For now, return random vector
+    return new Float32Array(384).map(() => Math.random())
+  }
+  
+  /**
+   * Add transcript segments to vector store
+   */
+  async addSegments(segments: TranscriptSegment[]): Promise<void> {
+    const insert = this.db.prepare(`
+      INSERT INTO embeddings (id, recordingId, segmentId, text, embedding, metadata)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `)
+    
+    const insertMany = this.db.transaction(async (segments: TranscriptSegment[]) => {
+      for (const seg of segments) {
+        const embedding = await this.embed(seg.text)
+        const embeddingBuffer = Buffer.from(embedding.buffer)
+        
+        insert.run(
+          `emb-${seg.id}`,
+          seg.recordingId,
+          seg.id,
+          seg.text,
+          embeddingBuffer,
+          JSON.stringify({ speaker: seg.speaker, startTime: seg.startTime })
+        )
+      }
+    })
+    
+    await insertMany(segments)
+  }
+  
+  /**
+   * Semantic search
+   */
+  async search(query: string, limit = 10): Promise<SearchResult[]> {
+    const queryEmbedding = await this.embed(query)
+    
+    // ✅ Get all embeddings and compute cosine similarity
+    const stmt = this.db.prepare('SELECT * FROM embeddings')
+    const allEmbeddings = stmt.all() as any[]
+    
+    const results = allEmbeddings.map(row => {
+      const embedding = new Float32Array(row.embedding.buffer)
+      const similarity = this.cosineSimilarity(queryEmbedding, embedding)
+      
+      return {
+        recordingId: row.recordingId,
+        segmentId: row.segmentId,
+        text: row.text,
+        metadata: JSON.parse(row.metadata),
+        similarity
+      }
+    })
+    
+    // Sort by similarity and return top results
+    return results
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit)
+  }
+  
+  /**
+   * Cosine similarity
+   */
+  private cosineSimilarity(a: Float32Array, b: Float32Array): number {
+    let dot = 0
+    let normA = 0
+    let normB = 0
+    
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i]
+      normA += a[i] * a[i]
+      normB += b[i] * b[i]
+    }
+    
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB))
+  }
+  
+  cleanup(): void {
+    this.db.close()
+  }
+}
+```
+
+---
+
+## 7. ExportService (Obsidian markdown + PDF)
+
+### Responsibilities
+- Export recordings as Obsidian-ready Markdown (wikilinks, frontmatter)
+- Generate PDF documents
+- Apply classification templates
+- Auto-link related recordings
+
+### Service Implementation
+**File:** `src/main/services/ExportService.ts`
+
+```typescript
+import fs from 'fs'
+import path from 'path'
+import type { Recording, TranscriptSegment, RecordingSummary } from '@shared/types'
+
+export class ExportService {
+  /**
+   * Export recording as Obsidian markdown
+   */
+  async exportToObsidian(
+    recording: Recording,
+    segments: TranscriptSegment[],
+    summary: RecordingSummary | null,
+    options: {
+      vaultPath: string
+      includeTranscript?: boolean
+      includeSummary?: boolean
+      template?: string
+    }
+  ): Promise<string> {
+    const fileName = `${recording.title.replace(/[/\\?%*:|"<>]/g, '-')}.md`
+    const outputPath = path.join(options.vaultPath, fileName)
+    
+    // ✅ Build YAML frontmatter
+    const frontmatter = [
+      '---',
+      `title: "${recording.title}"`,
+      `date: ${new Date(recording.createdAt).toISOString()}`,
+      `category: ${recording.category || 'uncategorized'}`,
+      `duration: ${recording.duration}`,
+      `tags: [recording, ${recording.category || 'uncategorized'}]`,
+      `speakers: [${[...new Set(segments.map(s => s.speaker).filter(Boolean))].join(', ')}]`,
+      '---',
+      ''
+    ].join('\n')
+    
+    // ✅ Build summary section
+    let summarySection = ''
+    if (options.includeSummary !== false && summary) {
+      summarySection = [
+        '## Summary',
+        '',
+        summary.summary,
+        '',
+        '### Action Items',
+        '',
+        ...(summary.action_items || []).map(item => `- [ ] ${item.task} (${item.assignee || 'Unassigned'})`),
+        '',
+        '### Discussion Points',
+        '',
+        ...(summary.discussion_points || []).map(point => `- ${point}`),
+        '',
+        '### Decisions',
+        '',
+        ...(summary.decisions || []).map(decision => `- ${decision}`),
+        ''
+      ].join('\n')
+    }
+    
+    // ✅ Build transcript section
+    let transcriptSection = ''
+    if (options.includeTranscript !== false) {
+      transcriptSection = [
+        '## Transcript',
+        '',
+        ...segments.map(seg => {
+          const timestamp = this.formatTimestamp(seg.startTime)
+          const speaker = seg.speaker || 'Unknown'
+          return `**[${timestamp}] ${speaker}:** ${seg.text}`
+        }),
+        ''
+      ].join('\n')
+    }
+    
+    // ✅ Combine sections
+    const content = [
+      frontmatter,
+      summarySection,
+      transcriptSection
+    ].join('\n')
+    
+    // Write file
+    await fs.promises.writeFile(outputPath, content, 'utf-8')
+    
+    console.log('[ExportService] Exported to Obsidian:', outputPath)
+    return outputPath
+  }
+  
+  /**
+   * Export recording as PDF
+   */
+  async exportToPDF(
+    recording: Recording,
+    segments: TranscriptSegment[],
+    summary: RecordingSummary | null,
+    outputPath: string
+  ): Promise<string> {
+    // TODO: Implement PDF generation (e.g., using PDFKit or Puppeteer)
+    throw new Error('PDF export not yet implemented')
+  }
+  
+  /**
+   * Format timestamp (seconds → HH:MM:SS)
+   */
+  private formatTimestamp(seconds: number): string {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = Math.floor(seconds % 60)
+    
+    return [h, m, s]
+      .map(n => n.toString().padStart(2, '0'))
+      .join(':')
+  }
+}
+```
+
+---
+
+## Model Management
+
+### Model Storage Paths
+All models are stored in the app's `userData` directory:
+
+```typescript
+const modelsDir = path.join(app.getPath('userData'), 'models')
+```
+
+**Default location:**
+- macOS: `~/Library/Application Support/VoiceVault/models/`
+- Linux: `~/.config/VoiceVault/models/`
+- Windows: `%APPDATA%\VoiceVault\models\`
+
+### Model Files
+| Model | Size | Purpose |
+|-------|------|---------|
+| `ggml-base.bin` | ~150 MB | Whisper base (fastest) |
+| `ggml-small.bin` | ~500 MB | Whisper small (balanced) |
+| `ggml-large-v3-turbo.bin` | ~1.5 GB | Whisper large-v3-turbo (best quality) |
+| `pyannote-segmentation-3.0.gguf` | ~80 MB | Speaker diarization |
+| `llama-3.2-3b-instruct.gguf` | ~2 GB | Local LLM (summarization) |
+
+### Model Download Flow
+1. User selects model in Settings
+2. Renderer calls `window.api.downloadModel(modelName)`
+3. Main process streams download with progress events
+4. Model saved to `userData/models/`
+5. User can switch models without re-downloading
+
+---
+
+## Worker Threads for CPU-Intensive Tasks
+
+### When to Use Worker Threads
+- **Whisper transcription** — If blocking main thread (shouldn't with whisper-cpp-node's async API)
+- **LLM inference** — If model is too large or inference too slow
+- **Diarization** — If pyannote-cpp-node blocks (unlikely)
+
+### Worker Pattern
+**File:** `src/main/workers/transcription.worker.ts`
+
+```typescript
+import { parentPort, workerData } from 'worker_threads'
+import WhisperCpp from 'whisper-cpp-node'
+
+async function transcribeInWorker(audioPath: string, modelPath: string) {
+  const model = await WhisperCpp.loadModel(modelPath)
+  
+  const segments: any[] = []
+  
+  await model.transcribe(audioPath, {
+    onSegment: (segment) => {
+      segments.push(segment)
+      parentPort?.postMessage({ type: 'segment', segment })
+    }
+  })
+  
+  parentPort?.postMessage({ type: 'complete', segments })
+}
+
+transcribeInWorker(workerData.audioPath, workerData.modelPath)
+```
+
+**Usage in service:**
+```typescript
+import { Worker } from 'worker_threads'
+
+const worker = new Worker('./workers/transcription.worker.ts', {
+  workerData: { audioPath, modelPath }
+})
+
+worker.on('message', (msg) => {
+  if (msg.type === 'segment') {
+    this.emit('segment', msg.segment)
+  } else if (msg.type === 'complete') {
+    console.log('Transcription complete')
+  }
+})
+```
+
+---
+
+## Memory Management for Large Models
+
+### Best Practices
+1. **Lazy-load models** — Don't load at app startup, load on first use
+2. **Unload when idle** — Free memory after 5 minutes of inactivity
+3. **Monitor memory** — Use `process.memoryUsage()` to track heap size
+4. **Limit concurrent jobs** — Only one transcription/summarization at a time
+5. **Stream outputs** — Don't accumulate full results in memory
+
+### Example: Lazy Loading
+```typescript
+class WhisperService {
+  private model: WhisperCpp.Model | null = null
+  private idleTimer: NodeJS.Timeout | null = null
+  
+  async transcribe(audioPath: string) {
+    // ✅ Load model on demand
+    if (!this.model) {
+      await this.loadModel()
+    }
+    
+    // Reset idle timer
+    this.resetIdleTimer()
+    
+    // ... transcribe
+  }
+  
+  private resetIdleTimer(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer)
+    
+    this.idleTimer = setTimeout(() => {
+      console.log('[WhisperService] Unloading model due to inactivity')
+      this.unloadModel()
+    }, 5 * 60 * 1000)  // 5 minutes
+  }
+  
+  private unloadModel(): void {
+    if (this.model) {
+      this.model = null
+      // Force garbage collection (if --expose-gc flag set)
+      if (global.gc) global.gc()
+    }
+  }
+}
+```
+
+---
+
+## Streaming Patterns (Real-Time Transcription)
+
+### The Challenge
+Whisper models process entire audio files, not real-time streams. To get "live" transcription:
+
+1. **Buffer audio chunks** (e.g., 30-second windows)
+2. **Transcribe each chunk** as it completes
+3. **Stream results to renderer** segment-by-segment
+4. **Merge overlapping segments** to avoid duplicates
+
+### Implementation
+```typescript
+class WhisperService {
+  private chunkBuffer: Buffer[] = []
+  private chunkDuration = 30  // seconds
+  
+  async startStreamingTranscription(audioStream: EventEmitter): Promise<void> {
+    audioStream.on('data', async (chunk: Buffer) => {
+      this.chunkBuffer.push(chunk)
+      
+      // Check if we have enough for a chunk
+      const totalDuration = this.chunkBuffer.length * 0.1  // Assuming 100ms per chunk
+      
+      if (totalDuration >= this.chunkDuration) {
+        // Transcribe accumulated chunk
+        const audioData = Buffer.concat(this.chunkBuffer)
+        await this.transcribeChunk(audioData)
+        
+        // Clear buffer (with 5s overlap for continuity)
+        this.chunkBuffer = this.chunkBuffer.slice(-50)  // Keep last 5 seconds
+      }
+    })
+  }
+  
+  private async transcribeChunk(audioData: Buffer): Promise<void> {
+    // Write temporary file
+    const tempPath = `/tmp/chunk-${Date.now()}.wav`
+    await fs.promises.writeFile(tempPath, audioData)
+    
+    // Transcribe
+    await this.model!.transcribe(tempPath, {
+      onSegment: (segment) => {
+        this.emit('segment', segment)
+      }
+    })
+    
+    // Clean up
+    fs.unlinkSync(tempPath)
+  }
+}
+```
+
+---
+
+## Service Lifecycle Management
+
+### App Initialization
+**File:** `src/main/index.ts`
+
+```typescript
+import { app, BrowserWindow } from 'electron'
+import { AudioCaptureService } from './services/AudioCaptureService'
+import { WhisperService } from './services/WhisperService'
+import { DatabaseService } from './services/DatabaseService'
+import { LLMService } from './services/LLMService'
+import { registerAudioHandlers } from './ipc/audio'
+import { registerTranscriptionHandlers } from './ipc/transcription'
+
+let mainWindow: BrowserWindow
+let audioService: AudioCaptureService
+let whisperService: WhisperService
+let databaseService: DatabaseService
+let llmService: LLMService
+
+app.on('ready', async () => {
+  // ✅ Initialize services
+  audioService = new AudioCaptureService()
+  whisperService = new WhisperService()
+  databaseService = new DatabaseService()
+  llmService = new LLMService()
+  
+  // Load Whisper model (lazy-load pattern)
+  const settings = store.get('settings')
+  if (settings.whisperModel) {
+    await whisperService.initialize(settings.whisperModel)
+  }
+  
+  // Create window
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+  
+  // ✅ Register IPC handlers
+  registerAudioHandlers(audioService, mainWindow)
+  registerTranscriptionHandlers(whisperService, mainWindow)
+  // ... register other handlers
+  
+  mainWindow.loadFile('index.html')
+})
+
+// ✅ Cleanup on quit
+app.on('before-quit', () => {
+  audioService.cleanup()
+  whisperService.cleanup()
+  databaseService.cleanup()
+  llmService.cleanup()
+})
+```
+
+---
+
+## Error Handling in Native Addons
+
+### The Problem
+Native addons (whisper-cpp-node, better-sqlite3) can crash the entire Electron app if they throw unhandled errors.
+
+### Solution: Defensive Error Handling
+```typescript
+class WhisperService {
+  async transcribe(audioPath: string): Promise<string> {
+    try {
+      // Validate inputs
+      if (!fs.existsSync(audioPath)) {
+        throw new Error(`Audio file not found: ${audioPath}`)
+      }
+      
+      if (!this.model) {
+        throw new Error('Whisper model not initialized')
+      }
+      
+      // Native call wrapped in try-catch
+      const jobId = await this.model.transcribe(audioPath, {
+        onSegment: (segment) => {
+          this.emit('segment', segment)
+        }
+      })
+      
+      return jobId
+    } catch (error) {
+      // ✅ Log error details
+      console.error('[WhisperService] Transcription failed:', {
+        audioPath,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      
+      // ✅ Emit error to IPC handler
+      this.emit('error', error)
+      
+      // ✅ Re-throw as typed error
+      throw new Error(`Transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+}
+```
+
+---
+
+**Last updated:** 2026-03-04

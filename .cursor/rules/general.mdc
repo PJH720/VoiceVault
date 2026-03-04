@@ -1,0 +1,650 @@
+---
+description: General project conventions and workflow rules for VoiceVault
+globs: **/*
+---
+
+# VoiceVault — General Project Conventions
+
+## Project Overview
+
+**VoiceVault** is an open-source **cross-platform desktop app** that records, transcribes, summarizes, and auto-organizes voice recordings into structured notes — **all on-device, no server required**.
+
+**Tech Stack:**
+- **Electron** (v40+) — Desktop app shell
+- **React 19** — UI framework with functional components only
+- **TypeScript 5+** — Strict mode, no `any`
+- **electron-vite** — Build tooling (Vite-based, fast HMR)
+- **electron-forge** — Packaging & distribution (DMG/deb/exe)
+- **pnpm** — Package manager (NOT npm or yarn)
+- **Tailwind CSS v4** — Utility-first styling
+- **shadcn/ui** — Accessible UI primitives (Radix-based)
+- **react-i18next** — i18n (Korean primary, English/Japanese support)
+
+**Target Platforms:** macOS (Apple Silicon optimized with CoreML), Linux, Windows
+
+**Repository:** https://github.com/PJH720/VoiceVault
+
+---
+
+## Project Structure
+
+```
+VoiceVault/
+├── src/
+│   ├── main/                          # Electron main process (Node.js + Native)
+│   │   ├── index.ts                   # App entry point, BrowserWindow setup
+│   │   ├── ipc/                       # IPC handlers (main ↔ renderer communication)
+│   │   │   ├── audio.ts              # Audio capture IPC
+│   │   │   ├── transcription.ts      # Whisper inference IPC
+│   │   │   ├── summarization.ts      # LLM inference IPC
+│   │   │   ├── database.ts           # SQLite operations IPC
+│   │   │   └── export.ts             # Obsidian/PDF export IPC
+│   │   ├── services/                  # Native service wrappers (heavy compute)
+│   │   │   ├── AudioCaptureService.ts    # native-audio-node (CoreAudio)
+│   │   │   ├── WhisperService.ts         # whisper-cpp-node (CoreML on macOS)
+│   │   │   ├── DiarizationService.ts     # pyannote-cpp-node
+│   │   │   ├── LLMService.ts             # node-llama-cpp (local GGUF models)
+│   │   │   ├── DatabaseService.ts        # better-sqlite3
+│   │   │   ├── VectorService.ts          # Embeddings + vector search
+│   │   │   └── ExportService.ts          # Obsidian markdown, PDF
+│   │   ├── store.ts                   # electron-store (user settings)
+│   │   └── updater.ts                # electron-updater + Velopack
+│   ├── preload/                       # Preload scripts (context bridge)
+│   │   └── index.ts                   # Exposes typed API to renderer (window.api.*)
+│   ├── renderer/                      # React frontend (UI layer)
+│   │   ├── App.tsx                    # Root component, router
+│   │   ├── components/                # Reusable UI components
+│   │   │   ├── ui/                   # shadcn/ui primitives (Button, Dialog, etc.)
+│   │   │   ├── Recording/            # Recording controls, waveform visualization
+│   │   │   ├── Transcript/           # Live transcript display, speaker labels
+│   │   │   ├── Summary/              # Structured summaries, action items
+│   │   │   ├── Search/               # RAG search UI
+│   │   │   ├── Library/              # Recording library, filters
+│   │   │   └── Settings/             # Preferences, model management
+│   │   ├── contexts/                  # React Context providers (state management)
+│   │   │   ├── RecordingContext.tsx
+│   │   │   ├── SettingsContext.tsx
+│   │   │   └── I18nContext.tsx
+│   │   ├── hooks/                     # Custom React hooks
+│   │   ├── lib/                       # Utilities, helpers
+│   │   ├── i18n/                      # Internationalization
+│   │   │   ├── ko.json              # Korean (primary)
+│   │   │   ├── en.json              # English
+│   │   │   └── ja.json              # Japanese
+│   │   ├── styles/                    # Tailwind CSS v4, global styles
+│   │   └── index.html
+│   └── shared/                        # Types shared across all processes
+│       ├── types.ts                   # Recording, Transcript, Summary types
+│       ├── ipc-channels.ts           # IPC channel name constants
+│       └── constants.ts              # App-wide constants
+├── resources/                         # Static assets, default templates
+│   ├── templates/                    # Classification templates (JSON)
+│   └── models/                       # Model download manifests
+├── tests/
+│   ├── unit/                         # Vitest unit tests
+│   └── e2e/                          # Playwright E2E tests
+├── electron.vite.config.ts
+├── forge.config.ts
+├── tailwind.config.ts
+├── tsconfig.json
+├── package.json
+└── pnpm-lock.yaml
+```
+
+---
+
+## Build Commands
+
+### Prerequisites
+- **Node.js** 20+ (LTS recommended)
+- **pnpm** 9+ (install via `npm install -g pnpm`)
+- ~5 GB free disk space (for AI models)
+- macOS 13+ / Linux / Windows 10+
+
+### Quick Start
+```bash
+git clone https://github.com/PJH720/VoiceVault.git
+cd VoiceVault
+pnpm install
+pnpm dev
+```
+
+### Available Scripts
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start in development mode with hot reload (Vite HMR) |
+| `pnpm build` | Build for production (minified, tree-shaken) |
+| `pnpm package` | Package the app (unsigned) |
+| `pnpm make` | Package + create distributable (DMG/deb/exe) |
+| `pnpm lint` | ESLint + TypeScript check |
+| `pnpm lint:fix` | Auto-fix linting issues |
+| `pnpm test` | Run Vitest unit tests |
+| `pnpm test:watch` | Unit tests in watch mode |
+| `pnpm test:e2e` | Run Playwright E2E tests |
+| `pnpm test:coverage` | Generate test coverage report |
+| `pnpm typecheck` | TypeScript type checking (all processes) |
+
+---
+
+## Testing
+
+### Framework Choices
+| Target | Framework | Scope |
+|--------|-----------|-------|
+| `tests/unit/` | **Vitest** | Services, utilities, hooks, IPC handlers |
+| `tests/e2e/` | **Playwright** | Full app flows (record → transcribe → export) |
+
+### Test File Structure
+Test files **mirror source structure** exactly:
+```
+src/main/services/WhisperService.ts
+  → tests/unit/services/WhisperService.test.ts
+
+src/renderer/hooks/useTranscription.ts
+  → tests/unit/hooks/useTranscription.test.ts
+```
+
+### Test Conventions
+- **Native module mocking:** Use `vi.mock()` for `whisper-cpp-node`, `native-audio-node`, `better-sqlite3`
+- **React component tests:** Use `@testing-library/react` for rendering, queries, and interactions
+- **E2E tests:** Use Playwright's Electron support (`_electron.launch()`)
+- **Coverage target:** >80% for critical services (Audio, Whisper, Database)
+- **Test data:** Store fixtures in `tests/fixtures/` (audio samples, mock transcripts)
+
+### Running Tests
+```bash
+# Unit tests
+pnpm test
+
+# Watch mode during development
+pnpm test:watch
+
+# E2E tests (requires built app)
+pnpm build
+pnpm test:e2e
+
+# Coverage report
+pnpm test:coverage
+```
+
+---
+
+## Git Conventions
+
+### Branching Strategy
+- **`main`** — Production-ready code, protected branch
+- **`develop`** — Integration branch for features
+- **Feature branches:** `feature/<short-description>` (e.g., `feature/whisper-streaming`)
+- **Bug fixes:** `fix/<issue-number>-<description>` (e.g., `fix/42-audio-crash`)
+- **Chores:** `chore/<description>` (e.g., `chore/update-deps`)
+
+### Commit Message Format (Conventional Commits)
+```
+<type>(<scope>): <subject>
+
+<body (optional)>
+
+<footer (optional)>
+```
+
+**Types:**
+- `feat:` — New feature
+- `fix:` — Bug fix
+- `docs:` — Documentation changes
+- `style:` — Formatting, missing semicolons (no code change)
+- `refactor:` — Code restructuring (no feature change)
+- `perf:` — Performance improvements
+- `test:` — Adding or updating tests
+- `chore:` — Build process, dependencies, tooling
+
+**Examples:**
+```
+feat(whisper): add streaming transcription support
+
+fix(audio): prevent memory leak in CoreAudio capture
+
+docs(readme): update build instructions for Windows
+
+refactor(ipc): consolidate IPC channel definitions
+```
+
+### PR Rules
+1. **All PRs must target `develop`** — never merge directly to `main`
+2. **Require at least one approval** before merging
+3. **CI must pass** (lint, typecheck, tests)
+4. **Squash commits** on merge to keep history clean
+5. **Link related issues** in PR description (e.g., "Closes #42")
+6. **Add screenshots/videos** for UI changes
+7. **Update documentation** if behavior changes
+
+---
+
+## Environment Setup
+
+### Required `.env` Files
+None required for core functionality. Optional API keys for advanced features:
+
+```bash
+# .env.local (optional)
+ANTHROPIC_API_KEY=sk-ant-...       # For Claude API fallback (LLM summaries)
+OPENAI_API_KEY=sk-...              # For OpenAI embeddings (if not using local)
+```
+
+**⚠️ Security:** Never commit `.env` files! `.gitignore` includes `.env*`.
+
+### macOS Entitlements
+VoiceVault requires special permissions on macOS. These are configured in `forge.config.ts`:
+
+```xml
+<!-- Required entitlements -->
+<key>com.apple.security.device.audio-input</key>
+<true/>  <!-- Microphone access -->
+<key>com.apple.security.cs.disable-library-validation</key>
+<true/>  <!-- For native addons -->
+<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+<true/>  <!-- For CoreML, whisper.cpp -->
+```
+
+### Linux Dependencies
+```bash
+# Ubuntu/Debian
+sudo apt install libasound2-dev libpulse-dev
+
+# Fedora/RHEL
+sudo dnf install alsa-lib-devel pulseaudio-libs-devel
+```
+
+---
+
+## Dependency Management
+
+### Adding Dependencies
+```bash
+# Production dependency
+pnpm add <package>
+
+# Development dependency
+pnpm add -D <package>
+
+# Specific version
+pnpm add <package>@<version>
+```
+
+### Dependency Categories
+
+**Main Process (Node.js + Native):**
+- `electron`, `whisper-cpp-node`, `native-audio-node`, `better-sqlite3`, `electron-store`, `node-llama-cpp`
+
+**Renderer (React + UI):**
+- `react`, `react-dom`, `@radix-ui/*`, `react-i18next`, `tailwindcss`
+
+**Shared:**
+- `typescript`, `eslint`, `prettier`
+
+**Dev/Test:**
+- `electron-vite`, `@electron-forge/cli`, `vitest`, `@playwright/test`, `@testing-library/react`
+
+### Update Policy
+- **Monthly review** — Check for security updates via `pnpm audit`
+- **Major version updates** — Test thoroughly, especially for native addons
+- **Lock file** — Always commit `pnpm-lock.yaml` changes
+
+---
+
+## electron-vite Configuration
+
+**File:** `electron.vite.config.ts`
+
+### Key Settings
+```typescript
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
+
+export default defineConfig({
+  main: {
+    plugins: [externalizeDepsPlugin()],  // Keep native modules external
+    build: {
+      rollupOptions: {
+        external: ['whisper-cpp-node', 'native-audio-node', 'better-sqlite3']
+      }
+    }
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()]
+  },
+  renderer: {
+    plugins: [react()],
+    resolve: {
+      alias: {
+        '@renderer': resolve('src/renderer'),
+        '@shared': resolve('src/shared')
+      }
+    }
+  }
+})
+```
+
+### Hot Module Replacement (HMR)
+- **Renderer:** Full Vite HMR — instant updates, preserves state
+- **Main/Preload:** Automatic restart on change
+- **Native modules:** Require full rebuild (`pnpm dev` restart)
+
+---
+
+## electron-forge Packaging
+
+**File:** `forge.config.ts`
+
+### Makers (Distributables)
+| Platform | Maker | Output |
+|----------|-------|--------|
+| macOS | `@electron-forge/maker-dmg` | `.dmg` installer |
+| Linux | `@electron-forge/maker-deb` | `.deb` package (Debian/Ubuntu) |
+| Linux | `@electron-forge/maker-appimage` | `.AppImage` portable |
+| Windows | `@electron-forge/maker-squirrel` | `.exe` installer |
+
+### Code Signing
+- **macOS:** Requires Apple Developer ID (`APPLE_ID`, `APPLE_ID_PASSWORD`, `APPLE_TEAM_ID`)
+- **Windows:** Optional Authenticode certificate
+- **Linux:** No signing required
+
+### Packaging Commands
+```bash
+# Package for current platform (unsigned)
+pnpm package
+
+# Create distributable (DMG/deb/exe)
+pnpm make
+
+# Package for specific platform
+pnpm make --platform=darwin
+pnpm make --platform=linux
+pnpm make --platform=win32
+```
+
+---
+
+## Code Review Checklist
+
+### Before Submitting PR
+- [ ] **TypeScript strict mode:** No `any`, no type errors
+- [ ] **Tests added/updated:** Unit tests for services, E2E for flows
+- [ ] **Lint passes:** `pnpm lint` with no errors
+- [ ] **Typecheck passes:** `pnpm typecheck` clean
+- [ ] **i18n complete:** All user-facing strings use `t()`, translations added to `ko.json`/`en.json`/`ja.json`
+- [ ] **IPC validated:** All IPC inputs validated in main process handlers
+- [ ] **No console.logs:** Use proper logging (or remove debug logs)
+- [ ] **Performance tested:** No blocking operations in main thread
+- [ ] **Memory leaks checked:** Services properly cleaned up (`cleanup()` methods called)
+- [ ] **Accessibility:** Keyboard navigation works, ARIA labels on interactive elements
+- [ ] **Error handling:** All async operations wrapped in try-catch with user-friendly errors
+
+### Reviewer Checklist
+- [ ] **Code matches architecture:** Services in main, UI in renderer, no blurred boundaries
+- [ ] **Security:** No exposed Node.js APIs to renderer, all IPC goes through preload
+- [ ] **Testing:** Adequate coverage, tests actually test behavior (not implementation details)
+- [ ] **UX:** Changes improve or maintain user experience
+- [ ] **Performance:** No unnecessary re-renders, efficient algorithms
+- [ ] **Documentation:** Code is self-documenting or has comments for complex logic
+
+---
+
+## i18n Requirements
+
+### Translation Keys
+**Format:** `namespace.section.key`
+```typescript
+// Example: src/renderer/i18n/ko.json
+{
+  "recording": {
+    "controls": {
+      "start": "녹음 시작",
+      "stop": "녹음 중지",
+      "pause": "일시 정지"
+    },
+    "status": {
+      "idle": "대기 중",
+      "recording": "녹음 중...",
+      "processing": "처리 중..."
+    }
+  }
+}
+```
+
+### Usage in Components
+```typescript
+import { useTranslation } from 'react-i18next'
+
+function RecordingControls() {
+  const { t } = useTranslation()
+  
+  return (
+    <button onClick={startRecording}>
+      {t('recording.controls.start')}
+    </button>
+  )
+}
+```
+
+### Rules
+- **No hardcoded strings** — Every user-facing string must use `t()`
+- **Pluralization support** — Use `t('key', { count: n })` for plurals
+- **Variables** — Use `t('key', { name: 'John' })` for interpolation
+- **Korean primary** — All features must have Korean translations first
+- **Fallback** — Missing translations fall back to English
+
+---
+
+## Accessibility Requirements
+
+### Keyboard Navigation
+- All interactive elements must be keyboard-accessible (Tab, Enter, Space)
+- Modal dialogs must trap focus (use Radix Dialog component)
+- Custom shortcuts must not conflict with OS/browser defaults
+
+### ARIA Labels
+```tsx
+// ✅ Good
+<button aria-label={t('recording.controls.start')}>
+  <PlayIcon />
+</button>
+
+// ❌ Bad (icon-only button with no label)
+<button>
+  <PlayIcon />
+</button>
+```
+
+### Screen Reader Support
+- Use semantic HTML (`<button>`, `<nav>`, `<main>`, not `<div onClick>`)
+- All images must have `alt` text
+- Form inputs must have associated `<label>`
+- Status updates must use `aria-live` regions
+
+### Color Contrast
+- Text must meet WCAG AA standards (4.5:1 for normal text, 3:1 for large text)
+- Use Tailwind's default color palette (already accessible)
+
+---
+
+## Localization Guidelines
+
+### Supported Languages
+| Language | Code | Status | Notes |
+|----------|------|--------|-------|
+| **Korean** | `ko` | Primary | Main development language |
+| **English** | `en` | Full support | International users |
+| **Japanese** | `ja` | Full support | East Asian users |
+
+### Adding a New Language
+1. Create `src/renderer/i18n/<lang>.json` (copy from `en.json`)
+2. Translate all keys
+3. Add to `src/renderer/i18n/index.ts`:
+   ```typescript
+   import ja from './ja.json'
+   
+   i18n.use(initReactI18next).init({
+     resources: {
+       ko: { translation: ko },
+       en: { translation: en },
+       ja: { translation: ja }  // Add this
+     }
+   })
+   ```
+4. Add language selector option in Settings
+
+### Translation Best Practices
+- **Keep keys consistent** across languages (same structure)
+- **Avoid concatenation** — Use variables instead: `t('greeting', { name })`
+- **Cultural context** — Adapt idioms and phrases, don't translate literally
+- **Date/time formats** — Use `Intl.DateTimeFormat` for locale-aware formatting
+
+---
+
+## Forbidden Patterns
+
+### ❌ Never Do This
+```typescript
+// 1. Direct Node.js APIs in renderer
+import fs from 'fs'  // ❌ NEVER in renderer process
+
+// 2. Hardcoded strings
+<button>Start Recording</button>  // ❌ Use t('recording.controls.start')
+
+// 3. `any` type
+function process(data: any) { ... }  // ❌ Use proper types or `unknown`
+
+// 4. Direct ipcRenderer in renderer
+import { ipcRenderer } from 'electron'  // ❌ Use window.api.* instead
+
+// 5. Inline styles
+<div style={{ color: 'red' }}>  // ❌ Use Tailwind classes
+
+// 6. Class components
+class MyComponent extends React.Component { ... }  // ❌ Use function components
+
+// 7. Unvalidated IPC inputs
+ipcMain.handle('delete-file', (_, path) => {
+  fs.unlinkSync(path)  // ❌ No validation = security hole
+})
+```
+
+### ✅ Do This Instead
+```typescript
+// 1. Use IPC through preload
+window.api.readFile(path)  // ✅ Exposed via contextBridge
+
+// 2. Use translations
+<button>{t('recording.controls.start')}</button>  // ✅
+
+// 3. Use proper types
+function process(data: RecordingData) { ... }  // ✅
+
+// 4. Use exposed API
+window.api.transcribe(audioData)  // ✅
+
+// 5. Use Tailwind
+<div className="text-red-500">  // ✅
+
+// 6. Function components
+function MyComponent() { ... }  // ✅
+
+// 7. Validate IPC inputs
+ipcMain.handle('delete-file', (_, path: string) => {
+  if (!isValidPath(path)) throw new Error('Invalid path')
+  if (!path.startsWith(app.getPath('userData'))) throw new Error('Unauthorized')
+  fs.unlinkSync(path)  // ✅
+})
+```
+
+---
+
+## Performance Guidelines
+
+### Main Process
+- **Never block the main thread** — Use worker threads for CPU-intensive tasks
+- **Stream large data** — Don't load entire audio files into memory
+- **Lazy-load models** — Load Whisper/LLM models on first use, not at startup
+- **Clean up resources** — Call `cleanup()` on services before app quit
+
+### Renderer Process
+- **Avoid unnecessary re-renders** — Use `React.memo()`, `useMemo()`, `useCallback()`
+- **Virtualize long lists** — Use `react-window` for recording library (1000+ items)
+- **Debounce input** — Search queries should debounce 300ms
+- **Lazy-load routes** — Use `React.lazy()` for route-based code splitting
+
+### IPC Communication
+- **Batch updates** — Send transcript segments every 500ms, not per-segment
+- **Use streams for large data** — Don't send 1GB audio files over IPC
+- **Cancel in-flight requests** — Clean up IPC listeners on component unmount
+
+---
+
+## Logging & Debugging
+
+### Development Mode
+- Electron DevTools open by default
+- React DevTools available (install browser extension)
+- Verbose logging enabled
+
+### Production Mode
+- No DevTools
+- Minimal logging (errors only)
+- Crash reporter enabled (future: electron-log)
+
+### Logging Conventions
+```typescript
+// Use console methods with prefixes
+console.log('[AudioService]', 'Capture started')
+console.error('[WhisperService]', 'Model load failed:', error)
+console.warn('[DatabaseService]', 'Migration pending')
+```
+
+---
+
+## Security Best Practices
+
+### IPC Security
+1. **Never expose Node.js APIs directly** — Always go through preload contextBridge
+2. **Validate all inputs** — Assume renderer is compromised
+3. **Whitelist IPC channels** — Define all channels in `src/shared/ipc-channels.ts`
+4. **No eval()** — Never execute code from renderer
+
+### Content Security Policy (CSP)
+Configured in main process:
+```typescript
+win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+  callback({
+    responseHeaders: {
+      ...details.responseHeaders,
+      'Content-Security-Policy': ["default-src 'self'; script-src 'self'"]
+    }
+  })
+})
+```
+
+### File System Access
+- **Restrict paths** — Only allow access to app data directory
+- **No path traversal** — Validate paths don't contain `..`
+- **Confirm destructive actions** — Ask user before deleting files
+
+---
+
+## Project Philosophy
+
+### Privacy by Architecture
+- **No server** — Everything runs locally
+- **No accounts** — No sign-up, no login, no user tracking
+- **No telemetry** — No analytics, no crash reports sent externally
+- **SQLite on disk** — User owns their data, can export anytime
+
+### Open Source Ethos
+- **MIT license** — Permissive, no restrictions
+- **Community-driven** — Accept contributions, discuss features openly
+- **Transparent roadmap** — Phases documented, progress visible
+- **No vendor lock-in** — Export to Obsidian, plain text, PDF
+
+---
+
+**Last updated:** 2026-03-04

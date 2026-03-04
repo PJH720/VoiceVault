@@ -1,0 +1,1286 @@
+---
+description: TypeScript/React conventions, architecture patterns, and code style for VoiceVault
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+
+# VoiceVault — TypeScript/React Architecture & Code Style
+
+## TypeScript Configuration
+
+### Strict Mode (Non-Negotiable)
+**File:** `tsconfig.json`
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
+  }
+}
+```
+
+### The `any` Ban
+**Rule:** `any` is forbidden. Zero tolerance.
+
+```typescript
+// ❌ NEVER
+function processData(data: any) { ... }
+const result: any = await fetch()
+items.map((item: any) => ...)
+
+// ✅ Use proper types
+function processData(data: RecordingData) { ... }
+const result: TranscriptSegment[] = await fetch()
+items.map((item: Recording) => ...)
+
+// ✅ If truly unknown, use `unknown` and narrow
+function handleMessage(data: unknown) {
+  if (isRecordingData(data)) {
+    // Now TypeScript knows data is RecordingData
+    processRecording(data)
+  }
+}
+
+// Type guard helper
+function isRecordingData(data: unknown): data is RecordingData {
+  return typeof data === 'object' && data !== null && 'id' in data && 'audioPath' in data
+}
+```
+
+### Explicit Return Types
+**All exported functions** must have explicit return types:
+```typescript
+// ❌ Implicit return type
+export function getRecordings() {
+  return db.query('SELECT * FROM recordings')
+}
+
+// ✅ Explicit return type
+export function getRecordings(): Promise<Recording[]> {
+  return db.query('SELECT * FROM recordings')
+}
+```
+
+### Path Aliases
+Configured in `tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@main/*": ["src/main/*"],
+      "@renderer/*": ["src/renderer/*"],
+      "@preload/*": ["src/preload/*"],
+      "@shared/*": ["src/shared/*"]
+    }
+  }
+}
+```
+
+**Usage:**
+```typescript
+// ❌ Relative imports from deep nesting
+import { Recording } from '../../../../../shared/types'
+
+// ✅ Path aliases
+import { Recording } from '@shared/types'
+```
+
+---
+
+## React 19 Patterns
+
+### Functional Components Only
+**Rule:** No class components. Ever.
+
+```typescript
+// ❌ Class component (forbidden)
+class RecordingButton extends React.Component {
+  render() {
+    return <button>Record</button>
+  }
+}
+
+// ✅ Function component
+function RecordingButton() {
+  return <button>Record</button>
+}
+
+// ✅ Arrow function (acceptable)
+const RecordingButton = () => {
+  return <button>Record</button>
+}
+
+// ✅ Explicit return type (preferred for exported components)
+export function RecordingButton(): JSX.Element {
+  return <button>Record</button>
+}
+```
+
+### Component Props Pattern
+```typescript
+// ✅ Define props interface
+interface RecordingControlsProps {
+  isRecording: boolean
+  onStart: () => void
+  onStop: () => void
+  disabled?: boolean
+}
+
+// ✅ Destructure props with types
+export function RecordingControls({
+  isRecording,
+  onStart,
+  onStop,
+  disabled = false
+}: RecordingControlsProps): JSX.Element {
+  return (
+    <div>
+      {!isRecording ? (
+        <button onClick={onStart} disabled={disabled}>Start</button>
+      ) : (
+        <button onClick={onStop}>Stop</button>
+      )}
+    </div>
+  )
+}
+```
+
+### Children Prop Typing
+```typescript
+// ✅ React.ReactNode for flexible children
+interface CardProps {
+  children: React.ReactNode
+  title: string
+}
+
+export function Card({ children, title }: CardProps): JSX.Element {
+  return (
+    <div className="card">
+      <h2>{title}</h2>
+      {children}
+    </div>
+  )
+}
+```
+
+---
+
+## Component Architecture
+
+### File Naming
+- **Components:** `PascalCase` (e.g., `TranscriptView.tsx`, `RecordingControls.tsx`)
+- **Hooks:** `camelCase` with `use` prefix (e.g., `useTranscription.ts`, `useRecording.ts`)
+- **Utils:** `camelCase` (e.g., `formatTimestamp.ts`, `validatePath.ts`)
+- **Types:** `PascalCase` (e.g., `types.ts` exports `Recording`, `TranscriptSegment`)
+
+### Component Organization
+```
+components/
+├── Recording/
+│   ├── RecordingControls.tsx      # Start/stop buttons, status
+│   ├── RecordingWaveform.tsx      # Live audio waveform visualization
+│   ├── RecordingTimer.tsx         # Elapsed time display
+│   └── index.ts                   # Barrel export
+├── Transcript/
+│   ├── TranscriptView.tsx         # Full transcript display
+│   ├── TranscriptSegment.tsx      # Single segment (speaker + text + timestamp)
+│   ├── TranscriptSearch.tsx       # In-transcript search
+│   └── index.ts
+└── ui/                            # shadcn/ui primitives
+    ├── Button.tsx
+    ├── Dialog.tsx
+    ├── Input.tsx
+    └── ...
+```
+
+### Barrel Exports
+Each component folder has an `index.ts`:
+```typescript
+// components/Recording/index.ts
+export { RecordingControls } from './RecordingControls'
+export { RecordingWaveform } from './RecordingWaveform'
+export { RecordingTimer } from './RecordingTimer'
+
+// Usage elsewhere
+import { RecordingControls, RecordingWaveform } from '@renderer/components/Recording'
+```
+
+---
+
+## IPC Bridge Rules (Critical)
+
+### The Three-Process Architecture
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Renderer Process                        │
+│                   (React + UI, Chromium)                     │
+│  - NO Node.js APIs                                           │
+│  - NO direct ipcRenderer                                     │
+│  - ONLY window.api.* (exposed by preload)                    │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ IPC
+                            │ (type-safe, validated)
+┌───────────────────────────▼─────────────────────────────────┐
+│                      Preload Script                          │
+│                   (contextBridge API)                        │
+│  - Exposes typed API to renderer                             │
+│  - Acts as security boundary                                 │
+│  - NO business logic                                         │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ ipcRenderer.invoke()
+┌───────────────────────────▼─────────────────────────────────┐
+│                      Main Process                            │
+│                   (Node.js + Native Addons)                  │
+│  - All heavy compute here                                    │
+│  - Native modules (whisper-cpp-node, better-sqlite3)         │
+│  - File system, database, AI services                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Preload Script Pattern
+**File:** `src/preload/index.ts`
+```typescript
+import { contextBridge, ipcRenderer } from 'electron'
+import type { IpcChannels } from '@shared/ipc-channels'
+
+// Define the API surface exposed to renderer
+export type API = {
+  // Audio capture
+  startAudioCapture: (deviceId: string) => Promise<void>
+  stopAudioCapture: () => Promise<string>  // Returns audioPath
+  
+  // Transcription
+  transcribe: (audioPath: string) => Promise<string>  // Returns jobId
+  onTranscriptChunk: (callback: (chunk: TranscriptSegment) => void) => () => void
+  
+  // Database
+  getRecordings: (filters?: RecordingFilters) => Promise<Recording[]>
+  deleteRecording: (id: string) => Promise<void>
+  
+  // Settings
+  getSettings: () => Promise<AppSettings>
+  updateSettings: (settings: Partial<AppSettings>) => Promise<void>
+}
+
+// ✅ Expose typed API via contextBridge
+contextBridge.exposeInMainWorld('api', {
+  startAudioCapture: (deviceId: string) => 
+    ipcRenderer.invoke(IpcChannels.AUDIO_START, deviceId),
+  
+  stopAudioCapture: () => 
+    ipcRenderer.invoke(IpcChannels.AUDIO_STOP),
+  
+  transcribe: (audioPath: string) => 
+    ipcRenderer.invoke(IpcChannels.WHISPER_TRANSCRIBE, audioPath),
+  
+  onTranscriptChunk: (callback) => {
+    const listener = (_: unknown, chunk: TranscriptSegment) => callback(chunk)
+    ipcRenderer.on(IpcChannels.WHISPER_CHUNK, listener)
+    
+    // Return cleanup function
+    return () => ipcRenderer.removeListener(IpcChannels.WHISPER_CHUNK, listener)
+  },
+  
+  // ... rest of API
+} satisfies API)
+
+// Type augmentation for window object
+declare global {
+  interface Window {
+    api: API
+  }
+}
+```
+
+### IPC Channel Definitions
+**File:** `src/shared/ipc-channels.ts`
+```typescript
+// ✅ All IPC channels defined as constants
+export const IpcChannels = {
+  // Audio
+  AUDIO_START: 'audio:start-capture',
+  AUDIO_STOP: 'audio:stop-capture',
+  AUDIO_CHUNK: 'audio:chunk',  // main → renderer (streaming)
+  
+  // Whisper transcription
+  WHISPER_TRANSCRIBE: 'whisper:transcribe',
+  WHISPER_CHUNK: 'whisper:chunk',  // main → renderer (streaming)
+  WHISPER_COMPLETE: 'whisper:complete',
+  
+  // LLM summarization
+  LLM_SUMMARIZE: 'llm:summarize',
+  LLM_STREAM: 'llm:stream',  // main → renderer (streaming)
+  
+  // Database
+  DB_GET_RECORDINGS: 'db:get-recordings',
+  DB_DELETE_RECORDING: 'db:delete-recording',
+  DB_SEARCH: 'db:search',
+  
+  // Export
+  EXPORT_OBSIDIAN: 'export:obsidian',
+  EXPORT_PDF: 'export:pdf',
+  
+  // Settings
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_UPDATE: 'settings:update',
+} as const
+
+export type IpcChannel = typeof IpcChannels[keyof typeof IpcChannels]
+```
+
+### IPC Handler Pattern (Main Process)
+**File:** `src/main/ipc/transcription.ts`
+```typescript
+import { ipcMain } from 'electron'
+import { IpcChannels } from '@shared/ipc-channels'
+import { WhisperService } from '@main/services/WhisperService'
+
+// ✅ Initialize IPC handlers
+export function registerTranscriptionHandlers(whisperService: WhisperService): void {
+  // Request-response pattern
+  ipcMain.handle(IpcChannels.WHISPER_TRANSCRIBE, async (event, audioPath: string) => {
+    // ✅ Validate input
+    if (typeof audioPath !== 'string') {
+      throw new Error('audioPath must be a string')
+    }
+    if (!audioPath.startsWith(app.getPath('userData'))) {
+      throw new Error('Unauthorized path')
+    }
+    
+    const jobId = await whisperService.transcribe(audioPath, {
+      onChunk: (chunk) => {
+        // ✅ Stream results back to renderer
+        event.sender.send(IpcChannels.WHISPER_CHUNK, chunk)
+      }
+    })
+    
+    return jobId
+  })
+}
+```
+
+### Renderer Usage Pattern
+**File:** `src/renderer/hooks/useTranscription.ts`
+```typescript
+import { useState, useEffect, useCallback } from 'react'
+import type { TranscriptSegment } from '@shared/types'
+
+export function useTranscription(audioPath: string | null) {
+  const [segments, setSegments] = useState<TranscriptSegment[]>([])
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  
+  useEffect(() => {
+    if (!audioPath) return
+    
+    setIsTranscribing(true)
+    setError(null)
+    
+    // ✅ Subscribe to streaming chunks
+    const cleanup = window.api.onTranscriptChunk((chunk) => {
+      setSegments(prev => [...prev, chunk])
+    })
+    
+    // ✅ Start transcription
+    window.api.transcribe(audioPath)
+      .then((jobId) => {
+        console.log('[useTranscription] Job started:', jobId)
+      })
+      .catch((err) => {
+        setError(err)
+        setIsTranscribing(false)
+      })
+    
+    // ✅ Cleanup on unmount
+    return () => {
+      cleanup()
+      setIsTranscribing(false)
+    }
+  }, [audioPath])
+  
+  return { segments, isTranscribing, error }
+}
+```
+
+### Forbidden IPC Patterns
+```typescript
+// ❌ NEVER import ipcRenderer in renderer
+import { ipcRenderer } from 'electron'  // ❌ Security hole!
+
+// ❌ NEVER expose entire Node.js APIs
+contextBridge.exposeInMainWorld('fs', require('fs'))  // ❌ Massive security hole!
+
+// ❌ NEVER trust renderer input without validation
+ipcMain.handle('delete-file', (_, path) => {
+  fs.unlinkSync(path)  // ❌ Path traversal attack possible!
+})
+
+// ❌ NEVER send sensitive data without scrubbing
+ipcMain.handle('get-config', () => {
+  return { apiKey: process.env.API_KEY }  // ❌ Leaks secrets to renderer!
+})
+```
+
+---
+
+## React Context Patterns (State Management)
+
+### No Redux / No Zustand
+VoiceVault uses **React Context** for state management. Reasons:
+- Simple, built-in, no extra dependencies
+- Sufficient for our use case (local state, not global cache)
+- IPC is the source of truth (main process), renderer is just a view
+
+### Context Pattern
+**File:** `src/renderer/contexts/RecordingContext.tsx`
+```typescript
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+
+// ✅ Define context state and actions
+interface RecordingContextValue {
+  isRecording: boolean
+  audioPath: string | null
+  startRecording: (deviceId: string) => Promise<void>
+  stopRecording: () => Promise<void>
+  error: Error | null
+}
+
+// ✅ Create context with undefined default (enforces provider usage)
+const RecordingContext = createContext<RecordingContextValue | undefined>(undefined)
+
+// ✅ Provider component
+interface RecordingProviderProps {
+  children: ReactNode
+}
+
+export function RecordingProvider({ children }: RecordingProviderProps): JSX.Element {
+  const [isRecording, setIsRecording] = useState(false)
+  const [audioPath, setAudioPath] = useState<string | null>(null)
+  const [error, setError] = useState<Error | null>(null)
+  
+  const startRecording = useCallback(async (deviceId: string) => {
+    try {
+      setError(null)
+      await window.api.startAudioCapture(deviceId)
+      setIsRecording(true)
+    } catch (err) {
+      setError(err as Error)
+      throw err
+    }
+  }, [])
+  
+  const stopRecording = useCallback(async () => {
+    try {
+      const path = await window.api.stopAudioCapture()
+      setAudioPath(path)
+      setIsRecording(false)
+    } catch (err) {
+      setError(err as Error)
+      throw err
+    }
+  }, [])
+  
+  const value = {
+    isRecording,
+    audioPath,
+    startRecording,
+    stopRecording,
+    error
+  }
+  
+  return (
+    <RecordingContext.Provider value={value}>
+      {children}
+    </RecordingContext.Provider>
+  )
+}
+
+// ✅ Custom hook for consuming context
+export function useRecording(): RecordingContextValue {
+  const context = useContext(RecordingContext)
+  if (!context) {
+    throw new Error('useRecording must be used within RecordingProvider')
+  }
+  return context
+}
+```
+
+### Context Usage in App
+**File:** `src/renderer/App.tsx`
+```typescript
+import { RecordingProvider } from '@renderer/contexts/RecordingContext'
+import { SettingsProvider } from '@renderer/contexts/SettingsContext'
+import { I18nProvider } from '@renderer/contexts/I18nContext'
+
+export function App(): JSX.Element {
+  return (
+    <I18nProvider>
+      <SettingsProvider>
+        <RecordingProvider>
+          <MainLayout />
+        </RecordingProvider>
+      </SettingsProvider>
+    </I18nProvider>
+  )
+}
+```
+
+### Context Usage in Components
+```typescript
+import { useRecording } from '@renderer/contexts/RecordingContext'
+
+export function RecordingControls(): JSX.Element {
+  const { isRecording, startRecording, stopRecording, error } = useRecording()
+  
+  return (
+    <div>
+      {!isRecording ? (
+        <button onClick={() => startRecording('default')}>Start</button>
+      ) : (
+        <button onClick={stopRecording}>Stop</button>
+      )}
+      {error && <div className="error">{error.message}</div>}
+    </div>
+  )
+}
+```
+
+---
+
+## shadcn/ui Component Usage
+
+### What is shadcn/ui?
+- **Not a component library** — It's a collection of copy-pasteable components
+- Built on **Radix UI** (accessible primitives) + **Tailwind CSS**
+- Components live in `src/renderer/components/ui/`
+- Customizable, no npm dependency bloat
+
+### Installation
+```bash
+pnpm dlx shadcn@latest add button dialog input textarea
+```
+
+### Usage Pattern
+```typescript
+import { Button } from '@renderer/components/ui/Button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@renderer/components/ui/Dialog'
+
+export function DeleteRecordingDialog({ recordingId }: { recordingId: string }): JSX.Element {
+  const [isOpen, setIsOpen] = useState(false)
+  
+  const handleDelete = async () => {
+    await window.api.deleteRecording(recordingId)
+    setIsOpen(false)
+  }
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="destructive">Delete</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Recording?</DialogTitle>
+        </DialogHeader>
+        <p>This action cannot be undone.</p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+          <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+### Customizing shadcn Components
+Modify `src/renderer/components/ui/Button.tsx` directly:
+```typescript
+// ✅ Add custom variant
+const buttonVariants = cva(
+  "inline-flex items-center justify-center ...",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground ...",
+        destructive: "bg-destructive text-destructive-foreground ...",
+        outline: "border border-input ...",
+        // ✅ Add custom variant
+        recording: "bg-red-500 text-white animate-pulse",
+      }
+    }
+  }
+)
+```
+
+---
+
+## Tailwind CSS v4 Patterns
+
+### Configuration
+**File:** `tailwind.config.ts`
+```typescript
+import type { Config } from 'tailwindcss'
+
+export default {
+  darkMode: 'class',
+  content: ['./src/renderer/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        // shadcn/ui color system
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: 'hsl(var(--primary))',
+        // ... rest of color tokens
+      }
+    }
+  }
+} satisfies Config
+```
+
+### Utility-First Styling
+```tsx
+// ✅ Use Tailwind classes
+<div className="flex items-center justify-between p-4 bg-background border-b">
+  <h1 className="text-2xl font-bold">VoiceVault</h1>
+  <Button variant="outline" size="sm">Settings</Button>
+</div>
+
+// ❌ Never use inline styles
+<div style={{ display: 'flex', padding: '16px' }}>  // ❌ Forbidden!
+```
+
+### Responsive Design
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {recordings.map(recording => (
+    <RecordingCard key={recording.id} recording={recording} />
+  ))}
+</div>
+```
+
+### Dark Mode Support
+```tsx
+// Tailwind automatically handles dark mode with 'dark:' prefix
+<div className="bg-white dark:bg-gray-900 text-black dark:text-white">
+  {/* Content */}
+</div>
+```
+
+---
+
+## Custom Hooks Conventions
+
+### Hook Naming
+- **Always prefix with `use`** (e.g., `useTranscription`, `useRecording`)
+- **Descriptive names** (e.g., `useDebounce`, `useLocalStorage`, `useAudioWaveform`)
+
+### Hook Pattern
+```typescript
+// ✅ Custom hook for recording management
+export function useRecording() {
+  const [isRecording, setIsRecording] = useState(false)
+  const [duration, setDuration] = useState(0)
+  
+  useEffect(() => {
+    if (!isRecording) return
+    
+    const interval = setInterval(() => {
+      setDuration(prev => prev + 1)
+    }, 1000)
+    
+    return () => clearInterval(interval)
+  }, [isRecording])
+  
+  const start = useCallback(async (deviceId: string) => {
+    await window.api.startAudioCapture(deviceId)
+    setIsRecording(true)
+    setDuration(0)
+  }, [])
+  
+  const stop = useCallback(async () => {
+    const audioPath = await window.api.stopAudioCapture()
+    setIsRecording(false)
+    return audioPath
+  }, [])
+  
+  return { isRecording, duration, start, stop }
+}
+```
+
+### Utility Hooks
+```typescript
+// useDebounce hook
+export function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+    
+    return () => clearTimeout(handler)
+  }, [value, delay])
+  
+  return debouncedValue
+}
+
+// Usage in search component
+function SearchBar() {
+  const [query, setQuery] = useState('')
+  const debouncedQuery = useDebounce(query, 300)
+  
+  useEffect(() => {
+    if (debouncedQuery) {
+      window.api.search(debouncedQuery)
+    }
+  }, [debouncedQuery])
+  
+  return <input value={query} onChange={(e) => setQuery(e.target.value)} />
+}
+```
+
+---
+
+## Error Handling Patterns
+
+### Try-Catch in IPC Calls
+```typescript
+// ✅ Always wrap IPC calls in try-catch
+async function handleStartRecording() {
+  try {
+    await window.api.startAudioCapture('default')
+    toast.success('Recording started')
+  } catch (error) {
+    console.error('[RecordingControls] Start failed:', error)
+    toast.error(error instanceof Error ? error.message : 'Failed to start recording')
+  }
+}
+```
+
+### Error Boundaries
+```typescript
+// src/renderer/components/ErrorBoundary.tsx
+import { Component, ReactNode } from 'react'
+
+interface Props {
+  children: ReactNode
+  fallback?: ReactNode
+}
+
+interface State {
+  hasError: boolean
+  error: Error | null
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error }
+  }
+  
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[ErrorBoundary] Caught error:', error, errorInfo)
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="error-boundary">
+          <h1>Something went wrong</h1>
+          <p>{this.state.error?.message}</p>
+        </div>
+      )
+    }
+    
+    return this.props.children
+  }
+}
+
+// Usage in App.tsx
+<ErrorBoundary>
+  <App />
+</ErrorBoundary>
+```
+
+### User-Friendly Error Messages
+```typescript
+// ✅ Map technical errors to user-friendly messages
+function getUserFriendlyError(error: Error): string {
+  if (error.message.includes('ENOENT')) {
+    return 'File not found. Please check if the recording exists.'
+  }
+  if (error.message.includes('EACCES')) {
+    return 'Permission denied. Please grant microphone access.'
+  }
+  if (error.message.includes('Model not found')) {
+    return 'AI model not downloaded. Please download it in Settings.'
+  }
+  return error.message
+}
+```
+
+---
+
+## State Management Best Practices
+
+### State Placement
+```typescript
+// ✅ Local state (component-specific)
+function RecordingTimer() {
+  const [seconds, setSeconds] = useState(0)  // ✅ Only used here
+  // ...
+}
+
+// ✅ Context state (shared across multiple components)
+// RecordingContext provides isRecording, audioPath, etc.
+
+// ✅ IPC state (main process is source of truth)
+// Recordings list, settings, etc. — fetch from main via IPC
+```
+
+### Avoid Prop Drilling
+```typescript
+// ❌ Prop drilling (passing props through 5 levels)
+<App isRecording={isRecording}>
+  <Layout isRecording={isRecording}>
+    <Sidebar isRecording={isRecording}>
+      <RecordingStatus isRecording={isRecording} />
+    </Sidebar>
+  </Layout>
+</App>
+
+// ✅ Use context instead
+const { isRecording } = useRecording()  // Access anywhere
+```
+
+### Derived State
+```typescript
+// ❌ Redundant state
+const [recordings, setRecordings] = useState([])
+const [recordingCount, setRecordingCount] = useState(0)  // ❌ Derived from recordings
+
+// ✅ Compute derived state
+const [recordings, setRecordings] = useState([])
+const recordingCount = recordings.length  // ✅ No separate state needed
+
+// ✅ Use useMemo for expensive computations
+const sortedRecordings = useMemo(() => {
+  return [...recordings].sort((a, b) => b.createdAt - a.createdAt)
+}, [recordings])
+```
+
+---
+
+## File Naming Conventions
+
+### Components
+- `PascalCase` with `.tsx` extension
+- Descriptive, singular noun
+- Examples: `RecordingControls.tsx`, `TranscriptView.tsx`, `SettingsPanel.tsx`
+
+### Hooks
+- `camelCase` with `.ts` extension
+- Always start with `use`
+- Examples: `useRecording.ts`, `useTranscription.ts`, `useDebounce.ts`
+
+### Utilities
+- `camelCase` with `.ts` extension
+- Verb or noun describing function
+- Examples: `formatTimestamp.ts`, `validatePath.ts`, `parseAudio.ts`
+
+### Types/Interfaces
+- Defined in `types.ts` files
+- `PascalCase` naming
+- Examples: `Recording`, `TranscriptSegment`, `AppSettings`
+
+---
+
+## Import Ordering
+
+### Recommended Order
+```typescript
+// 1. External libraries (React, etc.)
+import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+
+// 2. Internal components (via path aliases)
+import { Button } from '@renderer/components/ui/Button'
+import { useRecording } from '@renderer/contexts/RecordingContext'
+
+// 3. Shared types
+import type { Recording } from '@shared/types'
+
+// 4. Utilities
+import { formatTimestamp } from '@renderer/lib/formatTimestamp'
+
+// 5. Styles (if any — rare with Tailwind)
+import './RecordingView.css'
+```
+
+---
+
+## Forbidden Patterns (React/TypeScript)
+
+### ❌ Never Do This
+```typescript
+// 1. `any` type
+function process(data: any) { ... }  // ❌
+
+// 2. `require()` in renderer (ESM only)
+const fs = require('fs')  // ❌ Use import
+
+// 3. Direct `ipcRenderer` in renderer
+import { ipcRenderer } from 'electron'  // ❌ Use window.api.*
+
+// 4. Inline styles
+<div style={{ color: 'red' }}>  // ❌ Use Tailwind classes
+
+// 5. Class components
+class MyComponent extends React.Component { ... }  // ❌ Use function components
+
+// 6. Uncontrolled components without ref
+<input defaultValue="test" />  // ❌ Use controlled (value + onChange)
+
+// 7. Index as key in lists
+{items.map((item, index) => <div key={index}>)}  // ❌ Use unique ID
+
+// 8. Mutating state directly
+state.items.push(newItem)  // ❌ Use setState with new array
+
+// 9. Side effects in render
+function Component() {
+  window.api.doSomething()  // ❌ Use useEffect
+  return <div>...</div>
+}
+
+// 10. Non-memoized callbacks as props
+<Child onClick={() => doSomething()} />  // ❌ Child re-renders every time
+```
+
+### ✅ Do This Instead
+```typescript
+// 1. Proper types or `unknown`
+function process(data: RecordingData | unknown) { ... }  // ✅
+
+// 2. ESM imports
+import fs from 'fs'  // ✅
+
+// 3. Use exposed API
+window.api.readFile(path)  // ✅
+
+// 4. Tailwind classes
+<div className="text-red-500">  // ✅
+
+// 5. Function components
+function MyComponent() { ... }  // ✅
+
+// 6. Controlled components
+<input value={value} onChange={(e) => setValue(e.target.value)} />  // ✅
+
+// 7. Unique ID as key
+{items.map((item) => <div key={item.id}>)}  // ✅
+
+// 8. Immutable state updates
+setState(prev => [...prev, newItem])  // ✅
+
+// 9. Side effects in useEffect
+useEffect(() => {
+  window.api.doSomething()
+}, [])  // ✅
+
+// 10. Memoized callbacks
+const handleClick = useCallback(() => doSomething(), [])
+<Child onClick={handleClick} />  // ✅
+```
+
+---
+
+## MVVM-like Separation
+
+### Architecture Layers
+```
+┌─────────────────────────────────────────────┐
+│           View (Renderer Process)            │
+│  - React components                          │
+│  - Presentation logic only                   │
+│  - No business logic, no native modules      │
+└──────────────────┬──────────────────────────┘
+                   │ IPC
+┌──────────────────▼──────────────────────────┐
+│       ViewModel (Contexts + Hooks)           │
+│  - State management (React Context)          │
+│  - IPC abstraction (custom hooks)            │
+│  - Maps main process data to UI state        │
+└──────────────────┬──────────────────────────┘
+                   │ IPC
+┌──────────────────▼──────────────────────────┐
+│         Model (Main Process Services)        │
+│  - Business logic, data persistence          │
+│  - AudioCaptureService, WhisperService       │
+│  - DatabaseService, ExportService            │
+└─────────────────────────────────────────────┘
+```
+
+### Example: Recording Flow
+```typescript
+// View (src/renderer/components/Recording/RecordingControls.tsx)
+export function RecordingControls() {
+  const { isRecording, start, stop } = useRecording()  // ViewModel
+  
+  return (
+    <Button onClick={isRecording ? stop : () => start('default')}>
+      {isRecording ? 'Stop' : 'Start'}
+    </Button>
+  )
+}
+
+// ViewModel (src/renderer/hooks/useRecording.ts)
+export function useRecording() {
+  const [isRecording, setIsRecording] = useState(false)
+  
+  const start = useCallback(async (deviceId: string) => {
+    await window.api.startAudioCapture(deviceId)  // IPC to Model
+    setIsRecording(true)
+  }, [])
+  
+  // ...
+}
+
+// Model (src/main/services/AudioCaptureService.ts)
+export class AudioCaptureService {
+  async startCapture(deviceId: string): Promise<void> {
+    this.stream = nativeAudio.createInputStream(deviceId)
+    // ... native audio capture logic
+  }
+}
+```
+
+---
+
+## electron-store Usage Patterns
+
+### Settings Persistence
+**File:** `src/main/store.ts`
+```typescript
+import Store from 'electron-store'
+import type { AppSettings } from '@shared/types'
+
+interface StoreSchema {
+  settings: AppSettings
+  recentRecordings: string[]
+}
+
+// ✅ Typed store
+export const store = new Store<StoreSchema>({
+  defaults: {
+    settings: {
+      language: 'ko',
+      whisperModel: 'base',
+      theme: 'system',
+      autoSummarize: true
+    },
+    recentRecordings: []
+  }
+})
+
+// ✅ Helper functions
+export function getSettings(): AppSettings {
+  return store.get('settings')
+}
+
+export function updateSettings(partial: Partial<AppSettings>): void {
+  store.set('settings', { ...getSettings(), ...partial })
+}
+```
+
+### IPC Handler for Settings
+```typescript
+// src/main/ipc/settings.ts
+import { ipcMain } from 'electron'
+import { IpcChannels } from '@shared/ipc-channels'
+import { getSettings, updateSettings } from '@main/store'
+
+export function registerSettingsHandlers(): void {
+  ipcMain.handle(IpcChannels.SETTINGS_GET, () => {
+    return getSettings()
+  })
+  
+  ipcMain.handle(IpcChannels.SETTINGS_UPDATE, (_, partial: Partial<AppSettings>) => {
+    updateSettings(partial)
+    return getSettings()
+  })
+}
+```
+
+---
+
+## better-sqlite3 Patterns
+
+### Database Service
+**File:** `src/main/services/DatabaseService.ts`
+```typescript
+import Database from 'better-sqlite3'
+import { app } from 'electron'
+import path from 'path'
+import type { Recording, TranscriptSegment } from '@shared/types'
+
+export class DatabaseService {
+  private db: Database.Database
+  
+  constructor() {
+    const dbPath = path.join(app.getPath('userData'), 'voicevault.db')
+    this.db = new Database(dbPath)
+    this.initialize()
+  }
+  
+  private initialize(): void {
+    // ✅ Enable WAL mode for better concurrency
+    this.db.pragma('journal_mode = WAL')
+    
+    // ✅ Create tables
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS recordings (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        audioPath TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        createdAt INTEGER NOT NULL,
+        category TEXT,
+        metadata TEXT
+      );
+      
+      CREATE TABLE IF NOT EXISTS transcript_segments (
+        id TEXT PRIMARY KEY,
+        recordingId TEXT NOT NULL,
+        text TEXT NOT NULL,
+        startTime REAL NOT NULL,
+        endTime REAL NOT NULL,
+        speaker TEXT,
+        FOREIGN KEY (recordingId) REFERENCES recordings(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_segments_recording 
+        ON transcript_segments(recordingId);
+    `)
+  }
+  
+  // ✅ Prepared statements for performance
+  getRecordings(): Recording[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM recordings 
+      ORDER BY createdAt DESC
+    `)
+    return stmt.all() as Recording[]
+  }
+  
+  insertRecording(recording: Recording): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO recordings (id, title, audioPath, duration, createdAt, category, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+    stmt.run(
+      recording.id,
+      recording.title,
+      recording.audioPath,
+      recording.duration,
+      recording.createdAt,
+      recording.category,
+      JSON.stringify(recording.metadata)
+    )
+  }
+  
+  // ✅ Transaction for bulk inserts
+  insertTranscriptSegments(segments: TranscriptSegment[]): void {
+    const insert = this.db.prepare(`
+      INSERT INTO transcript_segments (id, recordingId, text, startTime, endTime, speaker)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `)
+    
+    const insertMany = this.db.transaction((segments: TranscriptSegment[]) => {
+      for (const seg of segments) {
+        insert.run(seg.id, seg.recordingId, seg.text, seg.startTime, seg.endTime, seg.speaker)
+      }
+    })
+    
+    insertMany(segments)
+  }
+  
+  close(): void {
+    this.db.close()
+  }
+}
+```
+
+---
+
+## Performance Optimization
+
+### Memoization
+```typescript
+import { useMemo, useCallback } from 'react'
+
+// ✅ Memoize expensive computations
+const sortedRecordings = useMemo(() => {
+  return recordings.sort((a, b) => b.createdAt - a.createdAt)
+}, [recordings])
+
+// ✅ Memoize callbacks to prevent re-renders
+const handleDelete = useCallback((id: string) => {
+  window.api.deleteRecording(id)
+}, [])
+```
+
+### Virtualization for Long Lists
+```typescript
+import { FixedSizeList } from 'react-window'
+
+function RecordingLibrary({ recordings }: { recordings: Recording[] }) {
+  return (
+    <FixedSizeList
+      height={600}
+      itemCount={recordings.length}
+      itemSize={80}
+      width="100%"
+    >
+      {({ index, style }) => (
+        <div style={style}>
+          <RecordingCard recording={recordings[index]} />
+        </div>
+      )}
+    </FixedSizeList>
+  )
+}
+```
+
+### Debouncing Input
+```typescript
+const [query, setQuery] = useState('')
+const debouncedQuery = useDebounce(query, 300)
+
+useEffect(() => {
+  if (debouncedQuery) {
+    window.api.search(debouncedQuery)
+  }
+}, [debouncedQuery])
+```
+
+---
+
+**Last updated:** 2026-03-04
