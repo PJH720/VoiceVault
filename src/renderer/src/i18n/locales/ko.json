@@ -205,5 +205,10 @@
       "chromium": "Chromium v{{version}}",
       "node": "Node v{{version}}"
     }
+  },
+  "errors": {
+    "componentCrash": "문제가 발생했습니다",
+    "unknownError": "예기치 않은 오류가 발생했습니다",
+    "retry": "다시 시도"
   }
 }

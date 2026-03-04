@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RecordingProvider } from './contexts/RecordingContext'
 import { LibraryProvider } from './contexts/LibraryContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { RecordingView } from './components/Recording/RecordingView'
 import { LibraryView } from './components/Library/LibraryView'
 import { SearchView } from './components/Search/SearchView'
@@ -62,10 +63,10 @@ function AppContent(): React.JSX.Element {
           <h2>{title}</h2>
         </header>
         <section className="content-body">
-          {page === 'library' && <LibraryView />}
-          {page === 'record' && <RecordingView />}
-          {page === 'search' && <SearchView />}
-          {page === 'settings' && <SettingsView />}
+          {page === 'library' && <ErrorBoundary><LibraryView /></ErrorBoundary>}
+          {page === 'record' && <ErrorBoundary><RecordingView /></ErrorBoundary>}
+          {page === 'search' && <ErrorBoundary><SearchView /></ErrorBoundary>}
+          {page === 'settings' && <ErrorBoundary><SettingsView /></ErrorBoundary>}
         </section>
       </main>
     </div>
