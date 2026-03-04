@@ -17,7 +17,7 @@ import { registerSystemAudioHandlers } from './ipc/system-audio'
 import { registerTranslationHandlers } from './ipc/translation'
 import { buildAppMenu, getMainLocaleText } from './menu'
 import { AppChannels, SettingsChannels } from '../shared/ipc-channels'
-import { getLocale, setLocale, getWhisperModel, setWhisperModel, getLlmModel, setLlmModel } from './store'
+import { initStore, getLocale, setLocale, getWhisperModel, setWhisperModel, getLlmModel, setLlmModel } from './store'
 import type { LlmModelName, SupportedLocale } from '../shared/types'
 
 let tray: Tray | null = null
@@ -58,9 +58,11 @@ function createWindow(): BrowserWindow {
   return mainWindow
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.voicevault')
   process.env.VOICEVAULT_USER_DATA_PATH = app.getPath('userData')
+
+  await initStore()
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
