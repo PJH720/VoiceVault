@@ -15,6 +15,9 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "pnpm run typecheck && electron-vite build",
+    "test": "vitest run tests/unit",
+    "test:watch": "vitest tests/unit",
+    "test:e2e": "playwright test tests/e2e/app-launch.test.ts",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "pnpm run build && electron-builder --dir",
     "build:win": "pnpm run build && electron-builder --win",
@@ -27,12 +30,16 @@
     "@tailwindcss/vite": "^4.2.1",
     "better-sqlite3": "^12.6.2",
     "electron-store": "^11.0.2",
-    "tailwindcss": "^4.2.1"
+    "native-audio-node": "^0.3.5",
+    "node-llama-cpp": "^3.17.1",
+    "tailwindcss": "^4.2.1",
+    "whisper-cpp-node": "^0.2.8"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
+    "@playwright/test": "^1.58.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.1",
     "@types/react": "^19.2.7",
@@ -49,7 +56,8 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "typescript": "^5.9.3",
-    "vite": "^7.2.6"
+    "vite": "^7.2.6",
+    "vitest": "^4.0.18"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
