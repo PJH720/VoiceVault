@@ -1,0 +1,20 @@
+{
+  "id": "interview",
+  "name": "Interview",
+  "description": "Job interviews, user research, journalism",
+  "icon": "🎤",
+  "color": "#ef4444",
+  "category": "built-in",
+  "keywords": ["interview", "candidate", "questions", "answers"],
+  "prompts": {
+    "summary": "Summarize this interview, highlighting the candidate's background and key responses.",
+    "keyPoints": "Extract the most important questions asked and answers given.",
+    "customFields": [
+      { "name": "strengths", "prompt": "What are the interviewee's main strengths based on their responses?" },
+      { "name": "concerns", "prompt": "Are there any concerns or red flags mentioned?" }
+    ]
+  },
+  "exportTemplate": "interview",
+  "createdAt": "2026-03-04T00:00:00.000Z",
+  "updatedAt": "2026-03-04T00:00:00.000Z"
+}

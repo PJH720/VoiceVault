@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { TranscriptSegment } from '../../../../shared/types'
 import { LanguageBadge } from './LanguageBadge'
 import { SegmentRow } from './SegmentRow'
@@ -14,6 +15,7 @@ export function TranscriptView({
   segments,
   onSeek
 }: TranscriptViewProps): React.JSX.Element {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -27,14 +29,14 @@ export function TranscriptView({
   return (
     <div className="panel transcript-panel">
       <div className="transcript-header">
-        <h3>Live Transcript</h3>
+        <h3>{t('transcript.live')}</h3>
         <LanguageBadge language={language} />
       </div>
       <div className="transcript-list" ref={scrollRef}>
         {segments.map((segment, index) => (
           <SegmentRow key={`${segment.start}-${segment.end}-${index}`} segment={segment} onSeek={onSeek} />
         ))}
-        {segments.length === 0 ? <p className="muted">Start recording to see live transcription.</p> : null}
+        {segments.length === 0 ? <p className="muted">{t('transcript.empty')}</p> : null}
       </div>
     </div>
   )

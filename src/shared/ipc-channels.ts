@@ -53,3 +53,76 @@ export const LlmChannels = {
   ON_COMPLETE: 'llm:on-complete',
   ON_DOWNLOAD_PROGRESS: 'llm:download-progress'
 } as const
+
+export const CloudLlmChannels = {
+  SUMMARIZE: 'cloud-llm:summarize',
+  SET_API_KEY: 'cloud-llm:set-api-key',
+  GET_API_KEY: 'cloud-llm:get-api-key',
+  ESTIMATE_COST: 'cloud-llm:estimate-cost',
+  USAGE_STATS: 'cloud-llm:usage-stats',
+  RESET_STATS: 'cloud-llm:reset-stats',
+  SET_LOCAL_ONLY: 'cloud-llm:set-local-only',
+  GET_LOCAL_ONLY: 'cloud-llm:get-local-only',
+  SET_PROVIDER: 'cloud-llm:set-provider',
+  GET_PROVIDER: 'cloud-llm:get-provider',
+  SET_MODEL: 'cloud-llm:set-model',
+  GET_MODEL: 'cloud-llm:get-model',
+  ON_TOKEN: 'cloud-llm:on-token',
+  ON_COMPLETE: 'cloud-llm:on-complete'
+} as const
+
+export const DiarizationChannels = {
+  PROCESS: 'diarization:process',
+  ALIGN_TRANSCRIPT: 'diarization:align-transcript',
+  LIST_SPEAKER_SEGMENTS: 'diarization:list-speaker-segments',
+  ON_SEGMENT: 'diarization:on-segment',
+  LIST_SPEAKERS: 'speakers:list',
+  CREATE_SPEAKER: 'speakers:create',
+  UPDATE_SPEAKER: 'speakers:update',
+  MERGE_SPEAKERS: 'speakers:merge'
+} as const
+
+export const RagChannels = {
+  QUERY: 'rag:query',
+  EMBED_RECORDINGS: 'rag:embed-recordings',
+  ON_PROGRESS: 'rag:on-progress',
+  SEARCH_HISTORY: 'search:history'
+} as const
+
+export const ExportChannels = {
+  OBSIDIAN: 'export:obsidian',
+  BATCH: 'export:batch',
+  PREVIEW: 'export:preview',
+  SET_VAULT_PATH: 'export:set-vault-path',
+  GET_VAULT_PATH: 'export:get-vault-path',
+  GET_TEMPLATES: 'export:get-templates'
+} as const
+
+export const ClassificationChannels = {
+  AUTO_CLASSIFY: 'classification:auto-classify',
+  APPLY_TEMPLATE: 'classification:apply-template',
+  TEMPLATES_LIST: 'templates:list',
+  TEMPLATES_GET: 'templates:get',
+  TEMPLATES_CREATE: 'templates:create',
+  TEMPLATES_UPDATE: 'templates:update',
+  TEMPLATES_DELETE: 'templates:delete',
+  TEMPLATES_EXPORT: 'templates:export'
+} as const
+
+export const SystemAudioChannels = {
+  LIST_SOURCES: 'system-audio:list-sources',
+  START_CAPTURE: 'system-audio:start-capture',
+  STOP_CAPTURE: 'system-audio:stop-capture',
+  CHECK_PERMISSIONS: 'system-audio:check-permissions',
+  REQUEST_PERMISSIONS: 'system-audio:request-permissions'
+} as const
+
+export const TranslationChannels = {
+  TRANSLATE: 'translation:translate',
+  BATCH_TRANSLATE: 'translation:batch-translate',
+  GET_LANGUAGES: 'translation:get-languages',
+  SET_TARGET_LANGUAGE: 'translation:set-target-language',
+  GET_TARGET_LANGUAGE: 'translation:get-target-language',
+  ON_PROGRESS: 'translation:on-progress',
+  ON_TRANSLATED: 'translation:on-translated'
+} as const

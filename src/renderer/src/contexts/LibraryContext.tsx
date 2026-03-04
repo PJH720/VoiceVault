@@ -34,6 +34,7 @@ export function LibraryProvider({ children }: { children: ReactNode }): React.JS
   }, [searchQuery, selectedRecording, sortBy])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshRecordings()
   }, [refreshRecordings])
 

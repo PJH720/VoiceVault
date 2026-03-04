@@ -1,48 +1,59 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { RecordingProvider } from './contexts/RecordingContext'
 import { LibraryProvider } from './contexts/LibraryContext'
 import { RecordingView } from './components/Recording/RecordingView'
 import { LibraryView } from './components/Library/LibraryView'
+import { SearchView } from './components/Search/SearchView'
 import { SettingsView } from './components/Settings/SettingsView'
 
-type Page = 'library' | 'record' | 'settings'
+type Page = 'library' | 'record' | 'search' | 'settings'
 
 function AppContent(): React.JSX.Element {
+  const { t } = useTranslation()
   const [page, setPage] = useState<Page>('library')
   const title = useMemo(() => {
     switch (page) {
       case 'library':
-        return 'Library'
+        return t('nav.library')
       case 'record':
-        return 'Record'
+        return t('nav.record')
       case 'settings':
-        return 'Settings'
+        return t('nav.settings')
+      case 'search':
+        return t('nav.search')
       default:
-        return 'VoiceVault'
+        return t('app.name')
     }
-  }, [page])
+  }, [page, t])
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <h1 className="sidebar-title">VoiceVault</h1>
+        <h1 className="sidebar-title">{t('app.name')}</h1>
         <button
           className={`nav-item ${page === 'library' ? 'active' : ''}`}
           onClick={() => setPage('library')}
         >
-          Library
+          {t('nav.library')}
         </button>
         <button
           className={`nav-item ${page === 'record' ? 'active' : ''}`}
           onClick={() => setPage('record')}
         >
-          Record
+          {t('nav.record')}
+        </button>
+        <button
+          className={`nav-item ${page === 'search' ? 'active' : ''}`}
+          onClick={() => setPage('search')}
+        >
+          {t('nav.search')}
         </button>
         <button
           className={`nav-item ${page === 'settings' ? 'active' : ''}`}
           onClick={() => setPage('settings')}
         >
-          Settings
+          {t('nav.settings')}
         </button>
       </aside>
 
@@ -53,6 +64,7 @@ function AppContent(): React.JSX.Element {
         <section className="content-body">
           {page === 'library' && <LibraryView />}
           {page === 'record' && <RecordingView />}
+          {page === 'search' && <SearchView />}
           {page === 'settings' && <SettingsView />}
         </section>
       </main>

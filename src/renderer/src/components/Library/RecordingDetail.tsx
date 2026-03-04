@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { RecordingWithTranscript, TranscriptSegment } from '../../../../shared/types'
+import { useTranslation } from 'react-i18next'
+import type { RecordingWithTranscript } from '../../../../shared/types'
 import { useAudioPlayer } from '../../hooks/useAudioPlayer'
+import { ExportDialog } from '../Export/ExportDialog'
 import { SegmentRow } from '../Transcript/SegmentRow'
 
 type RecordingDetailProps = {
@@ -9,8 +11,9 @@ type RecordingDetailProps = {
 }
 
 export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): React.JSX.Element {
+  const { t } = useTranslation()
   const player = useAudioPlayer()
-  const [segments, setSegments] = useState<TranscriptSegment[]>([])
+  const [isExportOpen, setIsExportOpen] = useState(false)
   const formatTime = (value: number): string => {
     const safe = Number.isFinite(value) && value >= 0 ? value : 0
     const total = Math.floor(safe)
@@ -22,12 +25,11 @@ export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): 
   useEffect(() => {
     if (recording) {
       player.load(recording.audioPath)
-      setSegments(recording.segments)
     }
   }, [player, recording])
 
   if (!recording) {
-    return <div className="panel">Select a recording.</div>
+    return <div className="panel">{t('library.selectRecording')}</div>
   }
 
   return (
@@ -37,7 +39,7 @@ export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): 
 
       <div className="playback-controls">
         <button onClick={() => (player.isPlaying ? player.pause() : void player.play())}>
-          {player.isPlaying ? 'Pause' : 'Play'}
+          {player.isPlaying ? t('library.pause') : t('library.play')}
         </button>
         <span className="muted">
           {formatTime(player.currentTime)} / {formatTime(player.duration)}
@@ -53,7 +55,7 @@ export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): 
       </div>
 
       <div className="playback-controls">
-        <label htmlFor="rate">Speed</label>
+        <label htmlFor="rate">{t('library.speed')}</label>
         <select
           id="rate"
           value={player.playbackRate}
@@ -65,20 +67,22 @@ export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): 
           <option value={2}>2x</option>
         </select>
         <button className="danger" onClick={() => void onDelete(recording.id)}>
-          Delete
+          {t('library.delete')}
         </button>
+        <button onClick={() => setIsExportOpen(true)}>{t('library.export')}</button>
       </div>
 
       <div className="transcript-list transcript-list-compact">
-        {segments.map((segment, index) => (
+        {recording.segments.map((segment, index) => (
           <SegmentRow
             key={`${recording.id}-${segment.start}-${segment.end}-${index}`}
             segment={segment}
             onSeek={(seconds) => player.seek(seconds)}
           />
         ))}
-        {segments.length === 0 ? <p className="muted">No transcript segments saved.</p> : null}
+        {recording.segments.length === 0 ? <p className="muted">{t('library.noTranscriptSegments')}</p> : null}
       </div>
+      <ExportDialog open={isExportOpen} recordingId={recording.id} onClose={() => setIsExportOpen(false)} />
     </div>
   )
 }

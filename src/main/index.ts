@@ -8,6 +8,14 @@ import { registerAudioHandlers } from './ipc/audio'
 import { registerDatabaseHandlers } from './ipc/database'
 import { registerTranscriptionHandlers } from './ipc/transcription'
 import { registerSummarizationHandlers } from './ipc/summarization'
+import { registerCloudLlmHandlers } from './ipc/cloud-llm'
+import { registerDiarizationHandlers } from './ipc/diarization'
+import { registerRAGHandlers } from './ipc/rag'
+import { registerExportHandlers } from './ipc/export'
+import { registerClassificationHandlers } from './ipc/classification'
+import { registerSystemAudioHandlers } from './ipc/system-audio'
+import { registerTranslationHandlers } from './ipc/translation'
+import { buildAppMenu, getMainLocaleText } from './menu'
 import { AppChannels, SettingsChannels } from '../shared/ipc-channels'
 import { getLocale, setLocale, getWhisperModel, setWhisperModel, getLlmModel, setLlmModel } from './store'
 import type { LlmModelName, SupportedLocale } from '../shared/types'
@@ -64,7 +72,15 @@ app.whenReady().then(() => {
   const mainWindow = createWindow()
   const transcriptionRuntime = registerTranscriptionHandlers(mainWindow, databaseService)
   registerSummarizationHandlers(mainWindow, databaseService)
+  registerCloudLlmHandlers(mainWindow)
+  registerDiarizationHandlers(mainWindow, databaseService)
+  registerRAGHandlers(mainWindow, databaseService)
+  registerExportHandlers(databaseService)
+  registerClassificationHandlers(databaseService)
+  registerSystemAudioHandlers()
+  registerTranslationHandlers(mainWindow, databaseService)
   registerAudioHandlers(audioService, databaseService, transcriptionRuntime)
+  Menu.setApplicationMenu(buildAppMenu(getLocale()))
 
   ipcMain.handle(AppChannels.GET_PATH, (_event, name: Parameters<typeof app.getPath>[0]) => {
     return app.getPath(name)
@@ -72,7 +88,12 @@ app.whenReady().then(() => {
   ipcMain.handle(AppChannels.GET_VERSION, () => app.getVersion())
   ipcMain.handle(SettingsChannels.GET_LOCALE, () => getLocale())
   ipcMain.handle(SettingsChannels.SET_LOCALE, (_event, locale: SupportedLocale) =>
-    setLocale(locale)
+    {
+      const next = setLocale(locale)
+      Menu.setApplicationMenu(buildAppMenu(next))
+      setupTray(next)
+      return next
+    }
   )
   ipcMain.handle(SettingsChannels.GET_WHISPER_MODEL, () => getWhisperModel())
   ipcMain.handle(SettingsChannels.SET_WHISPER_MODEL, (_event, model: 'base' | 'small' | 'medium' | 'large-v3-turbo') =>
@@ -80,7 +101,7 @@ app.whenReady().then(() => {
   )
   ipcMain.handle(SettingsChannels.GET_LLM_MODEL, () => getLlmModel())
   ipcMain.handle(SettingsChannels.SET_LLM_MODEL, (_event, model: LlmModelName) => setLlmModel(model))
-  setupTray()
+  setupTray(getLocale())
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -99,11 +120,20 @@ app.on('before-quit', () => {
   databaseService?.close()
 })
 
-function setupTray(): void {
-  tray = new Tray(icon)
+function setupTray(locale: SupportedLocale): void {
+  const t = getMainLocaleText(locale)
+  if (!tray) {
+    tray = new Tray(icon)
+    tray.on('click', () => {
+      const win = BrowserWindow.getAllWindows()[0]
+      if (win) {
+        win.isVisible() ? win.hide() : win.show()
+      }
+    })
+  }
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Open VoiceVault',
+      label: t.open,
       click: () => {
         const win = BrowserWindow.getAllWindows()[0]
         if (win) {
@@ -115,17 +145,11 @@ function setupTray(): void {
       }
     },
     {
-      label: 'Quit',
+      label: t.quit,
       click: () => app.quit()
     }
   ])
 
-  tray.setToolTip('VoiceVault')
+  tray.setToolTip(t.tooltip)
   tray.setContextMenu(contextMenu)
-  tray.on('click', () => {
-    const win = BrowserWindow.getAllWindows()[0]
-    if (win) {
-      win.isVisible() ? win.hide() : win.show()
-    }
-  })
 }

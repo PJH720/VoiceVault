@@ -1,0 +1,16 @@
+{
+  "id": "memo",
+  "name": "Memo",
+  "description": "Quick updates, internal memos, short notes",
+  "icon": "📝",
+  "color": "#0ea5e9",
+  "category": "built-in",
+  "keywords": ["memo", "update", "note", "brief"],
+  "prompts": {
+    "summary": "Summarize this memo in concise bullet points.",
+    "keyPoints": "Extract the key updates and status changes."
+  },
+  "exportTemplate": "basic",
+  "createdAt": "2026-03-04T00:00:00.000Z",
+  "updatedAt": "2026-03-04T00:00:00.000Z"
+}
