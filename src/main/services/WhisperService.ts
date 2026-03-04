@@ -51,6 +51,10 @@ export class WhisperService {
     return path.join(this.modelRoot, `ggml-${modelSize}.bin`)
   }
 
+  public isNativeModuleAvailable(): boolean | null {
+    return this.nativeModuleAvailable
+  }
+
   public async isModelAvailable(modelSize: WhisperModelSize = this.modelSize): Promise<boolean> {
     try {
       await fsp.access(this.getModelPath(modelSize), fs.constants.R_OK)

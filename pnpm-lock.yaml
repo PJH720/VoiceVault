@@ -35,24 +35,15 @@ importers:
       i18next-browser-languagedetector:
         specifier: ^8.2.1
         version: 8.2.1
-      native-audio-node:
-        specifier: ^0.3.5
-        version: 0.3.5
       node-llama-cpp:
         specifier: ^3.17.1
         version: 3.17.1(typescript@5.9.3)
-      pyannote-cpp-node:
-        specifier: ^0.6.0
-        version: 0.6.0
       react-i18next:
         specifier: ^16.5.4
         version: 16.5.4(i18next@25.8.14(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       tailwindcss:
         specifier: ^4.2.1
         version: 4.2.1
-      whisper-cpp-node:
-        specifier: ^0.2.8
-        version: 0.2.8
     devDependencies:
       '@electron-toolkit/eslint-config-prettier':
         specifier: ^3.0.0
@@ -773,32 +764,6 @@ packages:
     resolution: {integrity: sha512-9QOtNffcOF/c1seMCDnjckb3R9WHcG34tky+FHpNKKCW0wc/scYLwMtO+ptyGUfMW0/b/n4qRiALlaFHc9Oj7Q==}
     engines: {node: '>= 10.0.0'}
 
-  '@native-audio-node/darwin-arm64@0.3.1':
-    resolution: {integrity: sha512-LLgYOIljA6lPYoyjZE4nt7EHXUCp7Y+oxCjRAaDgGMnqvGqcppPw5qrSF3zWQBWA4x4ciIljyPN7hFdYLmqcpA==}
-    engines: {node: '>=20'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@native-audio-node/darwin-x64@0.3.0':
-    resolution: {integrity: sha512-ygRwNH0aexRDdLGYzz4uJrfxqZSXKkKbFgKKJCb8VLN6dyB7VCTAO40+oZULc2eQtWkZhdil3ArQW+Y7CTnK7g==}
-    engines: {node: '>=20'}
-    cpu: [x64]
-    os: [darwin]
-    deprecated: Missing binary, use 0.3.1+
-
-  '@native-audio-node/win32-arm64@0.3.0':
-    resolution: {integrity: sha512-4Oc1aeOkYkBaDCsmtW9t2a4muXB/WpnvU+xI2SJo8GSg5oOQ4mNMKLkcDAH+JMXx8KA/ROBNqsQsEyJjLIRvIA==}
-    engines: {node: '>=20'}
-    cpu: [arm64]
-    os: [win32]
-    deprecated: Missing binary, use 0.3.1+
-
-  '@native-audio-node/win32-x64@0.3.3':
-    resolution: {integrity: sha512-ESJVq6kqBCCc1c2Q+6Owjbg5rHgCd2KRLfIHxL6noFbuabFl/vjBAP7RMhu3SOknxt1GtQlmenJ0u31qmnRDVQ==}
-    engines: {node: '>=20'}
-    cpu: [x64]
-    os: [win32]
-
   '@node-llama-cpp/linux-arm64@3.17.1':
     resolution: {integrity: sha512-QK8opgd/AnGHvSQwIDXukrMNa760PLOxcu4OrxJn/CsHxiKucch0L4bDfu17XvlKiMoK41lXa6CKFm1kjVaGIQ==}
     engines: {node: '>=20.0.0'}
@@ -903,12 +868,6 @@ packages:
     resolution: {integrity: sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA==}
     engines: {node: '>=18'}
     hasBin: true
-
-  '@pyannote-cpp-node/darwin-arm64@0.6.0':
-    resolution: {integrity: sha512-g6Oiaav6XGxFAOLNc7vXCsXrCCEuNNLn9jsr8U9ISxLHHjh9eInNpUFEWR2gQt1VI/ejBif0A0EFjWSP6tw3aQ==}
-    engines: {node: '>=18'}
-    cpu: [arm64]
-    os: [darwin]
 
   '@reflink/reflink-darwin-arm64@0.1.19':
     resolution: {integrity: sha512-ruy44Lpepdk1FqDz38vExBY/PVUsjxZA+chd9wozjUH9JjuDT/HEaQYA6wYN9mf041l0yLVar6BCZuWABJvHSA==}
@@ -1399,21 +1358,6 @@ packages:
 
   '@vitest/utils@4.0.18':
     resolution: {integrity: sha512-msMRKLMVLWygpK3u2Hybgi4MNjcYJvwTb0Ru09+fOyCXIgT5raYP041DRRdiJiI3k/2U6SEbAETB3YtBrUkCFA==}
-
-  '@whisper-cpp-node/darwin-arm64@0.2.3':
-    resolution: {integrity: sha512-acosjvSgr9i1Mzp8PG+cwSLkG/AlnI0X10zBKh5qqkC+fDsmV3hTLDXu7O2MEvBdO0HAIgLVsb5VzmeSv0FURg==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@whisper-cpp-node/win32-ia32@0.2.7':
-    resolution: {integrity: sha512-L3D7Kpi76yBGXOXkHcVCye6jcINyg4R6eis8MhC08bCVbojamTEbEtoUD7XYcLPXX1KJxrm51DO0uzhVsRgOlQ==}
-    cpu: [ia32]
-    os: [win32]
-
-  '@whisper-cpp-node/win32-x64@0.2.8':
-    resolution: {integrity: sha512-DdRaZMGaU+/eKFr8DDS8FESnGFquGzn4DioJPfm6A1VoRC7GSaLmm9bGFQUh2HZOZz9zmYhFA5PaCu5MR1LxMw==}
-    cpu: [x64]
-    os: [win32]
 
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
@@ -2952,12 +2896,6 @@ packages:
   napi-build-utils@2.0.0:
     resolution: {integrity: sha512-GEbrYkbfF7MoNaoh2iGG84Mnf/WZfB0GdGEsM8wz7Expx/LlWf5U8t9nvJKXSp3qr5IsEbK04cBGhol/KwOsWA==}
 
-  native-audio-node@0.3.5:
-    resolution: {integrity: sha512-1ZeUwSkJ9HHLX2LdbFz3YCfzIajhgw6uVKv8ZgWz92xQ37izRYm1aQHSdGOgwwIhUC1th3COuRhW9Te+A6+rJA==}
-    engines: {node: '>=20'}
-    cpu: [x64, arm64]
-    os: [darwin, win32]
-
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
@@ -3234,10 +3172,6 @@ packages:
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
-
-  pyannote-cpp-node@0.6.0:
-    resolution: {integrity: sha512-HLIb7GW2LVTreAfjZ8nNNlf+zkoTR261EqlYkqpmaLNO7JC54jB7/J5q1QwAfLJsj9vWqvvLmhGBpa13i20x6A==}
-    engines: {node: '>=18'}
 
   quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
@@ -3938,10 +3872,6 @@ packages:
     engines: {node: ^20.17.0 || >=22.9.0}
     hasBin: true
 
-  whisper-cpp-node@0.2.8:
-    resolution: {integrity: sha512-sEQe/S+3revWp9FHm65abpLumKfHYAvHJpR7Bx0I/zjklOMApVqYAhCrxhE+x9H7AJxRg+oO/gCLk6Z3NYapMQ==}
-    engines: {node: '>=18.0.0'}
-
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
@@ -4600,18 +4530,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@native-audio-node/darwin-arm64@0.3.1':
-    optional: true
-
-  '@native-audio-node/darwin-x64@0.3.0':
-    optional: true
-
-  '@native-audio-node/win32-arm64@0.3.0':
-    optional: true
-
-  '@native-audio-node/win32-x64@0.3.3':
-    optional: true
-
   '@node-llama-cpp/linux-arm64@3.17.1':
     optional: true
 
@@ -4673,9 +4591,6 @@ snapshots:
   '@playwright/test@1.58.2':
     dependencies:
       playwright: 1.58.2
-
-  '@pyannote-cpp-node/darwin-arm64@0.6.0':
-    optional: true
 
   '@reflink/reflink-darwin-arm64@0.1.19':
     optional: true
@@ -5121,15 +5036,6 @@ snapshots:
     dependencies:
       '@vitest/pretty-format': 4.0.18
       tinyrainbow: 3.0.3
-
-  '@whisper-cpp-node/darwin-arm64@0.2.3':
-    optional: true
-
-  '@whisper-cpp-node/win32-ia32@0.2.7':
-    optional: true
-
-  '@whisper-cpp-node/win32-x64@0.2.8':
-    optional: true
 
   '@xmldom/xmldom@0.8.11': {}
 
@@ -6949,13 +6855,6 @@ snapshots:
 
   napi-build-utils@2.0.0: {}
 
-  native-audio-node@0.3.5:
-    optionalDependencies:
-      '@native-audio-node/darwin-arm64': 0.3.1
-      '@native-audio-node/darwin-x64': 0.3.0
-      '@native-audio-node/win32-arm64': 0.3.0
-      '@native-audio-node/win32-x64': 0.3.3
-
   natural-compare@1.4.0: {}
 
   negotiator@1.0.0: {}
@@ -7289,10 +7188,6 @@ snapshots:
       once: 1.4.0
 
   punycode@2.3.1: {}
-
-  pyannote-cpp-node@0.6.0:
-    optionalDependencies:
-      '@pyannote-cpp-node/darwin-arm64': 0.6.0
 
   quick-lru@5.1.1: {}
 
@@ -8083,12 +7978,6 @@ snapshots:
   which@6.0.1:
     dependencies:
       isexe: 4.0.0
-
-  whisper-cpp-node@0.2.8:
-    optionalDependencies:
-      '@whisper-cpp-node/darwin-arm64': 0.2.3
-      '@whisper-cpp-node/win32-ia32': 0.2.7
-      '@whisper-cpp-node/win32-x64': 0.2.8
 
   why-is-node-running@2.3.0:
     dependencies:
