@@ -37,7 +37,8 @@
   "recording": {
     "start": "録音開始",
     "stop": "停止",
-    "lastSaved": "直近の保存: {{path}} ({{duration}}秒)"
+    "lastSaved": "直近の保存: {{path}} ({{duration}}秒)",
+    "micPermissionDenied": "マイクの権限が拒否されました。"
   },
   "library": {
     "searchPlaceholder": "タイトル/文字起こしを検索...",
@@ -146,7 +147,8 @@
     "preview": "プレビュー",
     "cancel": "キャンセル",
     "run": "エクスポート",
-    "vaultRequired": "Obsidian Vault のパスが必要です。"
+    "vaultRequired": "Obsidian Vault のパスが必要です。",
+    "noPreview": "プレビューはまだありません。"
   },
   "templates": {
     "libraryTitle": "テンプレートライブラリ",
@@ -197,6 +199,11 @@
       "turns": "ターン",
       "secondsShort": "秒",
       "recordingsShort": "rec"
+    },
+    "versions": {
+      "electron": "Electron v{{version}}",
+      "chromium": "Chromium v{{version}}",
+      "node": "Node v{{version}}"
     }
   }
 }

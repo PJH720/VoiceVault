@@ -37,7 +37,8 @@
   "recording": {
     "start": "녹음 시작",
     "stop": "중지",
-    "lastSaved": "최근 저장: {{path}} ({{duration}}초)"
+    "lastSaved": "최근 저장: {{path}} ({{duration}}초)",
+    "micPermissionDenied": "마이크 권한이 거부되었습니다."
   },
   "library": {
     "searchPlaceholder": "제목/전사 검색...",
@@ -146,7 +147,8 @@
     "preview": "미리보기",
     "cancel": "취소",
     "run": "내보내기",
-    "vaultRequired": "Obsidian 볼트 경로가 필요합니다."
+    "vaultRequired": "Obsidian 볼트 경로가 필요합니다.",
+    "noPreview": "미리보기가 없습니다."
   },
   "templates": {
     "libraryTitle": "템플릿 라이브러리",
@@ -197,6 +199,11 @@
       "turns": "턴",
       "secondsShort": "초",
       "recordingsShort": "녹음"
+    },
+    "versions": {
+      "electron": "Electron v{{version}}",
+      "chromium": "Chromium v{{version}}",
+      "node": "Node v{{version}}"
     }
   }
 }
