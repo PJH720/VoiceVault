@@ -205,5 +205,10 @@
       "chromium": "Chromium v{{version}}",
       "node": "Node v{{version}}"
     }
+  },
+  "errors": {
+    "componentCrash": "Something went wrong",
+    "unknownError": "An unexpected error occurred",
+    "retry": "Try Again"
   }
 }

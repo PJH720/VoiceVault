@@ -174,10 +174,13 @@ export class DatabaseService {
       params.push(options.category)
     }
     if (options.search && options.search.trim()) {
+      // Escape FTS5 special characters to prevent query injection
+      const rawSearch = options.search.trim()
+      const ftsEscaped = '"' + rawSearch.replace(/"/g, '""') + '"'
       where.push(
         `(title LIKE ? OR id IN (SELECT recording_id FROM transcript_segments_fts WHERE transcript_segments_fts MATCH ?))`
       )
-      params.push(`%${options.search.trim()}%`, options.search.trim())
+      params.push(`%${rawSearch}%`, ftsEscaped)
     }
 
     let sql = `

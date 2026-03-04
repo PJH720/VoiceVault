@@ -205,5 +205,10 @@
       "chromium": "Chromium v{{version}}",
       "node": "Node v{{version}}"
     }
+  },
+  "errors": {
+    "componentCrash": "問題が発生しました",
+    "unknownError": "予期しないエラーが発生しました",
+    "retry": "もう一度試す"
   }
 }
