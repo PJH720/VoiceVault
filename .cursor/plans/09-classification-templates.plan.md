@@ -4,19 +4,19 @@ overview: 녹음 자동 분류와 템플릿 기반 정리를 위해 분류 서�
 todos:
   - id: classification-service
     content: LLM 기반 zero-shot 분류 파이프라인을 구현한다.
-    status: pending
+    status: completed
   - id: template-schema-manager
     content: 템플릿 스키마/검증/저장소 관리 기능을 구현한다.
-    status: pending
+    status: completed
   - id: built-in-templates
     content: 기본 템플릿 세트를 정의하고 적용 로직을 구현한다.
-    status: pending
+    status: completed
   - id: template-editor-ui
     content: 커스텀 템플릿 생성/수정/미리보기 UI를 구현한다.
-    status: pending
+    status: completed
   - id: classification-integration
     content: 분류 결과를 요약/내보내기 흐름에 일관되게 통합한다.
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -34,11 +34,13 @@ Build a template system for recording classification and auto-organization. Prov
 ## Architecture
 
 ### Main Process
+
 - `src/main/services/ClassificationService.ts` — LLM-based auto-classification
 - `src/main/services/TemplateManager.ts` — template CRUD and validation
 - Templates stored in `resources/templates/classification/` (built-in) and `userData/templates/` (custom)
 
 ### IPC Bridge
+
 - `classification:auto-classify` — classify recording by content
 - `classification:apply-template` — apply template to recording
 - `templates:list` — get all available templates
@@ -48,6 +50,7 @@ Build a template system for recording classification and auto-organization. Prov
 - `templates:export` — export template as JSON
 
 ### React Layer
+
 - `src/renderer/components/Templates/TemplateEditor.tsx` — visual template editor
 - `src/renderer/components/Templates/TemplateLibrary.tsx` — browse templates
 - `src/renderer/components/Templates/ClassificationBadge.tsx` — show classification result
@@ -55,6 +58,7 @@ Build a template system for recording classification and auto-organization. Prov
 ## Implementation Steps
 
 ### 1. Template Schema
+
 1. Define template structure with metadata and prompts
 2. Support template inheritance (extend base templates)
 3. Include validation rules
@@ -91,6 +95,7 @@ export interface RecordingTemplate {
 ```
 
 ### 2. Built-In Templates
+
 Create 7 default templates in `resources/templates/classification/`:
 
 ```json
@@ -171,6 +176,7 @@ Create 7 default templates in `resources/templates/classification/`:
 ```
 
 ### 3. Classification Service (Main Process)
+
 1. Implement LLM-based zero-shot classification
 2. Fallback to keyword matching if LLM unavailable
 3. Support confidence scores
@@ -288,6 +294,7 @@ Respond with ONLY the category ID (e.g., "meeting", "lecture", etc.). No explana
 ```
 
 ### 4. Template Manager (Main Process)
+
 1. Load built-in and custom templates
 2. CRUD operations for custom templates
 3. Validation and persistence
@@ -439,6 +446,7 @@ export class TemplateManager {
 ```
 
 ### 5. IPC Handlers (Main Process)
+
 ```typescript
 // src/main/ipc/classification.ts
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
@@ -500,6 +508,7 @@ export function registerClassificationHandlers(): void {
 ```
 
 ### 6. UI Components (Renderer)
+
 ```typescript
 // src/renderer/components/Templates/TemplateEditor.tsx
 import { useState } from 'react';
@@ -713,6 +722,7 @@ export function TemplateEditor({ templateId, onSave, onCancel }: any) {
 ```
 
 ### 7. Database Schema Extension
+
 ```sql
 -- Migration: 007_templates.sql
 -- Add template classification to recordings
@@ -756,28 +766,30 @@ src/
 ## Testing Strategy
 
 ### Unit Tests
+
 - `ClassificationService.test.ts` — test LLM and keyword classification
 - `TemplateManager.test.ts` — test CRUD operations, validation
 
 ### E2E Tests
+
 - Create custom template → verify saved to disk
 - Auto-classify recording → verify correct template assigned
 - Apply template → verify custom summary generated
 
 ## Acceptance Criteria
 
-- [ ] 7 built-in templates available
-- [ ] Auto-classification assigns correct template with >70% accuracy
-- [ ] Template editor allows creating custom templates
-- [ ] Custom fields can be added to templates
-- [ ] Keywords help with classification fallback
-- [ ] Templates can be exported/imported as JSON
-- [ ] Template-specific prompts generate better summaries
-- [ ] Classification confidence shown in UI
-- [ ] Built-in templates cannot be edited or deleted
-- [ ] Custom templates saved to userData directory
-- [ ] Template library shows all templates with icons
-- [ ] Applying template regenerates summary with custom prompts
+- 7 built-in templates available
+- Auto-classification assigns correct template with >70% accuracy
+- Template editor allows creating custom templates
+- Custom fields can be added to templates
+- Keywords help with classification fallback
+- Templates can be exported/imported as JSON
+- Template-specific prompts generate better summaries
+- Classification confidence shown in UI
+- Built-in templates cannot be edited or deleted
+- Custom templates saved to userData directory
+- Template library shows all templates with icons
+- Applying template regenerates summary with custom prompts
 
 ## Edge Cases & Gotchas
 
@@ -789,8 +801,11 @@ src/
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| **Classification time** | <5s (LLM), <100ms (keyword) |
-| **Template load time** | <50ms for all templates |
-| **Custom template save** | <200ms |
+
+| Metric                   | Target                      |
+| ------------------------ | --------------------------- |
+| **Classification time**  | <5s (LLM), <100ms (keyword) |
+| **Template load time**   | <50ms for all templates     |
+| **Custom template save** | <200ms                      |
+
+

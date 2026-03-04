@@ -4,19 +4,19 @@ overview: react-i18next 기반 다국어 UI를 구축하고 locale 상태 저장
 todos:
   - id: i18n-bootstrap
     content: i18n 초기화와 locale 리소스 로딩 구조를 구현한다.
-    status: pending
+    status: completed
   - id: locale-persistence
     content: 선택 언어를 저장하고 앱 재시작 시 복원하는 흐름을 구현한다.
-    status: pending
+    status: completed
   - id: string-externalization
     content: 사용자 노출 문자열을 로케일 파일로 이관하고 키 체계를 정리한다.
-    status: pending
+    status: completed
   - id: language-picker-ui
     content: 설정 화면 언어 선택 UI와 반영 흐름을 구현한다.
-    status: pending
+    status: completed
   - id: i18n-quality-gate
     content: 누락 키/포맷팅/locale fallback 동작을 검증한다.
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -34,15 +34,18 @@ Implement full internationalization using `react-i18next` for the VoiceVault UI.
 ## Architecture
 
 ### Native Layer
+
 - `src/main/store.ts` — persist selected locale in `electron-store`
 - `src/main/ipc/settings.ts` — IPC handler to get/set locale preference
 
 ### IPC Bridge
+
 - `settings:get-locale` → returns current locale string
 - `settings:set-locale` → persists locale, returns confirmation
 - App menu labels also need i18n (main process `Menu.buildFromTemplate`)
 
 ### React Layer
+
 - `src/renderer/i18n/index.ts` — `react-i18next` initialization
 - `src/renderer/i18n/locales/ko.json` — Korean (primary)
 - `src/renderer/i18n/locales/en.json` — English
@@ -51,6 +54,7 @@ Implement full internationalization using `react-i18next` for the VoiceVault UI.
 - `src/renderer/components/Settings/LanguagePicker.tsx` — UI for language selection
 
 ### Shared Types
+
 ```typescript
 // src/shared/types.ts (additions)
 export type SupportedLocale = 'ko' | 'en' | 'ja';
@@ -67,6 +71,7 @@ export interface LocaleMetadata {
 ## Implementation Steps
 
 ### 1. Install Dependencies
+
 ```bash
 pnpm add react-i18next i18next i18next-browser-languagedetector
 ```
@@ -272,6 +277,7 @@ Namespace structure — single flat namespace for simplicity at this scale:
 Japanese locale follows the same structure with `ja.json`.
 
 ### 3. i18n Initialization
+
 ```typescript
 // src/renderer/i18n/index.ts
 import i18n from 'i18next';
@@ -304,6 +310,7 @@ export default i18n;
 ```
 
 ### 4. Language Picker Component
+
 ```tsx
 // src/renderer/components/Settings/LanguagePicker.tsx
 import { useTranslation } from 'react-i18next';
@@ -345,6 +352,7 @@ export function LanguagePicker() {
 ```
 
 ### 5. Usage Pattern in Components
+
 ```tsx
 // Every component uses useTranslation
 import { useTranslation } from 'react-i18next';
@@ -362,6 +370,7 @@ export function RecordingView() {
 ```
 
 **Forbidden patterns:**
+
 ```tsx
 // ❌ NEVER hardcode user-facing strings
 <button>Start Recording</button>
@@ -373,6 +382,7 @@ export function RecordingView() {
 ```
 
 ### 6. Locale-Aware Formatting
+
 ```typescript
 // src/renderer/lib/format.ts
 export function formatDate(date: string | Date, locale: string): string {
@@ -405,6 +415,7 @@ export function formatFileSize(bytes: number, locale: string): string {
 ```
 
 ### 7. Main Process Menu i18n
+
 ```typescript
 // src/main/menu.ts
 import { Menu, app } from 'electron';
@@ -446,6 +457,7 @@ export function buildMenu(locale: string) {
 ### 8. Contributor Translation Guide
 
 Create `TRANSLATING.md` at project root:
+
 ```markdown
 # Contributing Translations
 
@@ -486,17 +498,20 @@ TRANSLATING.md                # contributor guide
 ## Testing Strategy
 
 ### Unit Tests (Vitest)
+
 - `format.ts`: Verify date/duration/fileSize formatting across locales
 - Translation completeness: Script that compares all locale files against `en.json` keys
 - Interpolation: Verify `{{count}}` placeholders resolve correctly
 
 ### E2E Tests (Playwright)
+
 - Switch language in Settings → verify UI labels change
 - Verify fallback: unknown key shows English fallback
 - Verify date formatting changes with locale
 - Verify no raw untranslated strings in UI (screenshot comparison)
 
 ### Translation Lint Script
+
 ```typescript
 // scripts/check-translations.ts
 // Compare all locale files against en.json — flag missing keys
@@ -520,18 +535,18 @@ for (const [name, locale] of [['ko', ko], ['ja', ja]] as const) {
 
 ## Acceptance Criteria
 
-- [ ] `react-i18next` initialized with ko/en/ja locales
-- [ ] All user-facing strings use `t()` — zero hardcoded strings
-- [ ] Language picker in Settings works — UI updates instantly on switch
-- [ ] Selected locale persists via `electron-store` across restarts
-- [ ] Dates formatted with `Intl.DateTimeFormat` respecting locale
-- [ ] Durations and file sizes formatted with `Intl.NumberFormat`
-- [ ] App menu labels update on locale change (macOS)
-- [ ] Fallback to English for missing translation keys
-- [ ] `TRANSLATING.md` exists with contributor guide
-- [ ] Translation lint script catches missing keys
-- [ ] No `any` types — all locale types are strict
-- [ ] Interpolation variables (`{{count}}`) work in all locales
+- `react-i18next` initialized with ko/en/ja locales
+- All user-facing strings use `t()` — zero hardcoded strings
+- Language picker in Settings works — UI updates instantly on switch
+- Selected locale persists via `electron-store` across restarts
+- Dates formatted with `Intl.DateTimeFormat` respecting locale
+- Durations and file sizes formatted with `Intl.NumberFormat`
+- App menu labels update on locale change (macOS)
+- Fallback to English for missing translation keys
+- `TRANSLATING.md` exists with contributor guide
+- Translation lint script catches missing keys
+- No `any` types — all locale types are strict
+- Interpolation variables (`{{count}}`) work in all locales
 
 ## Edge Cases & Gotchas
 
@@ -541,3 +556,4 @@ for (const [name, locale] of [['ko', ko], ['ja', ja]] as const) {
 - **Main process i18n**: Main process has no React — needs its own translation lookup for menus and dialogs
 - **Hot-reload**: Changing language should not require app restart — `i18n.changeLanguage()` triggers React re-render
 - **System locale detection**: `i18next-browser-languagedetector` may detect wrong locale in Electron — prefer reading from `electron-store` first, fallback to system
+

@@ -1,4 +1,5 @@
 import type { TranscriptSegment } from '../../../../shared/types'
+import { useTranslation } from 'react-i18next'
 
 type SegmentRowProps = {
   segment: TranscriptSegment
@@ -14,6 +15,7 @@ function formatTime(value: number): string {
 }
 
 export function SegmentRow({ segment, onSeek }: SegmentRowProps): React.JSX.Element {
+  const { t } = useTranslation()
   const copyText = async (): Promise<void> => {
     await navigator.clipboard.writeText(segment.text)
   }
@@ -28,7 +30,7 @@ export function SegmentRow({ segment, onSeek }: SegmentRowProps): React.JSX.Elem
         <div className="segment-meta">
           <span>{segment.language.toUpperCase()}</span>
           <span>{Math.round(segment.confidence * 100)}%</span>
-          <button onClick={() => void copyText()}>Copy</button>
+          <button onClick={() => void copyText()}>{t('transcript.copy')}</button>
         </div>
       </div>
     </div>

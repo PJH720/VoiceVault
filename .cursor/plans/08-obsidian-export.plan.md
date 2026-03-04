@@ -4,19 +4,19 @@ overview: 녹음 데이터를 Obsidian 친화적 Markdown으로 내보내기 위
 todos:
   - id: template-engine
     content: 템플릿 파싱과 변수 치환 기반 Markdown 생성 엔진을 구현한다.
-    status: pending
+    status: completed
   - id: export-service
     content: 단일/배치 Obsidian export 및 파일 쓰기 경로를 구현한다.
-    status: pending
+    status: completed
   - id: frontmatter-wikilinks
     content: YAML frontmatter와 관련 녹음 wikilinks 생성을 구현한다.
-    status: pending
+    status: completed
   - id: export-ui-preview
     content: 템플릿 선택과 Markdown 프리뷰를 포함한 Export UI를 구현한다.
-    status: pending
+    status: completed
   - id: export-validation
     content: vault 경로 및 파일명 충돌/권한 edge case를 검증한다.
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -34,11 +34,13 @@ Generate Obsidian-ready Markdown files from recordings with YAML frontmatter, wi
 ## Architecture
 
 ### Main Process
+
 - `src/main/services/ExportService.ts` — Markdown generation and file writing
 - `src/main/services/TemplateEngine.ts` — template parsing and variable substitution
 - Export templates stored in `resources/templates/obsidian/`
 
 ### IPC Bridge
+
 - `export:obsidian` — export single recording
 - `export:batch` — export multiple recordings
 - `export:preview` — generate preview without writing
@@ -46,6 +48,7 @@ Generate Obsidian-ready Markdown files from recordings with YAML frontmatter, wi
 - `export:get-templates` — list available templates
 
 ### React Layer
+
 - `src/renderer/components/Export/ExportDialog.tsx` — export configuration dialog
 - `src/renderer/components/Export/TemplateSelector.tsx` — choose template
 - `src/renderer/components/Export/MarkdownPreview.tsx` — preview before export
@@ -53,6 +56,7 @@ Generate Obsidian-ready Markdown files from recordings with YAML frontmatter, wi
 ## Implementation Steps
 
 ### 1. Template Engine (Main Process)
+
 1. Create template system with Handlebars-like syntax
 2. Support variables: `{{title}}`, `{{summary}}`, `{{actionItems}}`, etc.
 3. Support conditionals and loops
@@ -130,6 +134,7 @@ export class TemplateEngine {
 ```
 
 ### 2. Export Service (Main Process)
+
 1. Create `ExportService` handling file generation and writing
 2. Generate YAML frontmatter with metadata
 3. Create wikilinks to related recordings (by category/tags)
@@ -328,6 +333,7 @@ export class ExportService {
 ```
 
 ### 3. Built-In Templates
+
 Create default templates in `resources/templates/obsidian/`:
 
 ```markdown
@@ -386,6 +392,7 @@ Create default templates in `resources/templates/obsidian/`:
 ```
 
 ### 4. IPC Handlers (Main Process)
+
 ```typescript
 // src/main/ipc/export.ts
 import { ipcMain, IpcMainInvokeEvent, dialog } from 'electron';
@@ -461,6 +468,7 @@ export function registerExportHandlers(): void {
 ```
 
 ### 5. UI Components (Renderer)
+
 ```typescript
 // src/renderer/components/Export/ExportDialog.tsx
 import { useState, useEffect } from 'react';
@@ -630,26 +638,28 @@ src/
 ## Testing Strategy
 
 ### Unit Tests
+
 - `TemplateEngine.test.ts` — test variable substitution, helpers
 - `ExportService.test.ts` — test frontmatter generation, file path logic
 
 ### E2E Tests
+
 - Export recording → verify Markdown file created
 - Batch export 5 recordings → verify all files created
 - Change template → verify preview updates
 
 ## Acceptance Criteria
 
-- [ ] Obsidian vault path can be selected via dialog
-- [ ] Export generates valid Markdown with YAML frontmatter
-- [ ] Wikilinks created for related recordings
-- [ ] Templates support all data fields (summary, action items, transcript, etc.)
-- [ ] Preview shows rendered Markdown before export
-- [ ] Folder structure options work (flat, by-date, by-category)
-- [ ] Audio files embedded or linked correctly
-- [ ] Batch export works for multiple recordings
-- [ ] Custom templates can be added by user (future: template editor)
-- [ ] Frontmatter includes all metadata (date, category, tags, speakers)
+- Obsidian vault path can be selected via dialog
+- Export generates valid Markdown with YAML frontmatter
+- Wikilinks created for related recordings
+- Templates support all data fields (summary, action items, transcript, etc.)
+- Preview shows rendered Markdown before export
+- Folder structure options work (flat, by-date, by-category)
+- Audio files embedded or linked correctly
+- Batch export works for multiple recordings
+- Custom templates can be added by user (future: template editor)
+- Frontmatter includes all metadata (date, category, tags, speakers)
 
 ## Edge Cases & Gotchas
 
@@ -661,8 +671,11 @@ src/
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| **Export time** | <1s per recording (excluding audio copy) |
-| **Batch export** | <10s for 50 recordings |
-| **Preview generation** | <200ms |
+
+| Metric                 | Target                                   |
+| ---------------------- | ---------------------------------------- |
+| **Export time**        | <1s per recording (excluding audio copy) |
+| **Batch export**       | <10s for 50 recordings                   |
+| **Preview generation** | <200ms                                   |
+
+

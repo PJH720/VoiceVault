@@ -151,7 +151,7 @@ export class WhisperService {
         temperature: 0,
         beamSize: 5
       })
-      return this.parseSegments(result, startedAtMs)
+      return this.parseSegments(result)
     } catch {
       return this.fallbackSegment(frame, startedAtMs)
     }
@@ -164,7 +164,7 @@ export class WhisperService {
     this.segmentIndex = 0
   }
 
-  private parseSegments(raw: unknown, startedAtMs: number): TranscriptSegment[] {
+  private parseSegments(raw: unknown): TranscriptSegment[] {
     const result = raw as {
       language?: string
       segments?: Array<{
@@ -203,7 +203,7 @@ export class WhisperService {
         }
       })
       .filter((segment): segment is TranscriptSegment => segment !== null)
-      .map((segment) => this.withMonotonicTimeline(segment, startedAtMs))
+      .map((segment) => this.withMonotonicTimeline(segment))
   }
 
   private fallbackSegment(frame: Float32Array, startedAtMs: number): TranscriptSegment[] {
@@ -216,20 +216,17 @@ export class WhisperService {
     const end = Math.max(start + 0.2, elapsedSec)
 
     return [
-      this.withMonotonicTimeline(
-        {
-          text: '[speech detected]',
-          start,
-          end,
-          language: 'auto',
-          confidence: Math.min(0.99, Math.max(0.35, rms))
-        },
-        startedAtMs
-      )
+      this.withMonotonicTimeline({
+        text: '[speech detected]',
+        start,
+        end,
+        language: 'auto',
+        confidence: Math.min(0.99, Math.max(0.35, rms))
+      })
     ]
   }
 
-  private withMonotonicTimeline(segment: TranscriptSegment, _startedAtMs: number): TranscriptSegment {
+  private withMonotonicTimeline(segment: TranscriptSegment): TranscriptSegment {
     const bump = this.segmentIndex * 0.001
     this.segmentIndex += 1
     const start = Number((segment.start + bump).toFixed(3))

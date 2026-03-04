@@ -128,6 +128,43 @@ export class LLMService {
     }
   }
 
+  public async answerQuestion(
+    question: string,
+    context: string,
+    onToken?: (token: string) => void
+  ): Promise<string> {
+    const prompt = `Answer the question using only the context.
+Include citation markers like [1], [2] where relevant.
+
+Question:
+${question}
+
+Context:
+${context}
+
+Answer:`
+    let response = ''
+    try {
+      await this.initialize()
+      if (!this.session) return this.fallbackAnswer(context)
+      await this.session.prompt(prompt, {
+        temperature: 0.4,
+        topK: 40,
+        topP: 0.9,
+        maxTokens: 512,
+        onToken: (chunk: unknown) => {
+          const token = String(chunk ?? '')
+          response += token
+          onToken?.(token)
+        }
+      })
+      const trimmed = response.trim()
+      return trimmed || this.fallbackAnswer(context)
+    } catch {
+      return this.fallbackAnswer(context)
+    }
+  }
+
   public async downloadModel(
     modelName: LlmModelName = this.modelName,
     onProgress?: (percent: number, downloaded: number, total: number) => void
@@ -240,5 +277,18 @@ export class LLMService {
       keyStatements: [],
       decisions: []
     }
+  }
+
+  private fallbackAnswer(context: string): string {
+    const lines = context
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) => /^\[\d+\]/.test(line))
+      .slice(0, 3)
+    if (lines.length === 0) {
+      return 'No grounded context found for this query.'
+    }
+    return `Based on retrieved context: ${lines.join(' ')}`
   }
 }

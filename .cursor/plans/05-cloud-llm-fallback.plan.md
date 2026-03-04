@@ -4,19 +4,19 @@ overview: 로컬 요약을 유지하면서 Claude API 기반 클라우드 요약
 todos:
   - id: cloud-llm-service
     content: CloudLLMService를 구현해 클라우드 요약 호출과 오류 재시도를 처리한다.
-    status: pending
+    status: completed
   - id: api-key-management
     content: API 키 저장/마스킹/갱신 흐름을 안전하게 구현한다.
-    status: pending
+    status: completed
   - id: cost-and-usage
     content: 비용 추정 및 사용량 집계를 구현해 요약 전후 정보를 제공한다.
-    status: pending
+    status: completed
   - id: local-cloud-switch
     content: 로컬/클라우드 요약 전환 로직을 기존 요약 인터페이스에 통합한다.
-    status: pending
+    status: completed
   - id: privacy-guardrails
     content: local-only 모드 및 전송 제어 옵션을 검증 가능한 형태로 구현한다.
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -34,11 +34,13 @@ Add optional Claude API integration as a fallback/upgrade path for higher-qualit
 ## Architecture
 
 ### Main Process
+
 - `src/main/services/CloudLLMService.ts` — Anthropic API client wrapper
 - `src/main/services/CostEstimator.ts` — token counting and pricing calculation
 - API keys stored in `electron-store` (encrypted at rest)
 
 ### IPC Bridge
+
 - `cloud-llm:summarize` — trigger cloud summarization
 - `cloud-llm:set-api-key` — securely store API key
 - `cloud-llm:get-api-key` — retrieve masked API key (sk-...XXXX)
@@ -46,6 +48,7 @@ Add optional Claude API integration as a fallback/upgrade path for higher-qualit
 - `cloud-llm:usage-stats` — get usage statistics
 
 ### React Layer
+
 - `src/renderer/components/Settings/LLMSettings.tsx` — model selection and API key input
 - `src/renderer/components/Settings/PrivacyToggle.tsx` — local-only mode toggle
 - `src/renderer/components/Summary/CostEstimate.tsx` — show estimated cost before generation
@@ -53,6 +56,7 @@ Add optional Claude API integration as a fallback/upgrade path for higher-qualit
 ## Implementation Steps
 
 ### 1. Cloud LLM Service (Main Process)
+
 1. Install Anthropic SDK (`pnpm add @anthropic-ai/sdk`)
 2. Create `CloudLLMService` wrapping Claude API
 3. Implement streaming chat with structured outputs (JSON mode)
@@ -125,7 +129,11 @@ Respond ONLY with valid JSON.`;
 
   private parseStructuredOutput(text: string, usage: any): SummaryOutput {
     try {
-      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);
+      const jsonMatch = text.match(/
+
+```json\n([\s\S]*?)\n
+
+```/) || text.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
       const parsed = JSON.parse(jsonStr);
 
@@ -177,6 +185,7 @@ Respond ONLY with valid JSON.`;
 ```
 
 ### 2. Cost Estimator (Main Process)
+
 1. Implement token counting (approximate via character count)
 2. Calculate costs based on current pricing
 
@@ -214,6 +223,7 @@ export class CostEstimator {
 ```
 
 ### 3. Secure API Key Storage (Main Process)
+
 1. Use `electron-store` with encryption
 2. Never expose full API key to renderer
 
@@ -282,6 +292,7 @@ export function maskApiKey(key: string): string {
 ```
 
 ### 4. IPC Handlers (Main Process)
+
 ```typescript
 // src/main/ipc/cloud-llm.ts
 import { ipcMain, IpcMainInvokeEvent, BrowserWindow } from 'electron';
@@ -358,6 +369,7 @@ export function registerCloudLLMHandlers(mainWindow: BrowserWindow): void {
 ```
 
 ### 5. Preload API (Preload Process)
+
 ```typescript
 // src/preload/index.ts (extend)
 contextBridge.exposeInMainWorld('api', {
@@ -385,6 +397,7 @@ contextBridge.exposeInMainWorld('api', {
 ```
 
 ### 6. Settings UI (Renderer)
+
 ```typescript
 // src/renderer/components/Settings/LLMSettings.tsx
 import { useState, useEffect } from 'react';
@@ -522,6 +535,7 @@ export function LLMSettings() {
 ```
 
 ### 7. Cost Estimate Component (Renderer)
+
 ```typescript
 // src/renderer/components/Summary/CostEstimate.tsx
 import { useEffect, useState } from 'react';
@@ -575,28 +589,30 @@ src/
 ## Testing Strategy
 
 ### Unit Tests
+
 - `CloudLLMService.test.ts` — mock Anthropic SDK, test response parsing
 - `CostEstimator.test.ts` — verify token estimation accuracy
 
 ### E2E Tests
+
 - Save API key → verify masked display
 - Generate cloud summary → verify result and cost tracking
 - Enable local-only mode → verify cloud requests blocked
 
 ## Acceptance Criteria
 
-- [ ] API key saved securely with `electron-store` encryption
-- [ ] API key displayed masked in UI (sk-ant-...XXXX)
-- [ ] Cloud model selection (Sonnet, Opus, Haiku) works
-- [ ] Cost estimate shown before generation
-- [ ] Usage stats track total cost and request count
-- [ ] Local-only mode toggle disables cloud APIs
-- [ ] Cloud summaries have same structure as local summaries
-- [ ] Streaming tokens display in UI (same as local LLM)
-- [ ] Error handling for invalid API key, rate limits, network issues
-- [ ] Summary metadata includes provider, model, tokens, cost
-- [ ] Settings page has "Reset Stats" button
-- [ ] Privacy notice explains what data is sent to Anthropic
+- API key saved securely with `electron-store` encryption
+- API key displayed masked in UI (sk-ant-...XXXX)
+- Cloud model selection (Sonnet, Opus, Haiku) works
+- Cost estimate shown before generation
+- Usage stats track total cost and request count
+- Local-only mode toggle disables cloud APIs
+- Cloud summaries have same structure as local summaries
+- Streaming tokens display in UI (same as local LLM)
+- Error handling for invalid API key, rate limits, network issues
+- Summary metadata includes provider, model, tokens, cost
+- Settings page has "Reset Stats" button
+- Privacy notice explains what data is sent to Anthropic
 
 ## Edge Cases & Gotchas
 
@@ -610,8 +626,11 @@ src/
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| **Summary generation time** | <10s for 5K token transcript (Claude 3.5 Sonnet) |
-| **Cost per summary** | <$0.05 for typical 10-minute meeting |
-| **Token estimation accuracy** | ±10% of actual usage |
+
+| Metric                        | Target                                           |
+| ----------------------------- | ------------------------------------------------ |
+| **Summary generation time**   | <10s for 5K token transcript (Claude 3.5 Sonnet) |
+| **Cost per summary**          | <$0.05 for typical 10-minute meeting             |
+| **Token estimation accuracy** | ±10% of actual usage                             |
+
+

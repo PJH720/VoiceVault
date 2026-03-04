@@ -7,6 +7,9 @@ import type {
   Recording,
   RecordingSummaryRow,
   RecordingWithTranscript,
+  SpeakerProfile,
+  SpeakerSegment,
+  SearchHistoryEntry,
   SummaryOutput,
   TranscriptSegment
 } from '../../shared/types'
@@ -23,6 +26,8 @@ type RecordingRow = {
   is_bookmarked: number
   is_archived: number
   file_size_bytes: number
+  template_id: string | null
+  classification_confidence: number | null
 }
 
 type InsertRecordingInput = {
@@ -35,7 +40,10 @@ type InsertRecordingInput = {
 }
 
 type UpdateRecordingInput = Partial<
-  Pick<Recording, 'title' | 'category' | 'tags' | 'isBookmarked' | 'isArchived'>
+  Pick<
+    Recording,
+    'title' | 'category' | 'tags' | 'isBookmarked' | 'isArchived' | 'templateId' | 'classificationConfidence'
+  >
 >
 
 type TranscriptSegmentRow = {
@@ -47,6 +55,9 @@ type TranscriptSegmentRow = {
   language: string
   confidence: number
   words_json: string | null
+  speaker_profile_id?: number | null
+  speaker_name?: string | null
+  speaker_color?: string | null
 }
 
 type Migration = {
@@ -63,6 +74,41 @@ type SummaryRow = {
   discussion_points: string | null
   key_statements: string | null
   decisions: string | null
+  created_at: string
+}
+
+type SpeakerSegmentRow = {
+  id: number
+  recording_id: number
+  speaker_profile_id: number | null
+  start_time: number
+  end_time: number
+  confidence: number
+  raw_speaker_label: string
+}
+
+type SpeakerProfileRow = {
+  id: number
+  name: string
+  color: string
+  created_at: string
+  recording_count: number | null
+  total_duration: number | null
+}
+
+type UnembeddedSegmentRow = {
+  recording_id: number
+  recording_title: string
+  segment_id: number
+  text: string
+  start_time: number
+  speaker_name: string | null
+}
+
+type SearchHistoryRow = {
+  id: number
+  query: string
+  result_count: number
   created_at: string
 }
 
@@ -84,8 +130,8 @@ export class DatabaseService {
   public insertRecording(input: InsertRecordingInput): number {
     const stmt = this.db.prepare(`
       INSERT INTO recordings (
-        title, duration, audio_path, category, tags, is_bookmarked, is_archived, file_size_bytes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 0, 0, ?, datetime('now'), datetime('now'))
+        title, duration, audio_path, category, tags, is_bookmarked, is_archived, file_size_bytes, template_id, classification_confidence, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, 0, 0, ?, NULL, NULL, datetime('now'), datetime('now'))
     `)
     const result = stmt.run(
       input.title,
@@ -136,6 +182,7 @@ export class DatabaseService {
 
     let sql = `
       SELECT id, title, duration, audio_path, created_at, updated_at, category, tags, is_bookmarked, is_archived, file_size_bytes
+            , template_id, classification_confidence
       FROM recordings
     `
     if (where.length > 0) {
@@ -160,6 +207,7 @@ export class DatabaseService {
       .prepare(
         `
       SELECT id, title, duration, audio_path, created_at, updated_at, category, tags, is_bookmarked, is_archived, file_size_bytes
+            , template_id, classification_confidence
       FROM recordings
       WHERE id = ? AND is_archived = 0
     `
@@ -185,16 +233,30 @@ export class DatabaseService {
       typeof input.isBookmarked === 'boolean' ? Number(input.isBookmarked) : Number(existing.isBookmarked)
     const nextArchived =
       typeof input.isArchived === 'boolean' ? Number(input.isArchived) : Number(existing.isArchived)
+    const nextTemplateId = input.templateId ?? existing.templateId ?? null
+    const nextClassificationConfidence =
+      typeof input.classificationConfidence === 'number'
+        ? input.classificationConfidence
+        : existing.classificationConfidence ?? null
 
     this.db
       .prepare(
         `
       UPDATE recordings
-      SET title = ?, category = ?, tags = ?, is_bookmarked = ?, is_archived = ?, updated_at = datetime('now')
+      SET title = ?, category = ?, tags = ?, is_bookmarked = ?, is_archived = ?, template_id = ?, classification_confidence = ?, updated_at = datetime('now')
       WHERE id = ?
     `
       )
-      .run(nextTitle, nextCategory, JSON.stringify(nextTags), nextBookmarked, nextArchived, id)
+      .run(
+        nextTitle,
+        nextCategory,
+        JSON.stringify(nextTags),
+        nextBookmarked,
+        nextArchived,
+        nextTemplateId,
+        nextClassificationConfidence,
+        id
+      )
     return this.getRecording(id)
   }
 
@@ -239,14 +301,109 @@ export class DatabaseService {
     return segments.length
   }
 
+  public listUnembeddedTranscriptSegments(): Array<{
+    recordingId: number
+    recordingTitle: string
+    segmentId: number
+    text: string
+    timestamp: number
+    speaker?: string
+  }> {
+    const rows = this.db
+      .prepare(
+        `
+      SELECT
+        ts.recording_id,
+        r.title AS recording_title,
+        ts.id AS segment_id,
+        ts.text,
+        ts.start_time,
+        sp.name AS speaker_name
+      FROM transcript_segments ts
+      JOIN recordings r ON r.id = ts.recording_id
+      LEFT JOIN speaker_profiles sp ON sp.id = ts.speaker_profile_id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM vector_documents vd WHERE vd.segment_id = ts.id
+      )
+      ORDER BY ts.recording_id ASC, ts.start_time ASC
+    `
+      )
+      .all() as UnembeddedSegmentRow[]
+    return rows.map((row) => ({
+      recordingId: row.recording_id,
+      recordingTitle: row.recording_title,
+      segmentId: row.segment_id,
+      text: row.text,
+      timestamp: row.start_time,
+      speaker: row.speaker_name ?? undefined
+    }))
+  }
+
+  public saveSearchHistory(query: string, resultCount: number): number {
+    const result = this.db
+      .prepare('INSERT INTO search_history (query, result_count) VALUES (?, ?)')
+      .run(query, resultCount)
+    return Number(result.lastInsertRowid)
+  }
+
+  public setRecordingClassification(
+    recordingId: number,
+    templateId: string,
+    classificationConfidence: number
+  ): Recording | null {
+    const existing = this.getRecording(recordingId)
+    if (!existing) return null
+    this.db
+      .prepare(
+        `
+      UPDATE recordings
+      SET template_id = ?, classification_confidence = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `
+      )
+      .run(templateId, classificationConfidence, recordingId)
+    return this.getRecording(recordingId)
+  }
+
+  public listSearchHistory(limit = 20): SearchHistoryEntry[] {
+    const rows = this.db
+      .prepare(
+        `
+      SELECT id, query, result_count, created_at
+      FROM search_history
+      ORDER BY created_at DESC
+      LIMIT ?
+    `
+      )
+      .all(limit) as SearchHistoryRow[]
+    return rows.map((row) => ({
+      id: row.id,
+      query: row.query,
+      resultCount: row.result_count,
+      createdAt: row.created_at
+    }))
+  }
+
   public listTranscriptSegments(recordingId: number): TranscriptSegment[] {
     const rows = this.db
       .prepare(
         `
-      SELECT id, recording_id, text, start_time, end_time, language, confidence, words_json
-      FROM transcript_segments
-      WHERE recording_id = ?
-      ORDER BY start_time ASC, id ASC
+      SELECT
+        ts.id,
+        ts.recording_id,
+        ts.text,
+        ts.start_time,
+        ts.end_time,
+        ts.language,
+        ts.confidence,
+        ts.words_json,
+        ts.speaker_profile_id,
+        sp.name AS speaker_name,
+        sp.color AS speaker_color
+      FROM transcript_segments ts
+      LEFT JOIN speaker_profiles sp ON sp.id = ts.speaker_profile_id
+      WHERE ts.recording_id = ?
+      ORDER BY ts.start_time ASC, ts.id ASC
     `
       )
       .all(recordingId) as TranscriptSegmentRow[]
@@ -258,8 +415,163 @@ export class DatabaseService {
       end: row.end_time,
       language: row.language,
       confidence: row.confidence,
-      words: row.words_json ? (JSON.parse(row.words_json) as TranscriptSegment['words']) : undefined
+      words: row.words_json ? (JSON.parse(row.words_json) as TranscriptSegment['words']) : undefined,
+      speakerProfileId: row.speaker_profile_id,
+      speakerName: row.speaker_name ?? undefined,
+      speakerColor: row.speaker_color ?? undefined
     }))
+  }
+
+  public insertSpeakerSegments(recordingId: number, segments: SpeakerSegment[]): number {
+    if (segments.length === 0) return 0
+    const insert = this.db.prepare(`
+      INSERT INTO speaker_segments (
+        recording_id, speaker_profile_id, start_time, end_time, confidence, raw_speaker_label
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `)
+    const tx = this.db.transaction((items: SpeakerSegment[]) => {
+      for (const item of items) {
+        insert.run(
+          recordingId,
+          item.speakerProfileId ?? null,
+          item.start,
+          item.end,
+          item.confidence,
+          item.speaker
+        )
+      }
+    })
+    tx(segments)
+    return segments.length
+  }
+
+  public listSpeakerSegments(recordingId: number): SpeakerSegment[] {
+    const rows = this.db
+      .prepare(
+        `
+      SELECT id, recording_id, speaker_profile_id, start_time, end_time, confidence, raw_speaker_label
+      FROM speaker_segments
+      WHERE recording_id = ?
+      ORDER BY start_time ASC, id ASC
+    `
+      )
+      .all(recordingId) as SpeakerSegmentRow[]
+    return rows.map((row) => ({
+      id: row.id,
+      recordingId: row.recording_id,
+      speakerProfileId: row.speaker_profile_id,
+      start: row.start_time,
+      end: row.end_time,
+      confidence: row.confidence,
+      speaker: row.raw_speaker_label
+    }))
+  }
+
+  public assignTranscriptSpeakers(
+    recordingId: number,
+    alignedSegments: Array<Pick<TranscriptSegment, 'id' | 'speaker' | 'speakerProfileId'>>
+  ): number {
+    if (alignedSegments.length === 0) return 0
+    const update = this.db.prepare(`
+      UPDATE transcript_segments
+      SET speaker_profile_id = ?
+      WHERE id = ? AND recording_id = ?
+    `)
+    const tx = this.db.transaction((items: Array<Pick<TranscriptSegment, 'id' | 'speakerProfileId'>>) => {
+      for (const item of items) {
+        if (!item.id) continue
+        update.run(item.speakerProfileId ?? null, item.id, recordingId)
+      }
+    })
+    tx(alignedSegments)
+    return alignedSegments.length
+  }
+
+  public createSpeakerProfile(name: string, color: string, embedding?: Float32Array): SpeakerProfile {
+    const result = this.db
+      .prepare(
+        `
+      INSERT INTO speaker_profiles (name, color, embedding, created_at, updated_at)
+      VALUES (?, ?, ?, datetime('now'), datetime('now'))
+    `
+      )
+      .run(name, color, embedding ? Buffer.from(embedding.buffer) : null)
+    const created = this.getSpeakerProfile(Number(result.lastInsertRowid))
+    if (!created) {
+      throw new Error('Failed to create speaker profile')
+    }
+    return created
+  }
+
+  public getSpeakerProfile(id: number): SpeakerProfile | null {
+    const row = this.db
+      .prepare(
+        `
+      SELECT
+        sp.id,
+        sp.name,
+        sp.color,
+        sp.created_at,
+        COUNT(DISTINCT ss.recording_id) AS recording_count,
+        SUM(ss.end_time - ss.start_time) AS total_duration
+      FROM speaker_profiles sp
+      LEFT JOIN speaker_segments ss ON ss.speaker_profile_id = sp.id
+      WHERE sp.id = ?
+      GROUP BY sp.id
+    `
+      )
+      .get(id) as SpeakerProfileRow | undefined
+    if (!row) return null
+    return this.mapSpeakerProfile(row)
+  }
+
+  public listSpeakerProfiles(): SpeakerProfile[] {
+    const rows = this.db
+      .prepare(
+        `
+      SELECT
+        sp.id,
+        sp.name,
+        sp.color,
+        sp.created_at,
+        COUNT(DISTINCT ss.recording_id) AS recording_count,
+        SUM(ss.end_time - ss.start_time) AS total_duration
+      FROM speaker_profiles sp
+      LEFT JOIN speaker_segments ss ON ss.speaker_profile_id = sp.id
+      GROUP BY sp.id
+      ORDER BY sp.created_at DESC
+    `
+      )
+      .all() as SpeakerProfileRow[]
+    return rows.map(this.mapSpeakerProfile)
+  }
+
+  public updateSpeakerProfile(id: number, updates: { name?: string; color?: string }): SpeakerProfile | null {
+    const existing = this.getSpeakerProfile(id)
+    if (!existing) return null
+    const nextName = updates.name ?? existing.name
+    const nextColor = updates.color ?? existing.color
+    this.db
+      .prepare("UPDATE speaker_profiles SET name = ?, color = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(nextName, nextColor, id)
+    return this.getSpeakerProfile(id)
+  }
+
+  public mergeSpeakerProfiles(sourceId: number, targetId: number): boolean {
+    const source = this.getSpeakerProfile(sourceId)
+    const target = this.getSpeakerProfile(targetId)
+    if (!source || !target || sourceId === targetId) return false
+    const tx = this.db.transaction(() => {
+      this.db
+        .prepare('UPDATE speaker_segments SET speaker_profile_id = ? WHERE speaker_profile_id = ?')
+        .run(targetId, sourceId)
+      this.db
+        .prepare('UPDATE transcript_segments SET speaker_profile_id = ? WHERE speaker_profile_id = ?')
+        .run(targetId, sourceId)
+      this.db.prepare('DELETE FROM speaker_profiles WHERE id = ?').run(sourceId)
+    })
+    tx()
+    return true
   }
 
   public saveSummary(recordingId: number, output: SummaryOutput): number {
@@ -315,6 +627,10 @@ export class DatabaseService {
 
   public close(): void {
     this.db.close()
+  }
+
+  public getConnection(): Database.Database {
+    return this.db
   }
 
   private runMigrations(): void {
@@ -382,6 +698,21 @@ export class DatabaseService {
     if (!names.has('file_size_bytes')) {
       statements.push('ALTER TABLE recordings ADD COLUMN file_size_bytes INTEGER NOT NULL DEFAULT 0')
     }
+    if (!names.has('template_id')) {
+      statements.push('ALTER TABLE recordings ADD COLUMN template_id TEXT')
+    }
+    if (!names.has('classification_confidence')) {
+      statements.push('ALTER TABLE recordings ADD COLUMN classification_confidence REAL')
+    }
+    const transcriptColumns = this.db
+      .prepare(`SELECT name FROM pragma_table_info('transcript_segments')`)
+      .all() as Array<{ name: string }>
+    const transcriptNames = new Set(transcriptColumns.map((entry) => entry.name))
+    if (!transcriptNames.has('speaker_profile_id')) {
+      statements.push(
+        'ALTER TABLE transcript_segments ADD COLUMN speaker_profile_id INTEGER REFERENCES speaker_profiles(id)'
+      )
+    }
     for (const statement of statements) {
       this.db.prepare(statement).run()
     }
@@ -408,7 +739,20 @@ export class DatabaseService {
       tags,
       isBookmarked: row.is_bookmarked === 1,
       isArchived: row.is_archived === 1,
-      fileSizeBytes: row.file_size_bytes
+      fileSizeBytes: row.file_size_bytes,
+      templateId: row.template_id ?? undefined,
+      classificationConfidence: row.classification_confidence ?? undefined
+    }
+  }
+
+  private readonly mapSpeakerProfile = (row: SpeakerProfileRow): SpeakerProfile => {
+    return {
+      id: row.id,
+      name: row.name,
+      color: row.color,
+      createdAt: row.created_at,
+      recordingCount: row.recording_count ?? 0,
+      totalDuration: row.total_duration ?? 0
     }
   }
 }

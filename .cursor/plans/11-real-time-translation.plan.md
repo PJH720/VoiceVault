@@ -4,19 +4,19 @@ overview: 전사 세그먼트를 대상 언어로 실시간 번역해 이중 언
 todos:
   - id: translation-service
     content: TranslationService를 구현해 단일/배치 번역을 지원한다.
-    status: pending
+    status: completed
   - id: language-support
     content: 지원 언어 목록과 타깃 언어 설정 흐름을 구현한다.
-    status: pending
+    status: completed
   - id: translation-cache
     content: 반복 구문 성능 개선을 위한 번역 캐시를 구현한다.
-    status: pending
+    status: completed
   - id: bilingual-transcript-ui
     content: 원문/번역문 병렬 표시와 품질 지표 UI를 구현한다.
-    status: pending
+    status: completed
   - id: translation-verification
     content: 지연시간/정확도/안정성 기준으로 번역 파이프라인을 검증한다.
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -34,11 +34,13 @@ Implement real-time translation of transcript segments into target languages. Bu
 ## Architecture
 
 ### Native Layer
+
 - `src/main/services/TranslationService.ts` — wraps translation model (NLLB or LLM)
 - Translation models: NLLB-200 GGUF or prompt-based via node-llama-cpp
 - Translation cache in SQLite for repeated phrases
 
 ### IPC Bridge
+
 - `translation:translate` — translate single segment
 - `translation:batch-translate` — translate multiple segments
 - `translation:set-target-language` — configure target language
@@ -46,6 +48,7 @@ Implement real-time translation of transcript segments into target languages. Bu
 - `translation:on-translated` — event channel for streaming translations
 
 ### React Layer
+
 - `src/renderer/components/Translation/BilingualTranscript.tsx` — side-by-side original/translated
 - `src/renderer/components/Translation/LanguageSelector.tsx` — target language picker
 - `src/renderer/components/Translation/QualityIndicator.tsx` — translation quality badge
@@ -53,6 +56,7 @@ Implement real-time translation of transcript segments into target languages. Bu
 ## Implementation Steps
 
 ### 1. Translation Service (Main Process)
+
 1. Install NLLB model or use existing LLM for translation
 2. Create `TranslationService` wrapping translation inference
 3. Implement translation caching for performance
@@ -258,6 +262,7 @@ Translation:`;
 ```
 
 ### 2. Database Schema Extension
+
 ```sql
 -- Migration: 008_translations.sql
 CREATE TABLE IF NOT EXISTS translation_cache (
@@ -281,6 +286,7 @@ CREATE INDEX idx_translated_segments_language ON translated_segments(target_lang
 ```
 
 ### 3. IPC Handlers (Main Process)
+
 ```typescript
 // src/main/ipc/translation.ts
 import { ipcMain, IpcMainInvokeEvent, BrowserWindow } from 'electron';
@@ -324,6 +330,7 @@ export function registerTranslationHandlers(mainWindow: BrowserWindow): void {
 ```
 
 ### 4. Preload API (Preload Process)
+
 ```typescript
 // src/preload/index.ts (extend)
 contextBridge.exposeInMainWorld('api', {
@@ -352,6 +359,7 @@ contextBridge.exposeInMainWorld('api', {
 ```
 
 ### 5. React Hook (Renderer)
+
 ```typescript
 // src/renderer/hooks/useTranslation.ts
 import { useState, useEffect, useCallback } from 'react';
@@ -419,6 +427,7 @@ export function useTranslation() {
 ```
 
 ### 6. UI Components (Renderer)
+
 ```typescript
 // src/renderer/components/Translation/BilingualTranscript.tsx
 import { useState, useEffect } from 'react';
@@ -553,26 +562,28 @@ src/
 ## Testing Strategy
 
 ### Unit Tests
+
 - `TranslationService.test.ts` — mock LLM, test translation caching
 - `useTranslation.test.ts` — test hook state management
 
 ### E2E Tests
+
 - Select target language → verify segments translated
 - Translate batch → verify progress updates
 - Cache test: translate same text twice → verify cached on second call
 
 ## Acceptance Criteria
 
-- [ ] Translation service initializes with existing LLM
-- [ ] Target language selectable from 100+ languages
-- [ ] Bilingual transcript displays original + translation side-by-side
-- [ ] Translation cache works (repeated phrases use cache)
-- [ ] Batch translation shows progress bar
-- [ ] Translations persist to database
-- [ ] Translation quality acceptable for common languages (EN, ES, FR, DE, ZH, JA, KO)
-- [ ] Cache cleared when target language changes
-- [ ] Translation toggle (on/off) in UI
-- [ ] Quality indicator shows confidence score
+- Translation service initializes with existing LLM
+- Target language selectable from 100+ languages
+- Bilingual transcript displays original + translation side-by-side
+- Translation cache works (repeated phrases use cache)
+- Batch translation shows progress bar
+- Translations persist to database
+- Translation quality acceptable for common languages (EN, ES, FR, DE, ZH, JA, KO)
+- Cache cleared when target language changes
+- Translation toggle (on/off) in UI
+- Quality indicator shows confidence score
 
 ## Edge Cases & Gotchas
 
@@ -585,17 +596,20 @@ src/
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| **Translation speed** | ~5 segments/second (batch, with cache) |
-| **Cache hit rate** | >30% for repeated phrases |
-| **Memory usage** | <500 MB increase during translation |
-| **Latency (single segment)** | <2s for 20-word segment |
+
+| Metric                       | Target                                 |
+| ---------------------------- | -------------------------------------- |
+| **Translation speed**        | ~5 segments/second (batch, with cache) |
+| **Cache hit rate**           | >30% for repeated phrases              |
+| **Memory usage**             | <500 MB increase during translation    |
+| **Latency (single segment)** | <2s for 20-word segment                |
+
 
 ## Future Enhancements
 
-- [ ] NLLB-200 model integration (better quality than LLM prompting)
-- [ ] Offline translation models per language
-- [ ] Custom glossaries for domain-specific terms
-- [ ] Translation memory across recordings
-- [ ] Real-time streaming translation (translate as transcription happens)
+- NLLB-200 model integration (better quality than LLM prompting)
+- Offline translation models per language
+- Custom glossaries for domain-specific terms
+- Translation memory across recordings
+- Real-time streaming translation (translate as transcription happens)
+

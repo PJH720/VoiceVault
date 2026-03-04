@@ -1,15 +1,33 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type {
   AudioLevelEvent,
+  AudioPermissionStatus,
+  AudioSourceInfo,
+  BatchTranslationItem,
+  CaptureConfig,
+  ClassificationResult,
+  CloudModelName,
+  ExportOptions,
+  ExportResult,
+  ExportTemplateSummary,
   LlmModelName,
   ListOptions,
   Recording,
   RecordingSummaryRow,
   RecordingWithTranscript,
   RecordingResult,
+  RecordingTemplate,
+  RAGAnswer,
+  SearchHistoryEntry,
   SummaryOutput,
+  SpeakerProfile,
+  SpeakerSegment,
+  SupportedLanguage,
+  UsageStats,
   SupportedLocale,
   TranscriptSegment,
+  TranslationProgress,
+  TranslationResult,
   WhisperModelSize
 } from '../shared/types'
 
@@ -92,6 +110,100 @@ interface VoiceVaultApi {
         total: number
       }) => void
     ) => () => void
+  }
+  cloudLLM: {
+    setApiKey: (key: string) => Promise<{ success: boolean }>
+    getApiKey: () => Promise<{ key: string | null }>
+    summarize: (transcript: string, model?: CloudModelName) => Promise<{ success: boolean; output: SummaryOutput }>
+    estimateCost: (
+      text: string,
+      model: CloudModelName
+    ) => Promise<{ inputTokens: number; outputTokens: number; cost: number }>
+    getUsageStats: () => Promise<UsageStats>
+    resetStats: () => Promise<UsageStats>
+    setLocalOnly: (enabled: boolean) => Promise<{ enabled: boolean }>
+    getLocalOnly: () => Promise<{ enabled: boolean }>
+    setProvider: (provider: 'local' | 'cloud') => Promise<{ provider: 'local' | 'cloud' }>
+    getProvider: () => Promise<{ provider: 'local' | 'cloud' }>
+    setModel: (model: CloudModelName) => Promise<{ model: CloudModelName }>
+    getModel: () => Promise<{ model: CloudModelName }>
+    onToken: (callback: (token: string) => void) => () => void
+    onComplete: (callback: (output: SummaryOutput) => void) => () => void
+  }
+  diarization: {
+    process: (
+      audioPath: string,
+      recordingId: number
+    ) => Promise<{ success: boolean; segments: SpeakerSegment[] }>
+    alignTranscript: (
+      recordingId: number,
+      transcriptSegments: TranscriptSegment[],
+      speakerSegments?: SpeakerSegment[]
+    ) => Promise<Array<TranscriptSegment & { speaker: string }>>
+    listSpeakerSegments: (recordingId: number) => Promise<SpeakerSegment[]>
+    onSegment: (callback: (segment: SpeakerSegment) => void) => () => void
+    listSpeakers: () => Promise<SpeakerProfile[]>
+    createSpeaker: (name: string) => Promise<SpeakerProfile>
+    updateSpeaker: (id: number, updates: { name?: string; color?: string }) => Promise<SpeakerProfile | null>
+    mergeSpeakers: (sourceId: number, targetId: number) => Promise<{ success: boolean }>
+  }
+  rag: {
+    query: (question: string, topK?: number) => Promise<RAGAnswer>
+    embedRecordings: () => Promise<{ success: boolean; embedded: number }>
+    searchHistory: () => Promise<SearchHistoryEntry[]>
+    onProgress: (callback: (payload: { current: number; total: number }) => void) => () => void
+  }
+  export: {
+    obsidian: (recordingId: number, options: ExportOptions) => Promise<ExportResult>
+    batch: (recordingIds: number[], options: ExportOptions) => Promise<{ paths: string[] }>
+    preview: (recordingId: number, templateName: string) => Promise<{ content: string }>
+    setVaultPath: () => Promise<{ path: string | null }>
+    getVaultPath: () => Promise<{ path: string | null }>
+    getTemplates: () => Promise<{ templates: ExportTemplateSummary[] }>
+  }
+  classification: {
+    autoClassify: (transcript: string) => Promise<ClassificationResult>
+    applyTemplate: (
+      recordingId: number,
+      templateId: string
+    ) => Promise<{ success: boolean; output: SummaryOutput }>
+  }
+  templates: {
+    list: () => Promise<RecordingTemplate[]>
+    get: (id: string) => Promise<RecordingTemplate | null>
+    create: (
+      input: Omit<RecordingTemplate, 'id' | 'category' | 'createdAt' | 'updatedAt'>
+    ) => Promise<RecordingTemplate>
+    update: (id: string, updates: Partial<RecordingTemplate>) => Promise<RecordingTemplate>
+    delete: (id: string) => Promise<{ success: boolean }>
+    export: (id: string) => Promise<{ json: string }>
+  }
+  systemAudio: {
+    listSources: () => Promise<{ sources: AudioSourceInfo[] }>
+    startCapture: (config: CaptureConfig) => Promise<{ success: boolean }>
+    stopCapture: () => Promise<{ success: boolean }>
+    checkPermissions: () => Promise<AudioPermissionStatus>
+    requestPermissions: (
+      type: 'screen' | 'microphone'
+    ) => Promise<{ success: boolean; permissions: AudioPermissionStatus }>
+  }
+  translation: {
+    translate: (
+      text: string,
+      sourceLanguage: string,
+      targetLanguage: string,
+      segmentId?: number
+    ) => Promise<TranslationResult>
+    batchTranslate: (
+      items: BatchTranslationItem[],
+      sourceLanguage: string,
+      targetLanguage: string
+    ) => Promise<Array<{ id: number; result: TranslationResult }>>
+    getLanguages: () => Promise<{ languages: SupportedLanguage[] }>
+    setTargetLanguage: (language: string) => Promise<{ language: string }>
+    getTargetLanguage: () => Promise<{ language: string }>
+    onProgress: (callback: (payload: TranslationProgress) => void) => () => void
+    onTranslated: (callback: (payload: { id: number; result: TranslationResult }) => void) => () => void
   }
 }
 

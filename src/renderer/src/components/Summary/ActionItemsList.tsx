@@ -1,11 +1,13 @@
 import type { SummaryActionItem } from '../../../../shared/types'
+import { useTranslation } from 'react-i18next'
 
 type ActionItemsListProps = {
   items: SummaryActionItem[]
 }
 
 export function ActionItemsList({ items }: ActionItemsListProps): React.JSX.Element {
-  if (items.length === 0) return <p className="muted">No action items.</p>
+  const { t } = useTranslation()
+  if (items.length === 0) return <p className="muted">{t('summary.emptyActionItems')}</p>
   return (
     <div className="summary-list">
       {items.map((item, index) => (

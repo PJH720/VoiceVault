@@ -4,19 +4,19 @@ overview: pyannote-cpp-node 기반 화자 분리 파이프라인을 구축해 �
 todos:
   - id: diarization-service
     content: segmentation-embedding-clustering 기반 DiarizationService를 구현한다.
-    status: pending
+    status: completed
   - id: speaker-alignment
     content: 화자 구간과 전사 세그먼트를 정렬해 who-said-what 결과를 생성한다.
-    status: pending
+    status: completed
   - id: speaker-profiles
     content: 화자 프로필 생성/수정/병합/조회 기능을 구현한다.
-    status: pending
+    status: completed
   - id: diarization-ui
     content: 화자 색상 전사, 타임라인, 점유율 통계 UI를 구현한다.
-    status: pending
+    status: completed
   - id: diarization-tests
     content: 화자 정렬 정확도와 프로필 플로우를 테스트로 검증한다.
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -34,11 +34,13 @@ Integrate `pyannote-cpp-node` for speaker diarization — identify "who said wha
 ## Architecture
 
 ### Native Layer
+
 - `src/main/services/DiarizationService.ts` — wraps `pyannote-cpp-node`
 - `src/main/services/SpeakerProfileService.ts` — manage speaker profiles and embeddings
 - Speaker embeddings stored in database for cross-recording identification
 
 ### IPC Bridge
+
 - `diarization:process` — run diarization on audio file
 - `diarization:on-segment` — event channel for speaker segments
 - `diarization:align-transcript` — merge speaker labels with transcript segments
@@ -48,6 +50,7 @@ Integrate `pyannote-cpp-node` for speaker diarization — identify "who said wha
 - `speakers:update` — update speaker name/metadata
 
 ### React Layer
+
 - `src/renderer/components/Transcript/SpeakerTranscriptView.tsx` — color-coded transcript by speaker
 - `src/renderer/components/Diarization/SpeakerTimeline.tsx` — visual timeline of speaker turns
 - `src/renderer/components/Diarization/SpeakerStats.tsx` — occupancy percentages, talk time
@@ -56,6 +59,7 @@ Integrate `pyannote-cpp-node` for speaker diarization — identify "who said wha
 ## Implementation Steps
 
 ### 1. Diarization Service (Main Process)
+
 1. Install `pyannote-cpp-node` (`pnpm add pyannote-cpp-node`)
 2. Create `DiarizationService` wrapping pyannote-ggml pipeline
 3. Implement 3-stage pipeline: segmentation → embedding → clustering
@@ -162,6 +166,7 @@ export class DiarizationService {
 ```
 
 ### 2. Speaker Profile Service (Main Process)
+
 1. Manage speaker embeddings and metadata
 2. Implement cross-recording speaker identification via embedding similarity
 3. Support speaker merging (combine profiles)
@@ -314,6 +319,7 @@ export class SpeakerProfileService {
 ```
 
 ### 3. Transcript Alignment
+
 1. Merge speaker segments with transcript segments by timestamp
 2. Handle overlapping speech (assign to primary speaker)
 
@@ -345,6 +351,7 @@ alignTranscript(
 ```
 
 ### 4. Database Schema Extension
+
 ```sql
 -- Migration: 005_diarization.sql
 CREATE TABLE IF NOT EXISTS speaker_profiles (
@@ -376,6 +383,7 @@ ALTER TABLE transcript_segments ADD COLUMN speaker_profile_id INTEGER REFERENCES
 ```
 
 ### 5. IPC Handlers (Main Process)
+
 ```typescript
 // src/main/ipc/diarization.ts
 import { ipcMain, IpcMainInvokeEvent, BrowserWindow } from 'electron';
@@ -433,6 +441,7 @@ export function registerDiarizationHandlers(mainWindow: BrowserWindow): void {
 ```
 
 ### 6. UI Components (Renderer)
+
 ```typescript
 // src/renderer/components/Transcript/SpeakerTranscriptView.tsx
 import { useMemo } from 'react';
@@ -570,27 +579,29 @@ src/
 ## Testing Strategy
 
 ### Unit Tests
+
 - `DiarizationService.test.ts` — mock pyannote, test segment alignment
 - `SpeakerProfileService.test.ts` — test embedding similarity matching
 
 ### E2E Tests
+
 - Diarize 2-speaker recording → verify 2 speaker segments
 - Assign speaker name → verify name appears in transcript
 - Merge 2 speaker profiles → verify segments reassigned
 
 ## Acceptance Criteria
 
-- [ ] Diarization runs on recording stop (background process)
-- [ ] Speaker segments align with transcript segments
-- [ ] Transcript view color-coded by speaker
-- [ ] Speaker timeline visualization shows speaker turns
-- [ ] Speaker stats show talk time percentages
-- [ ] Speaker profiles can be created and named
-- [ ] Speaker names persist across recordings
-- [ ] Embedding-based speaker identification works (>75% accuracy)
-- [ ] Speaker merge combines profiles correctly
-- [ ] Speaker colors assigned automatically
-- [ ] Clicking speaker in timeline seeks to that segment
+- Diarization runs on recording stop (background process)
+- Speaker segments align with transcript segments
+- Transcript view color-coded by speaker
+- Speaker timeline visualization shows speaker turns
+- Speaker stats show talk time percentages
+- Speaker profiles can be created and named
+- Speaker names persist across recordings
+- Embedding-based speaker identification works (>75% accuracy)
+- Speaker merge combines profiles correctly
+- Speaker colors assigned automatically
+- Clicking speaker in timeline seeks to that segment
 
 ## Edge Cases & Gotchas
 
@@ -602,8 +613,11 @@ src/
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| **Diarization speed** | 39x faster than real-time (pyannote-ggml) |
-| **Embedding extraction** | <1s per speaker segment |
-| **Transcript alignment** | <100ms for 1-hour recording |
+
+| Metric                   | Target                                    |
+| ------------------------ | ----------------------------------------- |
+| **Diarization speed**    | 39x faster than real-time (pyannote-ggml) |
+| **Embedding extraction** | <1s per speaker segment                   |
+| **Transcript alignment** | <100ms for 1-hour recording               |
+
+

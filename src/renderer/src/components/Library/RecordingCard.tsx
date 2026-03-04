@@ -1,4 +1,6 @@
 import type { RecordingWithTranscript } from '../../../../shared/types'
+import { useTranslation } from 'react-i18next'
+import { ClassificationBadge } from '../Templates/ClassificationBadge'
 
 type RecordingCardProps = {
   recording: RecordingWithTranscript
@@ -26,6 +28,7 @@ export function RecordingCard({
   viewMode,
   onClick
 }: RecordingCardProps): React.JSX.Element {
+  const { t } = useTranslation()
   return (
     <button
       className={`recording-row ${selected ? 'selected' : ''} ${viewMode === 'grid' ? 'recording-grid-card' : ''}`}
@@ -37,9 +40,15 @@ export function RecordingCard({
         <span>{formatDuration(recording.duration)}</span>
       </div>
       <div className="recording-meta">
-        <span>{recording.category ?? 'uncategorized'}</span>
-        <span>{recording.segments.length} segments</span>
+        <span>{recording.category ?? t('common.uncategorized')}</span>
+        <span>
+          {recording.segments.length} {t('common.units.segments')}
+        </span>
       </div>
+      <ClassificationBadge
+        templateId={recording.templateId}
+        confidence={recording.classificationConfidence}
+      />
     </button>
   )
 }

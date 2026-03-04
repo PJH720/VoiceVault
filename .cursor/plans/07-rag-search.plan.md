@@ -4,19 +4,19 @@ overview: 녹음 전반을 대상으로 임베딩 생성, 벡터 검색, 재랭�
 todos:
   - id: embedding-service
     content: 로컬 임베딩 생성 파이프라인과 배치 처리 흐름을 구현한다.
-    status: pending
+    status: completed
   - id: vector-index
     content: 벡터 저장소와 유사도 검색 인덱스 전략을 구현한다.
-    status: pending
+    status: completed
   - id: rag-query-pipeline
     content: 질의-검색-재랭킹-답변 생성 파이프라인을 구성한다.
-    status: pending
+    status: completed
   - id: citation-answering
     content: timestamp/speaker/recording 근거를 포함한 응답 포맷을 구현한다.
-    status: pending
+    status: completed
   - id: search-ui-history
     content: 검색 화면, 결과 렌더링, 질의 히스토리 UX를 구현한다.
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -34,11 +34,13 @@ Build a Retrieval-Augmented Generation (RAG) search system for natural language 
 ## Architecture
 
 ### Native Layer
+
 - `src/main/services/EmbeddingService.ts` — generate embeddings locally
 - `src/main/services/VectorService.ts` — vector storage and similarity search
 - Embeddings stored as BLOBs in SQLite or in-memory HNSW index
 
 ### IPC Bridge
+
 - `rag:query` — perform semantic search and generate answer
 - `rag:embed-recordings` — background task to embed all recordings
 - `rag:on-progress` — embedding progress events
@@ -46,6 +48,7 @@ Build a Retrieval-Augmented Generation (RAG) search system for natural language 
 - `search:save` — save search query
 
 ### React Layer
+
 - `src/renderer/components/Search/SearchView.tsx` — search input and results
 - `src/renderer/components/Search/SearchResult.tsx` — result with citations
 - `src/renderer/components/Search/QueryHistory.tsx` — recent searches
@@ -53,6 +56,7 @@ Build a Retrieval-Augmented Generation (RAG) search system for natural language 
 ## Implementation Steps
 
 ### 1. Embedding Service (Main Process)
+
 1. Install embedding model (options: local ONNX MiniLM or use node-llama-cpp)
 2. Create `EmbeddingService` wrapping embedding generation
 3. Support batch embedding for efficiency
@@ -136,6 +140,7 @@ export class EmbeddingService {
 ```
 
 ### 2. Vector Service (Main Process)
+
 1. Create `VectorService` for storing and searching embeddings
 2. Use SQLite BLOB storage + brute-force cosine similarity (fast enough for <10K vectors)
 3. Optional: Use `hnswlib-node` for HNSW index if performance needed
@@ -237,6 +242,7 @@ export class VectorService {
 ```
 
 ### 3. RAG Query Service (Main Process)
+
 1. Combine embedding search + LLM generation
 2. Build context from top-k retrieved segments
 3. Generate answer with citations
@@ -320,6 +326,7 @@ Answer:`;
 ```
 
 ### 4. Background Embedding Task (Main Process)
+
 1. Embed all transcript segments when recording finishes
 2. Show progress bar in UI
 3. Support incremental embedding (only new recordings)
@@ -361,6 +368,7 @@ async embedAllRecordings(
 ```
 
 ### 5. Database Schema Extension
+
 ```sql
 -- Migration: 006_rag.sql
 CREATE TABLE IF NOT EXISTS vector_documents (
@@ -389,6 +397,7 @@ CREATE INDEX idx_search_history_created ON search_history(created_at DESC);
 ```
 
 ### 6. IPC Handlers (Main Process)
+
 ```typescript
 // src/main/ipc/rag.ts
 import { ipcMain, IpcMainInvokeEvent, BrowserWindow } from 'electron';
@@ -437,6 +446,7 @@ export function registerRAGHandlers(mainWindow: BrowserWindow): void {
 ```
 
 ### 7. UI Components (Renderer)
+
 ```typescript
 // src/renderer/components/Search/SearchView.tsx
 import { useState } from 'react';
@@ -568,27 +578,29 @@ src/
 ## Testing Strategy
 
 ### Unit Tests
+
 - `VectorService.test.ts` — test cosine similarity, top-k retrieval
 - `RAGService.test.ts` — test context building, citation extraction
 
 ### E2E Tests
+
 - Embed 10 recordings → search for keyword → verify relevant results
 - Ask question → verify answer contains citations
 - Test cross-recording search
 
 ## Acceptance Criteria
 
-- [ ] Embedding model downloads on first search
-- [ ] All transcript segments embedded on recording finish
-- [ ] Search returns relevant results with similarity scores
-- [ ] Answer generated with citations [1], [2], etc.
-- [ ] Citations link to recording + timestamp
-- [ ] Clicking citation opens recording detail and seeks to timestamp
-- [ ] Search history saved and displayed
-- [ ] Cross-recording search works (finds info across multiple recordings)
-- [ ] Embedding progress shown in Settings
-- [ ] Fast search (<1s for 100 recordings)
-- [ ] Graceful degradation if embedding model not available
+- Embedding model downloads on first search
+- All transcript segments embedded on recording finish
+- Search returns relevant results with similarity scores
+- Answer generated with citations [1], [2], etc.
+- Citations link to recording + timestamp
+- Clicking citation opens recording detail and seeks to timestamp
+- Search history saved and displayed
+- Cross-recording search works (finds info across multiple recordings)
+- Embedding progress shown in Settings
+- Fast search (<1s for 100 recordings)
+- Graceful degradation if embedding model not available
 
 ## Edge Cases & Gotchas
 
@@ -601,9 +613,12 @@ src/
 
 ## Performance Targets
 
-| Metric | Target |
-|--------|--------|
-| **Embedding speed** | ~10 segments/second (batch) |
-| **Search latency** | <500ms for 10K vectors (brute-force cosine) |
-| **Answer generation** | <10s for typical query |
-| **Embedding storage** | <50 MB for 1000 recordings |
+
+| Metric                | Target                                      |
+| --------------------- | ------------------------------------------- |
+| **Embedding speed**   | ~10 segments/second (batch)                 |
+| **Search latency**    | <500ms for 10K vectors (brute-force cosine) |
+| **Answer generation** | <10s for typical query                      |
+| **Embedding storage** | <50 MB for 1000 recordings                  |
+
+
