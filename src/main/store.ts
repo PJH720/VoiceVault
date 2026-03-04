@@ -27,7 +27,7 @@ const defaults: StoreShape = {
   whisperModel: 'base',
   llmModel: 'gemma-2-3n-instruct-q4_k_m',
   preferredLlmProvider: 'local',
-  cloudModel: 'claude-3-5-sonnet-20241022',
+  cloudModel: 'claude-sonnet-4-5-20250514',
   localOnlyMode: false,
   usageStats: {
     totalCost: 0,
