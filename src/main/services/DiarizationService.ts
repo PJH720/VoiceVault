@@ -16,6 +16,7 @@ type PyannoteCtor = new (options: { modelPath: string; numThreads: number }) => 
 
 export class DiarizationService {
   private pyannote: PyannoteLike | null = null
+  private nativeModuleAvailable: boolean | null = null
   private readonly modelPath: string
 
   public constructor() {
@@ -24,22 +25,33 @@ export class DiarizationService {
 
   public async initialize(): Promise<void> {
     if (this.pyannote) return
+    if (this.nativeModuleAvailable === false) {
+      throw new Error('pyannote-cpp-node not available — using fallback')
+    }
     if (!(await this.isModelAvailable())) {
       throw new Error('Pyannote model not found. Download required.')
     }
-    const moduleName = 'pyannote-cpp-node'
-    const pyannoteModule = (await import(/* @vite-ignore */ moduleName)) as {
-      Pyannote?: PyannoteCtor
-      default?: PyannoteCtor
+
+    try {
+      const moduleName = 'pyannote-cpp-node'
+      const pyannoteModule = (await import(/* @vite-ignore */ moduleName)) as {
+        Pyannote?: PyannoteCtor
+        default?: PyannoteCtor
+      }
+      const Ctor = pyannoteModule.Pyannote ?? pyannoteModule.default
+      if (!Ctor) {
+        this.nativeModuleAvailable = false
+        throw new Error('pyannote-cpp-node constructor missing')
+      }
+      this.nativeModuleAvailable = true
+      this.pyannote = new Ctor({
+        modelPath: this.modelPath,
+        numThreads: 4
+      })
+    } catch (err) {
+      this.nativeModuleAvailable = false
+      throw err
     }
-    const Ctor = pyannoteModule.Pyannote ?? pyannoteModule.default
-    if (!Ctor) {
-      throw new Error('pyannote-cpp-node constructor missing')
-    }
-    this.pyannote = new Ctor({
-      modelPath: this.modelPath,
-      numThreads: 4
-    })
   }
 
   public async diarize(audioPath: string, numSpeakers?: number): Promise<SpeakerSegment[]> {
