@@ -116,9 +116,39 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
+// Shutdown registry: services register their destroy() callbacks here
+const shutdownCallbacks: Array<{ name: string; fn: () => void | Promise<void> }> = []
+export function registerShutdownCallback(name: string, fn: () => void | Promise<void>): void {
+  shutdownCallbacks.push({ name, fn })
+}
+
+app.on('before-quit', async () => {
   tray?.destroy()
   tray = null
+
+  // Stop active recording first
+  if (audioService?.recording) {
+    try {
+      await audioService.stopRecording()
+    } catch (err) {
+      console.error('[shutdown] AudioCaptureService stop failed:', err)
+    }
+  }
+
+  // Run all registered shutdown callbacks with 5s timeout
+  const shutdownWork = async (): Promise<void> => {
+    for (const { name, fn } of shutdownCallbacks) {
+      try {
+        await fn()
+      } catch (err) {
+        console.error(`[shutdown] ${name} destroy failed:`, err)
+      }
+    }
+  }
+
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, 5000))
+  await Promise.race([shutdownWork(), timeout])
+
   databaseService?.close()
 })
 

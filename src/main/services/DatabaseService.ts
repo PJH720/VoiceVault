@@ -642,10 +642,28 @@ export class DatabaseService {
     }
     const pending = migrations.filter((migration) => migration.id > currentVersion)
     for (const migration of pending) {
-      this.db.transaction(() => {
-        this.db.exec(migration.sql)
+      // SQLite ALTER TABLE implicitly commits transactions, making transaction
+      // wrappers unsafe for migrations containing ALTER TABLE statements.
+      // Execute each statement individually and update version after all succeed.
+      const statements = migration.sql
+        .split(';')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+      const hasAlterTable = statements.some((s) => /^\s*ALTER\s+TABLE/i.test(s))
+
+      if (hasAlterTable) {
+        // Run ALTER TABLEs outside transaction (they auto-commit anyway)
+        for (const stmt of statements) {
+          this.db.exec(stmt)
+        }
         this.db.pragma(`user_version = ${migration.id}`)
-      })()
+      } else {
+        // Safe to wrap in transaction for non-ALTER migrations
+        this.db.transaction(() => {
+          this.db.exec(migration.sql)
+          this.db.pragma(`user_version = ${migration.id}`)
+        })()
+      }
     }
   }
 
