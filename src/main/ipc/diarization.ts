@@ -4,12 +4,14 @@ import type { SpeakerSegment, TranscriptSegment } from '../../shared/types'
 import { DatabaseService } from '../services/DatabaseService'
 import { DiarizationService } from '../services/DiarizationService'
 import { SpeakerProfileService } from '../services/SpeakerProfileService'
+import { registerShutdownCallback } from '../index'
 
 export function registerDiarizationHandlers(
   mainWindow: BrowserWindow,
   databaseService: DatabaseService
 ): void {
   const diarizationService = new DiarizationService()
+  registerShutdownCallback('DiarizationService', () => diarizationService.destroy())
   const profileService = new SpeakerProfileService(databaseService)
 
   ipcMain.handle(
