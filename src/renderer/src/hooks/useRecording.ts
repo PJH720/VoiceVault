@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { AudioLevelEvent, RecordingResult } from '../../../shared/types'
 
 type RecordingState = {
@@ -14,6 +15,7 @@ type RecordingState = {
 }
 
 export function useRecording(): RecordingState {
+  const { t } = useTranslation()
   const [isRecording, setIsRecording] = useState(false)
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null)
   const [levels, setLevels] = useState<number[]>([])
@@ -36,7 +38,7 @@ export function useRecording(): RecordingState {
     const granted = await window.api.requestMicPermission()
     setPermissionGranted(granted)
     if (!granted) {
-      setErrorMessage('Microphone permission denied.')
+      setErrorMessage(t('recording.micPermissionDenied'))
     }
     return granted
   }, [])

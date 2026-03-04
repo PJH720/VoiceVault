@@ -37,7 +37,8 @@
   "recording": {
     "start": "Record",
     "stop": "Stop",
-    "lastSaved": "Last saved: {{path}} ({{duration}}s)"
+    "lastSaved": "Last saved: {{path}} ({{duration}}s)",
+    "micPermissionDenied": "Microphone permission denied."
   },
   "library": {
     "searchPlaceholder": "Search title/transcript...",
@@ -146,7 +147,8 @@
     "preview": "Preview",
     "cancel": "Cancel",
     "run": "Export",
-    "vaultRequired": "Obsidian vault path is required."
+    "vaultRequired": "Obsidian vault path is required.",
+    "noPreview": "No preview yet."
   },
   "templates": {
     "libraryTitle": "Template Library",
@@ -197,6 +199,11 @@
       "turns": "turns",
       "secondsShort": "s",
       "recordingsShort": "rec"
+    },
+    "versions": {
+      "electron": "Electron v{{version}}",
+      "chromium": "Chromium v{{version}}",
+      "node": "Node v{{version}}"
     }
   }
 }
