@@ -1,7 +1,7 @@
 {
   "name": "voice-vault",
   "version": "0.1.0",
-  "description": "Record, transcribe, summarize, and organize voice recordings — all on-device",
+  "description": "Record, transcribe, summarize, and organize voice recordings \u2014 all on-device",
   "main": "./out/main/index.js",
   "author": "VoiceVault Contributors",
   "license": "MIT",
@@ -35,12 +35,9 @@
     "handlebars": "^4.7.8",
     "i18next": "^25.8.14",
     "i18next-browser-languagedetector": "^8.2.1",
-    "native-audio-node": "^0.3.5",
     "node-llama-cpp": "^3.17.1",
-    "pyannote-cpp-node": "^0.6.0",
     "react-i18next": "^16.5.4",
-    "tailwindcss": "^4.2.1",
-    "whisper-cpp-node": "^0.2.8"
+    "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

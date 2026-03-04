@@ -148,6 +148,14 @@ export class AudioCaptureService {
     return this.startedAt
   }
 
+  public getCaptureMode(): 'native' | 'fallback' {
+    return this.captureMode
+  }
+
+  public async isNativeAvailable(): Promise<boolean> {
+    return loadNativeAudio()
+  }
+
   public onAudioChunk(listener: (chunk: Buffer, sampleRate: number) => void): () => void {
     this.chunkListeners.add(listener)
     return () => this.chunkListeners.delete(listener)

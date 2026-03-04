@@ -127,6 +127,10 @@ export class DiarizationService {
     }))
   }
 
+  public isNativeModuleAvailable(): boolean | null {
+    return this.nativeModuleAvailable
+  }
+
   public async isModelAvailable(): Promise<boolean> {
     const segmentation = path.join(this.modelPath, 'segmentation.onnx')
     const embedding = path.join(this.modelPath, 'embedding.onnx')
