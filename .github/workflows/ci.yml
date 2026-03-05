@@ -6,133 +6,97 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: "22"
 
 jobs:
-  # ===========================================================================
-  # Lint & Type Check
-  # ===========================================================================
   lint:
-    name: "Lint & Type Check"
+    name: Lint & Type Check
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: latest
           run_install: false
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Run ESLint
-        run: pnpm lint
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
 
-      - name: Run TypeScript type check
-        run: pnpm typecheck
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
 
-  # ===========================================================================
-  # Unit Tests (Vitest)
-  # ===========================================================================
   test:
-    name: "Test (Vitest)"
+    name: Test
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: latest
           run_install: false
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
       - name: Rebuild native modules for Node.js
         run: pnpm rebuild better-sqlite3
+      - run: pnpm test
 
-      - name: Run tests
-        run: pnpm test
-
-  # ===========================================================================
-  # Build Verification
-  # ===========================================================================
   build:
-    name: "Build"
+    name: Build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: latest
           run_install: false
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Build
-        run: pnpm build
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
 
-  # ===========================================================================
-  # Summary
-  # ===========================================================================
-  summary:
-    name: CI Summary
-    runs-on: ubuntu-latest
-    needs: [lint, test, build]
-    if: always()
-
-    steps:
-      - name: Check results
-        env:
-          LINT_RESULT: ${{ needs.lint.result }}
-          TEST_RESULT: ${{ needs.test.result }}
-          BUILD_RESULT: ${{ needs.build.result }}
-        run: |
-          echo "=== CI Results ==="
-          echo "Lint & Type Check: $LINT_RESULT"
-          echo "Test: $TEST_RESULT"
-          echo "Build: $BUILD_RESULT"
-
-          FAILED=false
-          for result in "$LINT_RESULT" "$TEST_RESULT" "$BUILD_RESULT"; do
-            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              FAILED=true
-            fi
-          done
-
-          if [ "$FAILED" = "true" ]; then
-            echo ""
-            echo "CI checks failed!"
-            exit 1
-          fi
-
-          echo ""
-          echo "All CI checks passed!"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
