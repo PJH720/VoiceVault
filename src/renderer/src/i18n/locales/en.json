@@ -209,6 +209,30 @@
   "errors": {
     "componentCrash": "Something went wrong",
     "unknownError": "An unexpected error occurred",
-    "retry": "Try Again"
+    "retry": "Try Again",
+    "contextError": "Hook must be used within provider"
+  },
+  "models": {
+    "whisper": {
+      "base": "Base (fastest, less accurate)",
+      "small": "Small (balanced)",
+      "medium": "Medium (slower, more accurate)",
+      "largev3turbo": "Large V3 Turbo (best quality)"
+    },
+    "llm": {
+      "gemma": "Gemma 2 3B Instruct (Q4)",
+      "llama": "Llama 3.2 3B Instruct (Q4)"
+    },
+    "cloud": {
+      "sonnet": "Claude 3.5 Sonnet",
+      "opus": "Claude 3 Opus",
+      "haiku": "Claude 3 Haiku"
+    }
+  },
+  "playback": {
+    "speed05x": "0.5x",
+    "speed1x": "1x",
+    "speed15x": "1.5x",
+    "speed2x": "2x"
   }
 }
