@@ -19,6 +19,7 @@ import { buildAppMenu, getMainLocaleText } from './menu'
 import { AppChannels, SettingsChannels } from '../shared/ipc-channels'
 import { initStore, getLocale, setLocale, getWhisperModel, setWhisperModel, getLlmModel, setLlmModel } from './store'
 import type { LlmModelName, SupportedLocale } from '../shared/types'
+import { ServiceRegistry } from './services/ServiceRegistry'
 
 let tray: Tray | null = null
 let databaseService: DatabaseService | null = null
@@ -116,12 +117,6 @@ app.on('window-all-closed', () => {
   }
 })
 
-// Shutdown registry: services register their destroy() callbacks here
-const shutdownCallbacks: Array<{ name: string; fn: () => void | Promise<void> }> = []
-export function registerShutdownCallback(name: string, fn: () => void | Promise<void>): void {
-  shutdownCallbacks.push({ name, fn })
-}
-
 app.on('before-quit', async () => {
   tray?.destroy()
   tray = null
@@ -135,19 +130,12 @@ app.on('before-quit', async () => {
     }
   }
 
-  // Run all registered shutdown callbacks with 5s timeout
-  const shutdownWork = async (): Promise<void> => {
-    for (const { name, fn } of shutdownCallbacks) {
-      try {
-        await fn()
-      } catch (err) {
-        console.error(`[shutdown] ${name} destroy failed:`, err)
-      }
-    }
+  // Shutdown all services via ServiceRegistry
+  try {
+    await ServiceRegistry.shutdown()
+  } catch (err) {
+    console.error('[shutdown] ServiceRegistry shutdown failed:', err)
   }
-
-  const timeout = new Promise<void>((resolve) => setTimeout(resolve, 5000))
-  await Promise.race([shutdownWork(), timeout])
 
   databaseService?.close()
 })

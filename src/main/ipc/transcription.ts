@@ -1,10 +1,9 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { WhisperChannels } from '../../shared/ipc-channels'
 import type { TranscriptSegment, WhisperModelSize } from '../../shared/types'
-import { getWhisperModel, setWhisperModel } from '../store'
+import { setWhisperModel } from '../store'
 import { DatabaseService } from '../services/DatabaseService'
-import { WhisperService } from '../services/WhisperService'
-import { registerShutdownCallback } from '../index'
+import { ServiceRegistry } from '../services/ServiceRegistry'
 
 type TranscriptionRuntime = {
   onAudioChunk: (chunk: Buffer, sampleRate: number, startedAtMs: number) => void
@@ -14,8 +13,7 @@ export function registerTranscriptionHandlers(
   mainWindow: BrowserWindow,
   databaseService: DatabaseService
 ): TranscriptionRuntime {
-  const whisperService = new WhisperService(getWhisperModel())
-  registerShutdownCallback('WhisperService', () => whisperService.destroy())
+  const whisperService = ServiceRegistry.getWhisperService()
   let isStreaming = false
   let bufferedSegments: TranscriptSegment[] = []
   let sessionStartedAtMs = 0

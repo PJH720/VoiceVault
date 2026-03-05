@@ -1,11 +1,10 @@
 import { ipcMain } from 'electron'
 import { ClassificationChannels } from '../../shared/ipc-channels'
 import type { SummaryOutput } from '../../shared/types'
-import { getLlmModel } from '../store'
 import { ClassificationService } from '../services/ClassificationService'
 import { DatabaseService } from '../services/DatabaseService'
-import { LLMService } from '../services/LLMService'
 import { TemplateManager } from '../services/TemplateManager'
+import { ServiceRegistry } from '../services/ServiceRegistry'
 
 function linesToList(text: string, fallback: string[] = []): string[] {
   const rows = text
@@ -17,7 +16,7 @@ function linesToList(text: string, fallback: string[] = []): string[] {
 
 export function registerClassificationHandlers(databaseService: DatabaseService): void {
   const templateManager = new TemplateManager()
-  const llmService = new LLMService(getLlmModel())
+  const llmService = ServiceRegistry.getLLMService()
   const classificationService = new ClassificationService(llmService, templateManager)
 
   ipcMain.handle(ClassificationChannels.AUTO_CLASSIFY, async (_event, transcript: string) => {

@@ -4,16 +4,13 @@ import { TranslationChannels } from '../../shared/ipc-channels'
 import type { BatchTranslationItem } from '../../shared/types'
 import { getTranslationTargetLanguage, setTranslationTargetLanguage } from '../store'
 import { DatabaseService } from '../services/DatabaseService'
-import { LLMService } from '../services/LLMService'
-import { getLlmModel } from '../store'
-import { TranslationService } from '../services/TranslationService'
+import { ServiceRegistry } from '../services/ServiceRegistry'
 
 export function registerTranslationHandlers(
   mainWindow: BrowserWindow,
   databaseService: DatabaseService
 ): void {
-  const llmService = new LLMService(getLlmModel())
-  const translationService = new TranslationService(databaseService.getConnection(), llmService)
+  const translationService = ServiceRegistry.getTranslationService(databaseService.getConnection())
 
   ipcMain.handle(
     TranslationChannels.TRANSLATE,
