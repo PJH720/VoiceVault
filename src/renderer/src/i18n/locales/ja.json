@@ -1,0 +1,238 @@
+{
+  "app": {
+    "name": "VoiceVault"
+  },
+  "nav": {
+    "library": "ライブラリ",
+    "record": "録音",
+    "search": "検索",
+    "settings": "設定"
+  },
+  "settings": {
+    "title": "設定",
+    "preferences": "基本設定",
+    "language": "言語",
+    "version": "アプリバージョン",
+    "whisperModel": "Whisper モデル",
+    "llmModel": "ローカル LLM モデル",
+    "download": "ダウンロード",
+    "statusDownloaded": "導入済み",
+    "statusMissing": "未導入",
+    "progress": "進捗",
+    "cloudLlmTitle": "クラウド LLM (任意)",
+    "provider": "プロバイダー",
+    "providerLocal": "ローカル",
+    "providerCloud": "クラウド (Anthropic)",
+    "apiKey": "Anthropic API キー",
+    "apiKeyPlaceholder": "sk-ant-...",
+    "save": "保存",
+    "currentKey": "現在のキー",
+    "cloudModel": "クラウドモデル",
+    "localOnly": "ローカル専用モード",
+    "localOnlyDesc": "有効にするとクラウドリクエストをブロックします。",
+    "usage": "使用量: {{requests}} リクエスト / ${{cost}}",
+    "resetStats": "統計をリセット",
+    "privacyNotice": "プライバシー通知: クラウドモードでは要約のために文字起こしテキストを Anthropic に送信します。"
+  },
+  "recording": {
+    "start": "録音開始",
+    "stop": "停止",
+    "lastSaved": "直近の保存: {{path}} ({{duration}}秒)",
+    "micPermissionDenied": "マイクの権限が拒否されました。"
+  },
+  "library": {
+    "searchPlaceholder": "タイトル/文字起こしを検索...",
+    "sortNewest": "新しい順",
+    "sortDuration": "長さ順",
+    "sortTitle": "タイトル順",
+    "viewList": "リスト",
+    "viewGrid": "グリッド",
+    "refresh": "更新",
+    "empty": "まだ録音がありません。録音を開始してください。",
+    "emptySearch": "検索結果がありません。",
+    "selectRecording": "録音を選択してください。",
+    "speed": "再生速度",
+    "delete": "削除",
+    "export": "エクスポート",
+    "play": "再生",
+    "pause": "一時停止",
+    "noTranscriptSegments": "保存された文字起こしセグメントはありません。"
+  },
+  "search": {
+    "title": "RAG 検索",
+    "placeholder": "録音全体に質問する...",
+    "search": "検索",
+    "searching": "検索中...",
+    "embed": "新しいセグメントを埋め込み",
+    "embedding": "埋め込み中...",
+    "embeddingProgress": "埋め込み進捗: {{current}}/{{total}}",
+    "emptyPrompt": "質問を入力すると録音全体を検索できます。",
+    "recent": "最近の検索",
+    "noHistory": "検索履歴がありません。",
+    "resultsCount": "{{count}} 件",
+    "answer": "回答",
+    "sources": "根拠",
+    "noSources": "根拠が見つかりませんでした。",
+    "relevance": "関連度: {{value}}%"
+  },
+  "transcript": {
+    "live": "ライブ文字起こし",
+    "empty": "録音を開始するとライブ文字起こしが表示されます。",
+    "copy": "コピー"
+  },
+  "summary": {
+    "title": "要約",
+    "generating": "要約を生成中...",
+    "empty": "録音中に要約が表示されます。",
+    "overview": "概要",
+    "actionItems": "アクションアイテム",
+    "discussionPoints": "議論ポイント",
+    "decisions": "決定事項",
+    "emptyActionItems": "アクションアイテムはありません。",
+    "emptyDiscussionPoints": "議論ポイントはありません。",
+    "emptyDecisions": "決定事項はありません。",
+    "estimatedCost": "推定コスト: ${{cost}} (入力 {{input}} / 出力 {{output}})"
+  },
+  "translation": {
+    "title": "バイリンガル文字起こし",
+    "on": "翻訳をオン",
+    "off": "翻訳をオフ",
+    "language": "翻訳言語",
+    "progress": "翻訳中... {{current}}/{{total}}",
+    "original": "原文 ({{lang}})",
+    "translated": "翻訳 ({{lang}})",
+    "empty": "翻訳を有効にすると原文と翻訳を並べて表示します。",
+    "translatingInline": "翻訳中...",
+    "quality": "品質: {{label}} ({{score}}%)",
+    "qualityHigh": "高",
+    "qualityMedium": "中",
+    "qualityLow": "低"
+  },
+  "audio": {
+    "title": "システム音声キャプチャ",
+    "micPermissionTitle": "マイク権限が必要です",
+    "micPermissionMessage": "マイク音声を取得するには権限を許可してください。",
+    "screenPermissionTitle": "画面収録権限の推奨",
+    "screenPermissionMessage": "macOS でアプリ/システム音声を取得するには画面収録権限が必要です。",
+    "openSettings": "システム設定を開く",
+    "requestPermission": "権限をリクエスト",
+    "captureMode": "キャプチャモード",
+    "micOnly": "マイクのみ",
+    "systemOnly": "システム音声のみ",
+    "both": "マイク + システム",
+    "micSource": "マイクソース",
+    "systemSource": "システムソース",
+    "selectMic": "マイクを選択",
+    "selectSystem": "システムソースを選択",
+    "default": "(既定)",
+    "refresh": "ソースを更新",
+    "start": "キャプチャ開始",
+    "stop": "キャプチャ停止",
+    "started": "システム音声キャプチャを開始しました。",
+    "stopped": "システム音声キャプチャを停止しました。",
+    "micVolume": "マイク音量 ({{value}}%)",
+    "systemVolume": "システム音量 ({{value}}%)"
+  },
+  "export": {
+    "title": "Obsidian にエクスポート",
+    "template": "テンプレート",
+    "vault": "Obsidian Vault",
+    "vaultNotSelected": "未選択",
+    "select": "選択",
+    "folderStructure": "フォルダ構成",
+    "folderFlat": "フラット",
+    "folderByDate": "日付別",
+    "folderByCategory": "カテゴリ別",
+    "includeAudio": "音声添付リンクを含める",
+    "preview": "プレビュー",
+    "cancel": "キャンセル",
+    "run": "エクスポート",
+    "vaultRequired": "Obsidian Vault のパスが必要です。",
+    "noPreview": "プレビューはまだありません。"
+  },
+  "templates": {
+    "libraryTitle": "テンプレートライブラリ",
+    "newTemplate": "新規テンプレート",
+    "edit": "編集",
+    "delete": "削除",
+    "view": "表示",
+    "detailTitle": "テンプレート詳細",
+    "createTitle": "テンプレート作成",
+    "name": "名前",
+    "icon": "アイコン",
+    "description": "説明",
+    "color": "色",
+    "keywords": "キーワード (カンマ区切り)",
+    "summaryPrompt": "要約プロンプト",
+    "actionItemsPrompt": "アクションアイテムプロンプト",
+    "keyPointsPrompt": "キーポイントプロンプト",
+    "close": "閉じる",
+    "save": "保存"
+  },
+  "diarization": {
+    "profilesTitle": "話者プロファイル",
+    "speakerNamePlaceholder": "話者名",
+    "add": "追加",
+    "recordingSummary": "{{count}} rec / {{duration}}秒",
+    "mergeTo": "{{name}} に統合",
+    "statsTitle": "話者統計",
+    "noStats": "話者統計はまだありません。",
+    "statsLine": "{{percentage}}% ({{duration}}秒, {{turns}}ターン)",
+    "timelineTitle": "話者タイムライン",
+    "noTimeline": "話者タイムラインはありません。",
+    "timelineTooltip": "{{speaker}} {{start}}秒-{{end}}秒",
+    "transcriptTitle": "話者文字起こし",
+    "noSpeakerTranscript": "話者付き文字起こしはまだありません。"
+  },
+  "tray": {
+    "open": "VoiceVault を開く",
+    "quit": "終了",
+    "tooltip": "VoiceVault"
+  },
+  "common": {
+    "downloaded": "導入済み",
+    "missing": "未導入",
+    "auto": "自動",
+    "uncategorized": "未分類",
+    "units": {
+      "segments": "セグメント",
+      "turns": "ターン",
+      "secondsShort": "秒",
+      "recordingsShort": "rec"
+    },
+    "versions": {
+      "electron": "Electron v{{version}}",
+      "chromium": "Chromium v{{version}}",
+      "node": "Node v{{version}}"
+    }
+  },
+  "errors": {
+    "componentCrash": "問題が発生しました",
+    "unknownError": "予期しないエラーが発生しました",
+    "retry": "もう一度試す",
+    "contextError": "Provider 内で Hook を使用する必要があります"
+  },
+  "models": {
+    "whisper": {
+      "base": "Base (高速、精度低)",
+      "small": "Small (バランス)",
+      "medium": "Medium (低速、精度高)",
+      "largev3turbo": "Large V3 Turbo (最高品質)"
+    },
+    "llm": {
+      "gemma": "Gemma 2 3B Instruct (Q4)",
+      "llama": "Llama 3.2 3B Instruct (Q4)"
+    },
+    "cloud": {
+      "sonnet": "Claude 3.5 Sonnet",
+      "opus": "Claude 3 Opus",
+      "haiku": "Claude 3 Haiku"
+    }
+  },
+  "playback": {
+    "speed05x": "0.5倍速",
+    "speed1x": "1倍速",
+    "speed15x": "1.5倍速",
+    "speed2x": "2倍速"
+  }
+}

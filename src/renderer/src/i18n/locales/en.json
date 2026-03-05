@@ -1,0 +1,238 @@
+{
+  "app": {
+    "name": "VoiceVault"
+  },
+  "nav": {
+    "library": "Library",
+    "record": "Record",
+    "search": "Search",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "preferences": "Preferences",
+    "language": "Language",
+    "version": "App version",
+    "whisperModel": "Whisper model",
+    "llmModel": "Local LLM model",
+    "download": "Download",
+    "statusDownloaded": "downloaded",
+    "statusMissing": "missing",
+    "progress": "progress",
+    "cloudLlmTitle": "Cloud LLM (Optional)",
+    "provider": "Provider",
+    "providerLocal": "Local",
+    "providerCloud": "Cloud (Anthropic)",
+    "apiKey": "Anthropic API key",
+    "apiKeyPlaceholder": "sk-ant-...",
+    "save": "Save",
+    "currentKey": "Current key",
+    "cloudModel": "Cloud model",
+    "localOnly": "Local-only mode",
+    "localOnlyDesc": "When enabled, cloud requests are blocked.",
+    "usage": "Usage: {{requests}} requests / ${{cost}}",
+    "resetStats": "Reset Stats",
+    "privacyNotice": "Privacy notice: cloud mode sends transcript text to Anthropic for summarization."
+  },
+  "recording": {
+    "start": "Record",
+    "stop": "Stop",
+    "lastSaved": "Last saved: {{path}} ({{duration}}s)",
+    "micPermissionDenied": "Microphone permission denied."
+  },
+  "library": {
+    "searchPlaceholder": "Search title/transcript...",
+    "sortNewest": "Newest",
+    "sortDuration": "Duration",
+    "sortTitle": "Title",
+    "viewList": "List",
+    "viewGrid": "Grid",
+    "refresh": "Refresh",
+    "empty": "No recordings yet. Start recording.",
+    "emptySearch": "No recordings matched your search.",
+    "selectRecording": "Select a recording.",
+    "speed": "Speed",
+    "delete": "Delete",
+    "export": "Export",
+    "play": "Play",
+    "pause": "Pause",
+    "noTranscriptSegments": "No transcript segments saved."
+  },
+  "search": {
+    "title": "RAG Search",
+    "placeholder": "Ask anything about your recordings...",
+    "search": "Search",
+    "searching": "Searching...",
+    "embed": "Embed New Segments",
+    "embedding": "Embedding...",
+    "embeddingProgress": "Embedding progress: {{current}}/{{total}}",
+    "emptyPrompt": "Ask a question to search across all recordings.",
+    "recent": "Recent Searches",
+    "noHistory": "No search history yet.",
+    "resultsCount": "{{count}} results",
+    "answer": "Answer",
+    "sources": "Sources",
+    "noSources": "No sources found.",
+    "relevance": "Relevance: {{value}}%"
+  },
+  "transcript": {
+    "live": "Live Transcript",
+    "empty": "Start recording to see live transcription.",
+    "copy": "Copy"
+  },
+  "summary": {
+    "title": "Summary",
+    "generating": "Generating summary...",
+    "empty": "Summary will appear during recording.",
+    "overview": "Overview",
+    "actionItems": "Action Items",
+    "discussionPoints": "Discussion Points",
+    "decisions": "Decisions",
+    "emptyActionItems": "No action items.",
+    "emptyDiscussionPoints": "No discussion points.",
+    "emptyDecisions": "No decisions.",
+    "estimatedCost": "Estimated cost: ${{cost}} ({{input}} in / {{output}} out)"
+  },
+  "translation": {
+    "title": "Bilingual Transcript",
+    "on": "Translation On",
+    "off": "Translation Off",
+    "language": "Translation language",
+    "progress": "Translating... {{current}}/{{total}}",
+    "original": "Original ({{lang}})",
+    "translated": "Translation ({{lang}})",
+    "empty": "Enable translation to view side-by-side transcript.",
+    "translatingInline": "Translating...",
+    "quality": "Quality: {{label}} ({{score}}%)",
+    "qualityHigh": "High",
+    "qualityMedium": "Medium",
+    "qualityLow": "Low"
+  },
+  "audio": {
+    "title": "System Audio Capture",
+    "micPermissionTitle": "Microphone permission required",
+    "micPermissionMessage": "Allow microphone access to capture mic source.",
+    "screenPermissionTitle": "Screen recording permission recommended",
+    "screenPermissionMessage": "On macOS, app/system audio capture requires Screen Recording permission.",
+    "openSettings": "Open System Settings",
+    "requestPermission": "Request Permission",
+    "captureMode": "Capture mode",
+    "micOnly": "Microphone only",
+    "systemOnly": "System audio only",
+    "both": "Microphone + system",
+    "micSource": "Microphone source",
+    "systemSource": "System source",
+    "selectMic": "Select microphone",
+    "selectSystem": "Select system source",
+    "default": "(default)",
+    "refresh": "Refresh Sources",
+    "start": "Start Capture",
+    "stop": "Stop Capture",
+    "started": "System audio capture started.",
+    "stopped": "System audio capture stopped.",
+    "micVolume": "Mic Volume ({{value}}%)",
+    "systemVolume": "System Volume ({{value}}%)"
+  },
+  "export": {
+    "title": "Export to Obsidian",
+    "template": "Template",
+    "vault": "Obsidian Vault",
+    "vaultNotSelected": "Not selected",
+    "select": "Select",
+    "folderStructure": "Folder Structure",
+    "folderFlat": "Flat",
+    "folderByDate": "By Date",
+    "folderByCategory": "By Category",
+    "includeAudio": "Include audio attachment link",
+    "preview": "Preview",
+    "cancel": "Cancel",
+    "run": "Export",
+    "vaultRequired": "Obsidian vault path is required.",
+    "noPreview": "No preview yet."
+  },
+  "templates": {
+    "libraryTitle": "Template Library",
+    "newTemplate": "New Template",
+    "edit": "Edit",
+    "delete": "Delete",
+    "view": "View",
+    "detailTitle": "Template Detail",
+    "createTitle": "Create Template",
+    "name": "Name",
+    "icon": "Icon",
+    "description": "Description",
+    "color": "Color",
+    "keywords": "Keywords (comma separated)",
+    "summaryPrompt": "Summary Prompt",
+    "actionItemsPrompt": "Action Items Prompt",
+    "keyPointsPrompt": "Key Points Prompt",
+    "close": "Close",
+    "save": "Save"
+  },
+  "diarization": {
+    "profilesTitle": "Speaker Profiles",
+    "speakerNamePlaceholder": "Speaker name",
+    "add": "Add",
+    "recordingSummary": "{{count}} rec / {{duration}}s",
+    "mergeTo": "Merge to {{name}}",
+    "statsTitle": "Speaker Stats",
+    "noStats": "No speaker stats yet.",
+    "statsLine": "{{percentage}}% ({{duration}}s, {{turns}} turns)",
+    "timelineTitle": "Speaker Timeline",
+    "noTimeline": "No speaker timeline.",
+    "timelineTooltip": "{{speaker}} {{start}}s-{{end}}s",
+    "transcriptTitle": "Speaker Transcript",
+    "noSpeakerTranscript": "No speaker-aligned transcript yet."
+  },
+  "tray": {
+    "open": "Open VoiceVault",
+    "quit": "Quit",
+    "tooltip": "VoiceVault"
+  },
+  "common": {
+    "downloaded": "downloaded",
+    "missing": "missing",
+    "auto": "AUTO",
+    "uncategorized": "uncategorized",
+    "units": {
+      "segments": "segments",
+      "turns": "turns",
+      "secondsShort": "s",
+      "recordingsShort": "rec"
+    },
+    "versions": {
+      "electron": "Electron v{{version}}",
+      "chromium": "Chromium v{{version}}",
+      "node": "Node v{{version}}"
+    }
+  },
+  "errors": {
+    "componentCrash": "Something went wrong",
+    "unknownError": "An unexpected error occurred",
+    "retry": "Try Again",
+    "contextError": "Hook must be used within provider"
+  },
+  "models": {
+    "whisper": {
+      "base": "Base (fastest, less accurate)",
+      "small": "Small (balanced)",
+      "medium": "Medium (slower, more accurate)",
+      "largev3turbo": "Large V3 Turbo (best quality)"
+    },
+    "llm": {
+      "gemma": "Gemma 2 3B Instruct (Q4)",
+      "llama": "Llama 3.2 3B Instruct (Q4)"
+    },
+    "cloud": {
+      "sonnet": "Claude 3.5 Sonnet",
+      "opus": "Claude 3 Opus",
+      "haiku": "Claude 3 Haiku"
+    }
+  },
+  "playback": {
+    "speed05x": "0.5x",
+    "speed1x": "1x",
+    "speed15x": "1.5x",
+    "speed2x": "2x"
+  }
+}

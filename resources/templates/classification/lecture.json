@@ -1,0 +1,20 @@
+{
+  "id": "lecture",
+  "name": "Lecture",
+  "description": "Educational lectures, courses, talks",
+  "icon": "🎓",
+  "color": "#8b5cf6",
+  "category": "built-in",
+  "keywords": ["lecture", "course", "professor", "slides", "homework"],
+  "prompts": {
+    "summary": "Summarize this lecture's main teaching points in 3-4 sentences.",
+    "keyPoints": "Extract the key concepts taught in this lecture. Include definitions of important terms.",
+    "customFields": [
+      { "name": "prerequisites", "prompt": "What prior knowledge is assumed or required?" },
+      { "name": "homework", "prompt": "Are there any homework assignments or exercises mentioned?" }
+    ]
+  },
+  "exportTemplate": "lecture",
+  "createdAt": "2026-03-04T00:00:00.000Z",
+  "updatedAt": "2026-03-04T00:00:00.000Z"
+}
