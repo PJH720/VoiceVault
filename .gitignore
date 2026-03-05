@@ -50,6 +50,12 @@ Desktop.ini
 .idea/
 *.code-workspace
 
+# Local agent/IDE artifacts
+.cursor/plans/
+.serena/
+.claude/
+.eslintcache
+
 # Logs
 *.log
 npm-debug.log*
