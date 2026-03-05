@@ -101,6 +101,7 @@ export class AudioCaptureService {
     } catch {
       // Native not available — use web-audio mode (renderer captures via MediaRecorder)
       this.captureMode = 'web-audio'
+      this.startLevelEvents()
     }
 
     return this.audioPath
