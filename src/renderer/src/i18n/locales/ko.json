@@ -209,6 +209,30 @@
   "errors": {
     "componentCrash": "문제가 발생했습니다",
     "unknownError": "예기치 않은 오류가 발생했습니다",
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "contextError": "Provider 내에서 Hook을 사용해야 합니다"
+  },
+  "models": {
+    "whisper": {
+      "base": "Base (빠름, 정확도 낮음)",
+      "small": "Small (균형)",
+      "medium": "Medium (느림, 정확도 높음)",
+      "largev3turbo": "Large V3 Turbo (최고 품질)"
+    },
+    "llm": {
+      "gemma": "Gemma 2 3B Instruct (Q4)",
+      "llama": "Llama 3.2 3B Instruct (Q4)"
+    },
+    "cloud": {
+      "sonnet": "Claude 3.5 Sonnet",
+      "opus": "Claude 3 Opus",
+      "haiku": "Claude 3 Haiku"
+    }
+  },
+  "playback": {
+    "speed05x": "0.5배속",
+    "speed1x": "1배속",
+    "speed15x": "1.5배속",
+    "speed2x": "2배속"
   }
 }

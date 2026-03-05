@@ -209,6 +209,30 @@
   "errors": {
     "componentCrash": "問題が発生しました",
     "unknownError": "予期しないエラーが発生しました",
-    "retry": "もう一度試す"
+    "retry": "もう一度試す",
+    "contextError": "Provider 内で Hook を使用する必要があります"
+  },
+  "models": {
+    "whisper": {
+      "base": "Base (高速、精度低)",
+      "small": "Small (バランス)",
+      "medium": "Medium (低速、精度高)",
+      "largev3turbo": "Large V3 Turbo (最高品質)"
+    },
+    "llm": {
+      "gemma": "Gemma 2 3B Instruct (Q4)",
+      "llama": "Llama 3.2 3B Instruct (Q4)"
+    },
+    "cloud": {
+      "sonnet": "Claude 3.5 Sonnet",
+      "opus": "Claude 3 Opus",
+      "haiku": "Claude 3 Haiku"
+    }
+  },
+  "playback": {
+    "speed05x": "0.5倍速",
+    "speed1x": "1倍速",
+    "speed15x": "1.5倍速",
+    "speed2x": "2倍速"
   }
 }

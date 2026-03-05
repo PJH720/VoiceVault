@@ -1,0 +1,38 @@
+Issue #182: Internationalize hardcoded strings
+
+TASK: Find and replace all hardcoded user-facing English strings with i18n t() calls.
+
+SCOPE:
+Focus on these files (most critical):
+1. src/renderer/src/hooks/useRecording.ts - error messages, status text
+2. src/renderer/src/components/**/*.tsx - UI text, labels, placeholders
+3. Any fallback text or error messages
+
+REQUIREMENTS:
+- Replace hardcoded strings with t('key.name') calls
+- Add missing keys to ALL locale files:
+  * src/renderer/src/i18n/locales/en.json
+  * src/renderer/src/i18n/locales/ko.json  
+  * src/renderer/src/i18n/locales/ja.json
+- Use consistent key naming (e.g., 'error.audioNotSupported', 'status.recording')
+- Ensure useTranslation() hook is imported where needed
+
+WORKFLOW:
+1. Search for hardcoded English strings in .ts and .tsx files
+2. For each string, determine appropriate i18n key
+3. Replace string with t('key.name')
+4. Add key to en.json with the original English text
+5. Add key to ko.json with Korean translation (or empty string if unsure)
+6. Add key to ja.json with Japanese translation (or empty string if unsure)
+
+EXAMPLE:
+Before: `throw new Error('Audio recording not supported')`
+After: `throw new Error(t('error.audioNotSupported'))`
+
+en.json: "error.audioNotSupported": "Audio recording not supported"
+ko.json: "error.audioNotSupported": "오디오 녹음이 지원되지 않습니다"
+ja.json: "error.audioNotSupported": "音声録音はサポートされていません"
+
+START WITH: src/renderer/src/hooks/useRecording.ts - this file has critical error messages
+
+DO IT NOW. Find and replace the hardcoded strings.
