@@ -1,0 +1,15 @@
+Optimize src/main/services/VectorService.ts for performance issue #177:
+
+Current problem: search() loads ALL vectors, deserializes ALL embeddings, computes similarity for all.
+
+Required changes:
+1. Add getVectorCount() method to count total vectors
+2. Modify search() for adaptive strategy:
+   - <1000 vectors: process in chunks of 100 with LIMIT/OFFSET
+   - >=1000 vectors: partitioned search, max 500 per chunk
+3. Add early-exit in cosineSimilarity for zero vectors
+4. Assume normalized embeddings for cosine similarity
+5. Target: <500ms for 10k vectors
+
+Keep the same search signature and maintain compatibility.
+No native dependencies (no sqlite-vss).

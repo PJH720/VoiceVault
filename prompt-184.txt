@@ -1,0 +1,12 @@
+Fix Issue #184 - AudioCapture fallback mode problems:
+
+1. In src/main/services/AudioCaptureService.ts:
+   - Clear chunkListeners when entering fallback mode (add this.chunkListeners.clear() in the catch block)
+   - Add comment that chunkListeners are not supported in fallback mode
+   
+2. In src/shared/ipc-channels.ts:
+   - Add CAPTURE_MODE channel to AudioChannels: CAPTURE_MODE: 'audio:capture-mode'
+
+3. Find the main IPC handlers file and add handler for CAPTURE_MODE that returns audioCapture.getCaptureMode()
+
+Show me the changes you made.

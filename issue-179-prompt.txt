@@ -1,0 +1,27 @@
+Issue #179: Implement client-side routing with react-router-dom
+
+TASK: Refactor src/renderer/src/App.tsx to use HashRouter instead of conditional rendering.
+
+CURRENT STATE:
+- App uses useState('library') for page navigation
+- Conditional rendering: {page === 'library' && <LibraryView />}
+- Sidebar buttons use onClick={() => setPage('...')}
+
+REQUIRED CHANGES:
+1. Import HashRouter, Routes, Route, NavLink from react-router-dom
+2. Wrap AppContent with HashRouter
+3. Keep RecordingProvider and LibraryProvider at the top level (they wrap HashRouter)
+4. Replace sidebar buttons with NavLink components
+5. Replace conditional rendering with Routes/Route
+6. Routes configuration:
+   - path="/" → LibraryView (default)
+   - path="/record" → RecordingView
+   - path="/search" → SearchView
+   - path="/settings" → SettingsView
+7. Update title logic to use useLocation() instead of page state
+
+STATE PERSISTENCE:
+- Recording state MUST persist across navigation (RecordingProvider stays at top)
+- Scroll position should be preserved where appropriate
+
+DO IT NOW. Make the changes to src/renderer/src/App.tsx.
