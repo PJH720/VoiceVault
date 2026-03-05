@@ -31,20 +31,27 @@ export function SettingsView(): React.JSX.Element {
           <select
             id="whisper-model"
             value={transcription.modelSize}
-            onChange={(event) => void transcription.switchModel(event.target.value as WhisperModelSize)}
+            onChange={(event) =>
+              void transcription.switchModel(event.target.value as WhisperModelSize)
+            }
           >
             <option value="base">base</option>
             <option value="small">small</option>
             <option value="medium">medium</option>
             <option value="large-v3-turbo">large-v3-turbo</option>
           </select>
-          <button onClick={() => void transcription.downloadModel(transcription.modelSize)}>{t('settings.download')}</button>
+          <button onClick={() => void transcription.downloadModel(transcription.modelSize)}>
+            {t('settings.download')}
+          </button>
         </div>
         <p className="muted">
-          {t('settings.whisperModel')}: {transcription.modelAvailable ? t('common.downloaded') : t('common.missing')} / {t('settings.progress')}:{' '}
-          {transcription.downloadProgress}%
+          {t('settings.whisperModel')}:{' '}
+          {transcription.modelAvailable ? t('common.downloaded') : t('common.missing')} /{' '}
+          {t('settings.progress')}: {transcription.downloadProgress}%
         </p>
-        {transcription.errorMessage ? <p className="error-text">{transcription.errorMessage}</p> : null}
+        {transcription.errorMessage ? (
+          <p className="error-text">{transcription.errorMessage}</p>
+        ) : null}
 
         <div className="settings-row">
           <label htmlFor="llm-model">{t('settings.llmModel')}</label>
@@ -56,14 +63,19 @@ export function SettingsView(): React.JSX.Element {
             <option value="gemma-2-3n-instruct-q4_k_m">gemma-2-3n-instruct-q4_k_m</option>
             <option value="llama-3.2-3b-instruct-q4_k_m">llama-3.2-3b-instruct-q4_k_m</option>
           </select>
-          <button onClick={() => void summary.downloadModel(summary.llmModel)}>{t('settings.download')}</button>
+          <button onClick={() => void summary.downloadModel(summary.llmModel)}>
+            {t('settings.download')}
+          </button>
         </div>
         <p className="muted">
-          {t('settings.llmModel')}: {summary.modelAvailable ? t('common.downloaded') : t('common.missing')} / {t('settings.progress')}:{' '}
-          {summary.downloadProgress}%
+          {t('settings.llmModel')}:{' '}
+          {summary.modelAvailable ? t('common.downloaded') : t('common.missing')} /{' '}
+          {t('settings.progress')}: {summary.downloadProgress}%
         </p>
         {summary.errorMessage ? <p className="error-text">{summary.errorMessage}</p> : null}
-        <p className="muted">{t('settings.version')}: {version}</p>
+        <p className="muted">
+          {t('settings.version')}: {version}
+        </p>
       </div>
 
       <LLMSettings />

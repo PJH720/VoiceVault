@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { SpeakerProfile, SpeakerSegment, SpeakerStats, TranscriptSegment } from '../../../shared/types'
+import type {
+  SpeakerProfile,
+  SpeakerSegment,
+  SpeakerStats,
+  TranscriptSegment
+} from '../../../shared/types'
 
 type UseDiarizationState = {
   speakerSegments: SpeakerSegment[]
@@ -39,7 +44,9 @@ function computeStats(segments: SpeakerSegment[]): SpeakerStats[] {
 export function useDiarization(): UseDiarizationState {
   const [speakerSegments, setSpeakerSegments] = useState<SpeakerSegment[]>([])
   const [speakerProfiles, setSpeakerProfiles] = useState<SpeakerProfile[]>([])
-  const [alignedSegments, setAlignedSegments] = useState<Array<TranscriptSegment & { speaker: string }>>([])
+  const [alignedSegments, setAlignedSegments] = useState<
+    Array<TranscriptSegment & { speaker: string }>
+  >([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -49,7 +56,11 @@ export function useDiarization(): UseDiarizationState {
   }, [])
 
   const processDiarization = useCallback(
-    async (recordingId: number, audioPath: string, transcriptSegments: TranscriptSegment[]): Promise<void> => {
+    async (
+      recordingId: number,
+      audioPath: string,
+      transcriptSegments: TranscriptSegment[]
+    ): Promise<void> => {
       setErrorMessage(null)
       setIsProcessing(true)
       try {

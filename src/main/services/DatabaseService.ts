@@ -42,7 +42,13 @@ type InsertRecordingInput = {
 type UpdateRecordingInput = Partial<
   Pick<
     Recording,
-    'title' | 'category' | 'tags' | 'isBookmarked' | 'isArchived' | 'templateId' | 'classificationConfidence'
+    | 'title'
+    | 'category'
+    | 'tags'
+    | 'isBookmarked'
+    | 'isArchived'
+    | 'templateId'
+    | 'classificationConfidence'
   >
 >
 
@@ -233,14 +239,16 @@ export class DatabaseService {
     const nextCategory = input.category ?? existing.category ?? null
     const nextTags = input.tags ?? existing.tags
     const nextBookmarked =
-      typeof input.isBookmarked === 'boolean' ? Number(input.isBookmarked) : Number(existing.isBookmarked)
+      typeof input.isBookmarked === 'boolean'
+        ? Number(input.isBookmarked)
+        : Number(existing.isBookmarked)
     const nextArchived =
       typeof input.isArchived === 'boolean' ? Number(input.isArchived) : Number(existing.isArchived)
     const nextTemplateId = input.templateId ?? existing.templateId ?? null
     const nextClassificationConfidence =
       typeof input.classificationConfidence === 'number'
         ? input.classificationConfidence
-        : existing.classificationConfidence ?? null
+        : (existing.classificationConfidence ?? null)
 
     this.db
       .prepare(
@@ -418,7 +426,9 @@ export class DatabaseService {
       end: row.end_time,
       language: row.language,
       confidence: row.confidence,
-      words: row.words_json ? (JSON.parse(row.words_json) as TranscriptSegment['words']) : undefined,
+      words: row.words_json
+        ? (JSON.parse(row.words_json) as TranscriptSegment['words'])
+        : undefined,
       speakerProfileId: row.speaker_profile_id,
       speakerName: row.speaker_name ?? undefined,
       speakerColor: row.speaker_color ?? undefined
@@ -480,17 +490,23 @@ export class DatabaseService {
       SET speaker_profile_id = ?
       WHERE id = ? AND recording_id = ?
     `)
-    const tx = this.db.transaction((items: Array<Pick<TranscriptSegment, 'id' | 'speakerProfileId'>>) => {
-      for (const item of items) {
-        if (!item.id) continue
-        update.run(item.speakerProfileId ?? null, item.id, recordingId)
+    const tx = this.db.transaction(
+      (items: Array<Pick<TranscriptSegment, 'id' | 'speakerProfileId'>>) => {
+        for (const item of items) {
+          if (!item.id) continue
+          update.run(item.speakerProfileId ?? null, item.id, recordingId)
+        }
       }
-    })
+    )
     tx(alignedSegments)
     return alignedSegments.length
   }
 
-  public createSpeakerProfile(name: string, color: string, embedding?: Float32Array): SpeakerProfile {
+  public createSpeakerProfile(
+    name: string,
+    color: string,
+    embedding?: Float32Array
+  ): SpeakerProfile {
     const result = this.db
       .prepare(
         `
@@ -549,13 +565,18 @@ export class DatabaseService {
     return rows.map(this.mapSpeakerProfile)
   }
 
-  public updateSpeakerProfile(id: number, updates: { name?: string; color?: string }): SpeakerProfile | null {
+  public updateSpeakerProfile(
+    id: number,
+    updates: { name?: string; color?: string }
+  ): SpeakerProfile | null {
     const existing = this.getSpeakerProfile(id)
     if (!existing) return null
     const nextName = updates.name ?? existing.name
     const nextColor = updates.color ?? existing.color
     this.db
-      .prepare("UPDATE speaker_profiles SET name = ?, color = ?, updated_at = datetime('now') WHERE id = ?")
+      .prepare(
+        "UPDATE speaker_profiles SET name = ?, color = ?, updated_at = datetime('now') WHERE id = ?"
+      )
       .run(nextName, nextColor, id)
     return this.getSpeakerProfile(id)
   }
@@ -569,7 +590,9 @@ export class DatabaseService {
         .prepare('UPDATE speaker_segments SET speaker_profile_id = ? WHERE speaker_profile_id = ?')
         .run(targetId, sourceId)
       this.db
-        .prepare('UPDATE transcript_segments SET speaker_profile_id = ? WHERE speaker_profile_id = ?')
+        .prepare(
+          'UPDATE transcript_segments SET speaker_profile_id = ? WHERE speaker_profile_id = ?'
+        )
         .run(targetId, sourceId)
       this.db.prepare('DELETE FROM speaker_profiles WHERE id = ?').run(sourceId)
     })
@@ -616,7 +639,9 @@ export class DatabaseService {
       createdAt: row.created_at,
       output: {
         summary: row.summary_text,
-        actionItems: row.action_items ? (JSON.parse(row.action_items) as SummaryOutput['actionItems']) : [],
+        actionItems: row.action_items
+          ? (JSON.parse(row.action_items) as SummaryOutput['actionItems'])
+          : [],
         discussionPoints: row.discussion_points
           ? (JSON.parse(row.discussion_points) as string[])
           : [],
@@ -708,7 +733,9 @@ export class DatabaseService {
     const names = new Set(columns.map((entry) => entry.name))
     const statements: string[] = []
     if (!names.has('updated_at')) {
-      statements.push("ALTER TABLE recordings ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))")
+      statements.push(
+        "ALTER TABLE recordings ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))"
+      )
     }
     if (!names.has('tags')) {
       statements.push('ALTER TABLE recordings ADD COLUMN tags TEXT')
@@ -717,7 +744,9 @@ export class DatabaseService {
       statements.push('ALTER TABLE recordings ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0')
     }
     if (!names.has('file_size_bytes')) {
-      statements.push('ALTER TABLE recordings ADD COLUMN file_size_bytes INTEGER NOT NULL DEFAULT 0')
+      statements.push(
+        'ALTER TABLE recordings ADD COLUMN file_size_bytes INTEGER NOT NULL DEFAULT 0'
+      )
     }
     if (!names.has('template_id')) {
       statements.push('ALTER TABLE recordings ADD COLUMN template_id TEXT')

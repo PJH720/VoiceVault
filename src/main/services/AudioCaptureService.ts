@@ -18,7 +18,8 @@ type NativeAudioModule = {
 }
 
 let NativeAudioAvailable: boolean | null = null
-let MicrophoneRecorderCtor: (new (opts: Record<string, unknown>) => MicrophoneRecorderLike) | null = null
+let MicrophoneRecorderCtor: (new (opts: Record<string, unknown>) => MicrophoneRecorderLike) | null =
+  null
 
 async function loadNativeAudio(): Promise<boolean> {
   if (NativeAudioAvailable !== null) return NativeAudioAvailable

@@ -67,7 +67,12 @@ export function useTranslation(): {
     ): Promise<TranslationResult> => {
       setIsTranslating(true)
       try {
-        return await window.api.translation.translate(text, sourceLanguage, targetLanguage, segmentId)
+        return await window.api.translation.translate(
+          text,
+          sourceLanguage,
+          targetLanguage,
+          segmentId
+        )
       } finally {
         setIsTranslating(false)
       }

@@ -59,6 +59,9 @@ describe('preload api contract', () => {
     const off = api.translation.onProgress(() => undefined)
     expect(on).toHaveBeenCalledWith(TranslationChannels.ON_PROGRESS, expect.any(Function))
     off()
-    expect(removeListener).toHaveBeenCalledWith(TranslationChannels.ON_PROGRESS, expect.any(Function))
+    expect(removeListener).toHaveBeenCalledWith(
+      TranslationChannels.ON_PROGRESS,
+      expect.any(Function)
+    )
   })
 })

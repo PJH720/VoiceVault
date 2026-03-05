@@ -71,7 +71,16 @@ export function buildAppMenu(locale: SupportedLocale): Menu {
       ]
     },
     { label: t.file, submenu: [{ role: 'close' }] },
-    { label: t.edit, submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'copy' }, { role: 'paste' }] },
+    {
+      label: t.edit,
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'copy' },
+        { role: 'paste' }
+      ]
+    },
     { label: t.view, submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }] },
     { label: t.window, submenu: [{ role: 'minimize' }] },
     { label: t.help, submenu: [{ role: 'togglefullscreen' }] }

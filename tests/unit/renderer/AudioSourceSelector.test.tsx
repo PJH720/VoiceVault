@@ -21,12 +21,18 @@ declare global {
     api: {
       systemAudio: {
         listSources: () => Promise<{
-          sources: Array<{ id: string; name: string; type: 'input' | 'output' | 'app'; isDefault: boolean }>
+          sources: Array<{
+            id: string
+            name: string
+            type: 'input' | 'output' | 'app'
+            isDefault: boolean
+          }>
         }>
         checkPermissions: () => Promise<{ screenRecording: boolean; microphone: boolean }>
-        requestPermissions: (
-          type: 'screen' | 'microphone'
-        ) => Promise<{ success: boolean; permissions: { screenRecording: boolean; microphone: boolean } }>
+        requestPermissions: (type: 'screen' | 'microphone') => Promise<{
+          success: boolean
+          permissions: { screenRecording: boolean; microphone: boolean }
+        }>
         startCapture: (config: unknown) => Promise<{ success: boolean }>
         stopCapture: () => Promise<{ success: boolean }>
       }

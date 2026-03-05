@@ -26,7 +26,9 @@ export class TemplateManager {
 
   public async listTemplates(): Promise<RecordingTemplate[]> {
     await this.initialize()
-    return Array.from(this.templates.values()).sort((left, right) => left.name.localeCompare(right.name))
+    return Array.from(this.templates.values()).sort((left, right) =>
+      left.name.localeCompare(right.name)
+    )
   }
 
   public async getTemplate(id: string): Promise<RecordingTemplate | null> {
@@ -54,7 +56,10 @@ export class TemplateManager {
     return template
   }
 
-  public async updateTemplate(id: string, updates: Partial<RecordingTemplate>): Promise<RecordingTemplate> {
+  public async updateTemplate(
+    id: string,
+    updates: Partial<RecordingTemplate>
+  ): Promise<RecordingTemplate> {
     await this.initialize()
     const existing = this.templates.get(id)
     if (!existing) throw new Error('Template not found')

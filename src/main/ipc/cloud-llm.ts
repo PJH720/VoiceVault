@@ -1,6 +1,11 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { CloudLlmChannels } from '../../shared/ipc-channels'
-import type { CloudModelName, AnthropicModelName, OpenAIModelName, GeminiModelName } from '../../shared/types'
+import type {
+  CloudModelName,
+  AnthropicModelName,
+  OpenAIModelName,
+  GeminiModelName
+} from '../../shared/types'
 import { CloudLLMService } from '../services/CloudLLMService'
 import { CostEstimator } from '../services/CostEstimator'
 import {
@@ -65,37 +70,40 @@ export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
     return { key: maskApiKey(key) }
   })
 
-  ipcMain.handle(CloudLlmChannels.SUMMARIZE, async (_event, transcript: string, model?: CloudModelName) => {
-    if (getLocalOnlyMode()) {
-      throw new Error('Cloud LLM disabled in local-only mode')
-    }
-    const anthropicApiKey = getAnthropicApiKey()
-    const openaiApiKey = getOpenAIApiKey()
-    const geminiApiKey = getGeminiApiKey()
-    const service = new CloudLLMService(anthropicApiKey, openaiApiKey, geminiApiKey)
-    const selectedModel = model ?? getCloudModel()
+  ipcMain.handle(
+    CloudLlmChannels.SUMMARIZE,
+    async (_event, transcript: string, model?: CloudModelName) => {
+      if (getLocalOnlyMode()) {
+        throw new Error('Cloud LLM disabled in local-only mode')
+      }
+      const anthropicApiKey = getAnthropicApiKey()
+      const openaiApiKey = getOpenAIApiKey()
+      const geminiApiKey = getGeminiApiKey()
+      const service = new CloudLLMService(anthropicApiKey, openaiApiKey, geminiApiKey)
+      const selectedModel = model ?? getCloudModel()
 
-    let output
-    if (isAnthropicModel(selectedModel)) {
-      output = await service.summarize(transcript, selectedModel, (token) => {
-        mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
-      })
-    } else if (isOpenAIModel(selectedModel)) {
-      output = await service.summarizeWithOpenAI(transcript, selectedModel, (token) => {
-        mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
-      })
-    } else if (isGeminiModel(selectedModel)) {
-      output = await service.summarizeWithGemini(transcript, selectedModel, (token) => {
-        mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
-      })
-    } else {
-      throw new Error(`Unsupported model: ${selectedModel}`)
-    }
+      let output
+      if (isAnthropicModel(selectedModel)) {
+        output = await service.summarize(transcript, selectedModel, (token) => {
+          mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
+        })
+      } else if (isOpenAIModel(selectedModel)) {
+        output = await service.summarizeWithOpenAI(transcript, selectedModel, (token) => {
+          mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
+        })
+      } else if (isGeminiModel(selectedModel)) {
+        output = await service.summarizeWithGemini(transcript, selectedModel, (token) => {
+          mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
+        })
+      } else {
+        throw new Error(`Unsupported model: ${selectedModel}`)
+      }
 
-    addUsage(output.metadata?.cost ?? 0)
-    mainWindow.webContents.send(CloudLlmChannels.ON_COMPLETE, output)
-    return { success: true, output }
-  })
+      addUsage(output.metadata?.cost ?? 0)
+      mainWindow.webContents.send(CloudLlmChannels.ON_COMPLETE, output)
+      return { success: true, output }
+    }
+  )
 
   ipcMain.handle(CloudLlmChannels.ESTIMATE_COST, (_event, text: string, model: CloudModelName) => {
     return CostEstimator.estimateCost(text, model)

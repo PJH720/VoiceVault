@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { AudioPermissionStatus, AudioSourceInfo, CaptureConfig } from '../../../../shared/types'
+import type {
+  AudioPermissionStatus,
+  AudioSourceInfo,
+  CaptureConfig
+} from '../../../../shared/types'
 import { MixerControls } from './MixerControls'
 import { PermissionPrompt } from './PermissionPrompt'
 
@@ -34,7 +38,9 @@ export function AudioSourceSelector(): React.JSX.Element {
     setSources(sourceResult.sources)
     setPermissions(permissionResult)
     const defaultMic = sourceResult.sources.find((item) => item.type === 'input' && item.isDefault)
-    const defaultSystem = sourceResult.sources.find((item) => item.type !== 'input' && item.isDefault)
+    const defaultSystem = sourceResult.sources.find(
+      (item) => item.type !== 'input' && item.isDefault
+    )
     setConfig((prev) => ({
       ...prev,
       micSource: prev.micSource ?? defaultMic?.id,
@@ -128,7 +134,9 @@ export function AudioSourceSelector(): React.JSX.Element {
           <select
             id="system-source"
             value={config.systemSource ?? ''}
-            onChange={(event) => setConfig((prev) => ({ ...prev, systemSource: event.target.value }))}
+            onChange={(event) =>
+              setConfig((prev) => ({ ...prev, systemSource: event.target.value }))
+            }
           >
             <option value="">{t('audio.selectSystem')}</option>
             {systemSources.map((source) => (

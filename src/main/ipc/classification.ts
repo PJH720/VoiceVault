@@ -25,12 +25,19 @@ export function registerClassificationHandlers(databaseService: DatabaseService)
 
   ipcMain.handle(
     ClassificationChannels.APPLY_TEMPLATE,
-    async (_event, recordingId: number, templateId: string): Promise<{ success: boolean; output: SummaryOutput }> => {
+    async (
+      _event,
+      recordingId: number,
+      templateId: string
+    ): Promise<{ success: boolean; output: SummaryOutput }> => {
       const template = await templateManager.getTemplate(templateId)
       if (!template) throw new Error('Template not found')
       const recording = databaseService.getRecordingWithTranscript(recordingId)
       if (!recording) throw new Error('Recording not found')
-      const transcript = recording.segments.map((segment) => segment.text).join(' ').trim()
+      const transcript = recording.segments
+        .map((segment) => segment.text)
+        .join(' ')
+        .trim()
       const summary = await llmService.answerQuestion(template.prompts.summary, transcript)
       const keyPoints = template.prompts.keyPoints
         ? await llmService.answerQuestion(template.prompts.keyPoints, transcript)
@@ -53,7 +60,9 @@ export function registerClassificationHandlers(databaseService: DatabaseService)
   )
 
   ipcMain.handle(ClassificationChannels.TEMPLATES_LIST, async () => templateManager.listTemplates())
-  ipcMain.handle(ClassificationChannels.TEMPLATES_GET, async (_event, id: string) => templateManager.getTemplate(id))
+  ipcMain.handle(ClassificationChannels.TEMPLATES_GET, async (_event, id: string) =>
+    templateManager.getTemplate(id)
+  )
   ipcMain.handle(ClassificationChannels.TEMPLATES_CREATE, async (_event, input) =>
     templateManager.createTemplate(input)
   )

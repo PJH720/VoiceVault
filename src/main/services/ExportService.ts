@@ -91,7 +91,10 @@ export class ExportService {
     this.templatesLoaded = true
   }
 
-  private async renderMarkdown(recording: RecordingWithTranscript, options: ExportOptions): Promise<string> {
+  private async renderMarkdown(
+    recording: RecordingWithTranscript,
+    options: ExportOptions
+  ): Promise<string> {
     const summary = recording.summary ?? this.resolveSummary(recording.id)?.output
     const data: TemplateData = {
       title: recording.title,
@@ -109,7 +112,9 @@ export class ExportService {
       tags: recording.tags,
       category: recording.category,
       relatedRecordings: options.generateWikilinks ? this.findRelatedRecordings(recording) : [],
-      audioPath: options.includeAudio ? this.getAudioLink(recording.audioPath, options.audioAsAttachment) : undefined
+      audioPath: options.includeAudio
+        ? this.getAudioLink(recording.audioPath, options.audioAsAttachment)
+        : undefined
     }
     const frontmatter = this.generateFrontmatter(recording, summary, options.generateWikilinks)
     const body = this.templateEngine.render(options.templateName, data)
@@ -154,7 +159,10 @@ export class ExportService {
     return lines.join('\n')
   }
 
-  private async resolveOutputPath(recording: RecordingWithTranscript, options: ExportOptions): Promise<string> {
+  private async resolveOutputPath(
+    recording: RecordingWithTranscript,
+    options: ExportOptions
+  ): Promise<string> {
     let folder = options.vaultPath
     if (options.folderStructure === 'by-date') {
       const date = new Date(recording.createdAt)
@@ -176,13 +184,17 @@ export class ExportService {
     return target
   }
 
-  private findRelatedRecordings(recording: RecordingWithTranscript): Array<{ title: string; link: string }> {
+  private findRelatedRecordings(
+    recording: RecordingWithTranscript
+  ): Array<{ title: string; link: string }> {
     const all = this.databaseService.listRecordings({ limit: 200, includeArchived: false })
     const tagSet = new Set(recording.tags)
     return all
       .filter((candidate) => candidate.id !== recording.id)
       .filter((candidate) => {
-        const sameCategory = Boolean(recording.category && candidate.category === recording.category)
+        const sameCategory = Boolean(
+          recording.category && candidate.category === recording.category
+        )
         const overlapTags = candidate.tags.some((tag) => tagSet.has(tag))
         return sameCategory || overlapTags
       })

@@ -9,7 +9,11 @@ export function LanguagePicker(): React.JSX.Element {
   return (
     <div className="settings-row">
       <label htmlFor="locale">{t('settings.language')}</label>
-      <select id="locale" value={locale} onChange={(event) => void setLocale(event.target.value as SupportedLocale)}>
+      <select
+        id="locale"
+        value={locale}
+        onChange={(event) => void setLocale(event.target.value as SupportedLocale)}
+      >
         {locales.map((item) => (
           <option key={item.code} value={item.code}>
             {item.nativeName}

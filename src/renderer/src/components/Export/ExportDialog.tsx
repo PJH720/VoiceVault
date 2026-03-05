@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ExportFolderStructure, ExportOptions, ExportTemplateSummary } from '../../../../shared/types'
+import type {
+  ExportFolderStructure,
+  ExportOptions,
+  ExportTemplateSummary
+} from '../../../../shared/types'
 import { MarkdownPreview } from './MarkdownPreview'
 import { TemplateSelector } from './TemplateSelector'
 
@@ -12,7 +16,11 @@ type ExportDialogProps = {
 
 const DEFAULT_TEMPLATE = 'meeting-notes'
 
-export function ExportDialog({ open, recordingId, onClose }: ExportDialogProps): React.JSX.Element | null {
+export function ExportDialog({
+  open,
+  recordingId,
+  onClose
+}: ExportDialogProps): React.JSX.Element | null {
   const { t } = useTranslation()
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE)
   const [vaultPath, setVaultPath] = useState<string | null>(null)
@@ -88,7 +96,11 @@ export function ExportDialog({ open, recordingId, onClose }: ExportDialogProps):
             <div>
               <label>{t('export.vault')}</label>
               <div className="export-vault-row">
-                <input value={vaultPath ?? ''} readOnly placeholder={t('export.vaultNotSelected')} />
+                <input
+                  value={vaultPath ?? ''}
+                  readOnly
+                  placeholder={t('export.vaultNotSelected')}
+                />
                 <button onClick={() => void selectVaultPath()}>{t('export.select')}</button>
               </div>
             </div>
@@ -97,7 +109,9 @@ export function ExportDialog({ open, recordingId, onClose }: ExportDialogProps):
               <select
                 id="folder-structure"
                 value={folderStructure}
-                onChange={(event) => setFolderStructure(event.target.value as ExportFolderStructure)}
+                onChange={(event) =>
+                  setFolderStructure(event.target.value as ExportFolderStructure)
+                }
               >
                 <option value="flat">{t('export.folderFlat')}</option>
                 <option value="by-date">{t('export.folderByDate')}</option>

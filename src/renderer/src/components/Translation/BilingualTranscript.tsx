@@ -9,7 +9,9 @@ type BilingualTranscriptProps = {
   segments: TranscriptSegment[]
 }
 
-export function BilingualTranscript({ segments }: BilingualTranscriptProps): React.JSX.Element | null {
+export function BilingualTranscript({
+  segments
+}: BilingualTranscriptProps): React.JSX.Element | null {
   const { t } = useI18n()
   const {
     enabled,
@@ -59,9 +61,17 @@ export function BilingualTranscript({ segments }: BilingualTranscriptProps): Rea
     <div className="panel translation-panel">
       <div className="translation-head">
         <h3>{t('translation.title')}</h3>
-        <button onClick={toggleEnabled}>{enabled ? t('translation.off') : t('translation.on')}</button>
+        <button onClick={toggleEnabled}>
+          {enabled ? t('translation.off') : t('translation.on')}
+        </button>
       </div>
-      {enabled ? <LanguageSelector targetLanguage={targetLanguage} languages={languages} onChange={changeTargetLanguage} /> : null}
+      {enabled ? (
+        <LanguageSelector
+          targetLanguage={targetLanguage}
+          languages={languages}
+          onChange={changeTargetLanguage}
+        />
+      ) : null}
       {enabled && isTranslating ? (
         <p className="muted">
           {t('translation.progress', { current: progress.current, total: progress.total })}
@@ -87,7 +97,8 @@ export function BilingualTranscript({ segments }: BilingualTranscriptProps): Rea
                     {translated ? <QualityIndicator confidence={translated.confidence} /> : null}
                   </div>
                   <p className="segment-text muted">
-                    {translated?.translatedText ?? (isTranslating ? t('translation.translatingInline') : '-')}
+                    {translated?.translatedText ??
+                      (isTranslating ? t('translation.translatingInline') : '-')}
                   </p>
                 </div>
               </div>

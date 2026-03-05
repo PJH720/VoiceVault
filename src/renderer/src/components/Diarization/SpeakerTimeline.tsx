@@ -33,7 +33,11 @@ export function SpeakerTimeline({ segments, duration }: SpeakerTimelineProps): R
             <div
               key={`${segment.start}-${segment.end}-${index}`}
               className="speaker-timeline-block"
-              style={{ left: `${left}%`, width: `${width}%`, backgroundColor: speakerColor(segment.speaker) }}
+              style={{
+                left: `${left}%`,
+                width: `${width}%`,
+                backgroundColor: speakerColor(segment.speaker)
+              }}
               title={t('diarization.timelineTooltip', {
                 speaker: segment.speaker,
                 start: segment.start.toFixed(1),

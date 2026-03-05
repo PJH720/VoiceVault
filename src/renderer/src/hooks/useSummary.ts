@@ -121,11 +121,14 @@ export function useSummary(): UseSummaryState {
     }
   }, [llmModel])
 
-  const refreshModelStatus = useCallback(async (model?: LlmModelName): Promise<void> => {
-    const target = model ?? llmModel
-    const status = await window.api.llm.checkModel(target)
-    setModelAvailable(status.available)
-  }, [llmModel])
+  const refreshModelStatus = useCallback(
+    async (model?: LlmModelName): Promise<void> => {
+      const target = model ?? llmModel
+      const status = await window.api.llm.checkModel(target)
+      setModelAvailable(status.available)
+    },
+    [llmModel]
+  )
 
   const generateSummary = useCallback(
     async (
@@ -183,11 +186,14 @@ export function useSummary(): UseSummaryState {
     }
   }, [])
 
-  const switchModel = useCallback(async (model: LlmModelName): Promise<void> => {
-    setLlmModelState(model)
-    await window.api.setLlmModel(model)
-    await refreshModelStatus(model)
-  }, [refreshModelStatus])
+  const switchModel = useCallback(
+    async (model: LlmModelName): Promise<void> => {
+      setLlmModelState(model)
+      await window.api.setLlmModel(model)
+      await refreshModelStatus(model)
+    },
+    [refreshModelStatus]
+  )
 
   const switchProvider = useCallback(async (nextProvider: 'local' | 'cloud'): Promise<void> => {
     const result = await window.api.cloudLLM.setProvider(nextProvider)
@@ -208,14 +214,17 @@ export function useSummary(): UseSummaryState {
     return result.key
   }, [])
 
-  const estimateCloudCost = useCallback(async (transcript: string): Promise<void> => {
-    if (!transcript.trim()) {
-      setEstimatedCost(null)
-      return
-    }
-    const estimate = await window.api.cloudLLM.estimateCost(transcript, cloudModel)
-    setEstimatedCost(estimate)
-  }, [cloudModel])
+  const estimateCloudCost = useCallback(
+    async (transcript: string): Promise<void> => {
+      if (!transcript.trim()) {
+        setEstimatedCost(null)
+        return
+      }
+      const estimate = await window.api.cloudLLM.estimateCost(transcript, cloudModel)
+      setEstimatedCost(estimate)
+    },
+    [cloudModel]
+  )
 
   const setLocalOnlyMode = useCallback(async (enabled: boolean): Promise<void> => {
     const result = await window.api.cloudLLM.setLocalOnly(enabled)
@@ -227,10 +236,13 @@ export function useSummary(): UseSummaryState {
     setUsageStats(next)
   }, [])
 
-  const saveSummary = useCallback(async (recordingId: number, output: SummaryOutput): Promise<number> => {
-    const result = await window.api.llm.saveSummary(recordingId, output)
-    return result.id
-  }, [])
+  const saveSummary = useCallback(
+    async (recordingId: number, output: SummaryOutput): Promise<number> => {
+      const result = await window.api.llm.saveSummary(recordingId, output)
+      return result.id
+    },
+    []
+  )
 
   const loadLatestSummary = useCallback(
     async (recordingId: number): Promise<RecordingSummaryRow | null> => {

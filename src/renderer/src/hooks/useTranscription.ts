@@ -56,11 +56,14 @@ export function useTranscription(): UseTranscriptionState {
     }
   }, [modelSize])
 
-  const refreshModelStatus = useCallback(async (requested?: WhisperModelSize): Promise<void> => {
-    const target = requested ?? modelSize
-    const status = await window.api.transcription.checkModel(target)
-    setModelAvailable(status.available)
-  }, [modelSize])
+  const refreshModelStatus = useCallback(
+    async (requested?: WhisperModelSize): Promise<void> => {
+      const target = requested ?? modelSize
+      const status = await window.api.transcription.checkModel(target)
+      setModelAvailable(status.available)
+    },
+    [modelSize]
+  )
 
   const startTranscription = useCallback(async (): Promise<void> => {
     setErrorMessage(null)
@@ -107,11 +110,14 @@ export function useTranscription(): UseTranscriptionState {
     }
   }, [])
 
-  const switchModel = useCallback(async (nextModel: WhisperModelSize): Promise<void> => {
-    setModelSize(nextModel)
-    await window.api.setWhisperModel(nextModel)
-    await refreshModelStatus(nextModel)
-  }, [refreshModelStatus])
+  const switchModel = useCallback(
+    async (nextModel: WhisperModelSize): Promise<void> => {
+      setModelSize(nextModel)
+      await window.api.setWhisperModel(nextModel)
+      await refreshModelStatus(nextModel)
+    },
+    [refreshModelStatus]
+  )
 
   return useMemo(
     () => ({

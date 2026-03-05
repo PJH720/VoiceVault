@@ -15,7 +15,7 @@ export function RecordingProvider({ children }: { children: ReactNode }): React.
     stopRecording
   } = useRecording()
 
-  const stableValue = useMemo(
+  const value = useMemo(
     () => ({
       isRecording,
       levels,
@@ -27,8 +27,18 @@ export function RecordingProvider({ children }: { children: ReactNode }): React.
       startRecording,
       stopRecording
     }),
-    [isRecording, levels, durationMs, permissionGranted, lastResult, errorMessage, requestPermission, startRecording, stopRecording]
+    [
+      isRecording,
+      levels,
+      durationMs,
+      permissionGranted,
+      lastResult,
+      errorMessage,
+      requestPermission,
+      startRecording,
+      stopRecording
+    ]
   )
 
-  return <RecordingContext.Provider value={stableValue}>{children}</RecordingContext.Provider>
+  return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>
 }

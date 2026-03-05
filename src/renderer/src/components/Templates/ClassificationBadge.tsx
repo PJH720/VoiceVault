@@ -9,5 +9,10 @@ export function ClassificationBadge({
 }: ClassificationBadgeProps): React.JSX.Element | null {
   if (!templateId) return null
   const percent = typeof confidence === 'number' ? ` (${(confidence * 100).toFixed(0)}%)` : ''
-  return <span className="summary-chip">#{templateId}{percent}</span>
+  return (
+    <span className="summary-chip">
+      #{templateId}
+      {percent}
+    </span>
+  )
 }

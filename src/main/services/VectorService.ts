@@ -11,6 +11,10 @@ type VectorRow = {
 }
 
 export class VectorService {
+  private static readonly PARTITION_THRESHOLD = 1000
+  private static readonly SAMPLES_PER_RECORDING = 5
+  private static readonly TOP_RECORDINGS = 3
+
   public constructor(private readonly db: Database.Database) {}
 
   public insertVector(doc: Omit<VectorDocument, 'id'>): number {
@@ -39,114 +43,110 @@ export class VectorService {
   }
 
   public search(queryEmbedding: Float32Array, limit = 10): SearchResult[] {
-    const totalCount = this.getVectorCount()
+    const totalDocs = (
+      this.db.prepare('SELECT COUNT(*) AS cnt FROM vector_documents').get() as { cnt: number }
+    ).cnt
 
-    if (totalCount === 0) {
-      return []
+    if (totalDocs < VectorService.PARTITION_THRESHOLD) {
+      return this.bruteForceScan(queryEmbedding, limit)
     }
 
-    // Adaptive strategy based on dataset size
-    if (totalCount < 1000) {
-      // Small dataset: process in chunks of 100
-      return this.searchWithChunks(queryEmbedding, limit, 100)
-    } else {
-      // Large dataset: partitioned search, max 500 per chunk
-      return this.searchWithPartitions(queryEmbedding, limit, 500)
-    }
+    return this.partitionedSearch(queryEmbedding, limit)
   }
 
-  private searchWithChunks(
-    queryEmbedding: Float32Array,
-    limit: number,
-    chunkSize: number
-  ): SearchResult[] {
-    const totalCount = this.getVectorCount()
-    const allResults: SearchResult[] = []
-
-    const stmt = this.db.prepare(`
+  private bruteForceScan(queryEmbedding: Float32Array, limit: number): SearchResult[] {
+    const rows = this.db
+      .prepare(
+        `
       SELECT id, recording_id, segment_id, text, embedding, metadata
       FROM vector_documents
-      LIMIT ? OFFSET ?
-    `)
+    `
+      )
+      .all() as VectorRow[]
 
-    for (let offset = 0; offset < totalCount; offset += chunkSize) {
-      const rows = stmt.all(chunkSize, offset) as VectorRow[]
-
-      for (const row of rows) {
-        const documentEmbedding = this.deserializeEmbedding(row.embedding)
-        const similarity = this.cosineSimilarity(queryEmbedding, documentEmbedding)
-
-        // Skip zero/invalid vectors
-        if (similarity < 0) continue
-
-        const metadata = this.parseMetadata(row.metadata)
-        allResults.push({
-          document: {
-            id: row.id,
-            recordingId: row.recording_id,
-            segmentId: row.segment_id ?? undefined,
-            text: row.text,
-            embedding: documentEmbedding,
-            metadata
-          },
-          similarity
-        })
-      }
-    }
-
-    return allResults.sort((left, right) => right.similarity - left.similarity).slice(0, limit)
+    return this.scoreAndRank(rows, queryEmbedding, limit)
   }
 
-  private searchWithPartitions(
-    queryEmbedding: Float32Array,
-    limit: number,
-    partitionSize: number
-  ): SearchResult[] {
-    const totalCount = this.getVectorCount()
-    const topResults: SearchResult[] = []
+  private partitionedSearch(queryEmbedding: Float32Array, limit: number): SearchResult[] {
+    // Phase 1: get distinct recordings
+    const recordingIds = (
+      this.db.prepare('SELECT DISTINCT recording_id FROM vector_documents').all() as {
+        recording_id: number
+      }[]
+    ).map((r) => r.recording_id)
 
-    const stmt = this.db.prepare(`
-      SELECT id, recording_id, segment_id, text, embedding, metadata
-      FROM vector_documents
-      LIMIT ? OFFSET ?
-    `)
+    // Phase 2: score a sample from each recording
+    const sampleStmt = this.db.prepare(
+      `SELECT id, recording_id, segment_id, text, embedding, metadata
+       FROM vector_documents
+       WHERE recording_id = ?
+       LIMIT ?`
+    )
 
-    for (let offset = 0; offset < totalCount; offset += partitionSize) {
-      const rows = stmt.all(partitionSize, offset) as VectorRow[]
-      const partitionResults: SearchResult[] = []
-
-      for (const row of rows) {
-        const documentEmbedding = this.deserializeEmbedding(row.embedding)
-        const similarity = this.cosineSimilarity(queryEmbedding, documentEmbedding)
-
-        // Skip zero/invalid vectors
-        if (similarity < 0) continue
-
-        const metadata = this.parseMetadata(row.metadata)
-        partitionResults.push({
-          document: {
-            id: row.id,
-            recordingId: row.recording_id,
-            segmentId: row.segment_id ?? undefined,
-            text: row.text,
-            embedding: documentEmbedding,
-            metadata
-          },
-          similarity
-        })
+    const recordingScores: Array<{ recordingId: number; bestScore: number }> = []
+    for (const recordingId of recordingIds) {
+      const sampleRows = sampleStmt.all(
+        recordingId,
+        VectorService.SAMPLES_PER_RECORDING
+      ) as VectorRow[]
+      let best = -Infinity
+      for (const row of sampleRows) {
+        const score = this.cosineSimilarity(
+          queryEmbedding,
+          this.deserializeEmbedding(row.embedding)
+        )
+        if (score > best) best = score
       }
-
-      // Merge partition results with top results
-      topResults.push(...partitionResults)
-      topResults.sort((left, right) => right.similarity - left.similarity)
-
-      // Keep only top 2N to avoid memory bloat while allowing for better candidates
-      if (topResults.length > limit * 2) {
-        topResults.splice(limit * 2)
-      }
+      recordingScores.push({ recordingId, bestScore: best })
     }
 
-    return topResults.slice(0, limit)
+    // Phase 3: fully search only the top-k recordings
+    recordingScores.sort((a, b) => b.bestScore - a.bestScore)
+    const topRecordingIds = recordingScores
+      .slice(0, VectorService.TOP_RECORDINGS)
+      .map((r) => r.recordingId)
+
+    const placeholders = topRecordingIds.map(() => '?').join(',')
+    const fullRows = this.db
+      .prepare(
+        `SELECT id, recording_id, segment_id, text, embedding, metadata
+         FROM vector_documents
+         WHERE recording_id IN (${placeholders})`
+      )
+      .all(...topRecordingIds) as VectorRow[]
+
+    return this.scoreAndRank(fullRows, queryEmbedding, limit)
+  }
+
+  private scoreAndRank(
+    rows: VectorRow[],
+    queryEmbedding: Float32Array,
+    limit: number
+  ): SearchResult[] {
+    const results: SearchResult[] = []
+
+    for (const row of rows) {
+      const documentEmbedding = this.deserializeEmbedding(row.embedding)
+      const similarity = this.cosineSimilarity(queryEmbedding, documentEmbedding)
+
+      // Skip zero/invalid vectors
+      if (similarity < 0) continue
+
+      const metadata = this.parseMetadata(row.metadata)
+      results.push({
+        document: {
+          id: row.id,
+          recordingId: row.recording_id,
+          segmentId: row.segment_id ?? undefined,
+          text: row.text,
+          embedding: documentEmbedding,
+          metadata
+        },
+        similarity
+      })
+    }
+
+    return results.sort((left, right) => right.similarity - left.similarity).slice(0, limit)
   }
 
   public deleteByRecording(recordingId: number): void {

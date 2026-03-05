@@ -87,7 +87,8 @@ const api = {
     title: string,
     duration: number,
     audioPath: string
-  ): Promise<Recording | null> => ipcRenderer.invoke(DatabaseChannels.CREATE, title, duration, audioPath),
+  ): Promise<Recording | null> =>
+    ipcRenderer.invoke(DatabaseChannels.CREATE, title, duration, audioPath),
   updateRecording: async (id: number, data: Partial<Recording>): Promise<Recording | null> =>
     ipcRenderer.invoke(DatabaseChannels.UPDATE, id, data),
   deleteRecording: async (id: number, hard = false): Promise<Recording | null> =>
@@ -104,20 +105,27 @@ const api = {
     ipcRenderer.invoke(SettingsChannels.GET_WHISPER_MODEL),
   setWhisperModel: async (model: WhisperModelSize): Promise<WhisperModelSize> =>
     ipcRenderer.invoke(SettingsChannels.SET_WHISPER_MODEL, model),
-  getLlmModel: async (): Promise<LlmModelName> => ipcRenderer.invoke(SettingsChannels.GET_LLM_MODEL),
+  getLlmModel: async (): Promise<LlmModelName> =>
+    ipcRenderer.invoke(SettingsChannels.GET_LLM_MODEL),
   setLlmModel: async (model: LlmModelName): Promise<LlmModelName> =>
     ipcRenderer.invoke(SettingsChannels.SET_LLM_MODEL, model),
   transcription: {
-    start: async (): Promise<{ success: boolean }> => ipcRenderer.invoke(WhisperChannels.START_STREAM),
+    start: async (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(WhisperChannels.START_STREAM),
     stop: async (): Promise<{ success: boolean; segmentCount: number }> =>
       ipcRenderer.invoke(WhisperChannels.STOP),
-    saveSegments: async (recordingId: number, segments: TranscriptSegment[]): Promise<{ inserted: number }> =>
+    saveSegments: async (
+      recordingId: number,
+      segments: TranscriptSegment[]
+    ): Promise<{ inserted: number }> =>
       ipcRenderer.invoke(WhisperChannels.SAVE_SEGMENTS, recordingId, segments),
     listSegments: async (recordingId: number): Promise<TranscriptSegment[]> =>
       ipcRenderer.invoke(WhisperChannels.LIST_SEGMENTS, recordingId),
     downloadModel: async (modelSize: WhisperModelSize): Promise<{ success: boolean }> =>
       ipcRenderer.invoke(WhisperChannels.DOWNLOAD_MODEL, modelSize),
-    checkModel: async (modelSize: WhisperModelSize): Promise<{ modelSize: WhisperModelSize; available: boolean }> =>
+    checkModel: async (
+      modelSize: WhisperModelSize
+    ): Promise<{ modelSize: WhisperModelSize; available: boolean }> =>
       ipcRenderer.invoke(WhisperChannels.MODEL_STATUS, modelSize),
     onSegment: (callback: (segment: TranscriptSegment) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, segment: TranscriptSegment): void => {
@@ -144,7 +152,11 @@ const api = {
       ipcRenderer.invoke(DatabaseChannels.LIST, options),
     getRecording: (id: number): Promise<RecordingWithTranscript | null> =>
       ipcRenderer.invoke(DatabaseChannels.GET, id),
-    createRecording: (title: string, duration: number, audioPath: string): Promise<Recording | null> =>
+    createRecording: (
+      title: string,
+      duration: number,
+      audioPath: string
+    ): Promise<Recording | null> =>
       ipcRenderer.invoke(DatabaseChannels.CREATE, title, duration, audioPath),
     updateRecording: (id: number, data: Partial<Recording>): Promise<Recording | null> =>
       ipcRenderer.invoke(DatabaseChannels.UPDATE, id, data),
@@ -163,7 +175,9 @@ const api = {
     stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke(LlmChannels.STOP),
     downloadModel: (modelName: LlmModelName): Promise<{ success: boolean }> =>
       ipcRenderer.invoke(LlmChannels.DOWNLOAD_MODEL, modelName),
-    checkModel: (modelName?: LlmModelName): Promise<{ modelName: LlmModelName; available: boolean }> =>
+    checkModel: (
+      modelName?: LlmModelName
+    ): Promise<{ modelName: LlmModelName; available: boolean }> =>
       ipcRenderer.invoke(LlmChannels.MODEL_STATUS, modelName),
     unload: (): Promise<{ success: boolean }> => ipcRenderer.invoke(LlmChannels.UNLOAD),
     saveSummary: (recordingId: number, output: SummaryOutput): Promise<{ id: number }> =>
@@ -182,7 +196,12 @@ const api = {
       return () => ipcRenderer.removeListener(LlmChannels.ON_COMPLETE, listener)
     },
     onDownloadProgress: (
-      callback: (payload: { modelName: LlmModelName; percent: number; downloaded: number; total: number }) => void
+      callback: (payload: {
+        modelName: LlmModelName
+        percent: number
+        downloaded: number
+        total: number
+      }) => void
     ): (() => void) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
@@ -195,7 +214,8 @@ const api = {
   cloudLLM: {
     setApiKey: (key: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke(CloudLlmChannels.SET_API_KEY, key),
-    getApiKey: (): Promise<{ key: string | null }> => ipcRenderer.invoke(CloudLlmChannels.GET_API_KEY),
+    getApiKey: (): Promise<{ key: string | null }> =>
+      ipcRenderer.invoke(CloudLlmChannels.GET_API_KEY),
     setOpenAIApiKey: (key: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke(CloudLlmChannels.SET_OPENAI_API_KEY, key),
     getOpenAIApiKey: (): Promise<{ key: string | null }> =>
@@ -218,14 +238,16 @@ const api = {
     resetStats: (): Promise<UsageStats> => ipcRenderer.invoke(CloudLlmChannels.RESET_STATS),
     setLocalOnly: (enabled: boolean): Promise<{ enabled: boolean }> =>
       ipcRenderer.invoke(CloudLlmChannels.SET_LOCAL_ONLY, enabled),
-    getLocalOnly: (): Promise<{ enabled: boolean }> => ipcRenderer.invoke(CloudLlmChannels.GET_LOCAL_ONLY),
+    getLocalOnly: (): Promise<{ enabled: boolean }> =>
+      ipcRenderer.invoke(CloudLlmChannels.GET_LOCAL_ONLY),
     setProvider: (provider: 'local' | 'cloud'): Promise<{ provider: 'local' | 'cloud' }> =>
       ipcRenderer.invoke(CloudLlmChannels.SET_PROVIDER, provider),
     getProvider: (): Promise<{ provider: 'local' | 'cloud' }> =>
       ipcRenderer.invoke(CloudLlmChannels.GET_PROVIDER),
     setModel: (model: CloudModelName): Promise<{ model: CloudModelName }> =>
       ipcRenderer.invoke(CloudLlmChannels.SET_MODEL, model),
-    getModel: (): Promise<{ model: CloudModelName }> => ipcRenderer.invoke(CloudLlmChannels.GET_MODEL),
+    getModel: (): Promise<{ model: CloudModelName }> =>
+      ipcRenderer.invoke(CloudLlmChannels.GET_MODEL),
     onToken: (callback: (token: string) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, token: string): void => callback(token)
       ipcRenderer.on(CloudLlmChannels.ON_TOKEN, listener)
@@ -263,7 +285,8 @@ const api = {
       ipcRenderer.on(DiarizationChannels.ON_SEGMENT, listener)
       return () => ipcRenderer.removeListener(DiarizationChannels.ON_SEGMENT, listener)
     },
-    listSpeakers: (): Promise<SpeakerProfile[]> => ipcRenderer.invoke(DiarizationChannels.LIST_SPEAKERS),
+    listSpeakers: (): Promise<SpeakerProfile[]> =>
+      ipcRenderer.invoke(DiarizationChannels.LIST_SPEAKERS),
     createSpeaker: (name: string): Promise<SpeakerProfile> =>
       ipcRenderer.invoke(DiarizationChannels.CREATE_SPEAKER, name),
     updateSpeaker: (
@@ -279,7 +302,8 @@ const api = {
       ipcRenderer.invoke(RagChannels.QUERY, question, topK),
     embedRecordings: (): Promise<{ success: boolean; embedded: number }> =>
       ipcRenderer.invoke(RagChannels.EMBED_RECORDINGS),
-    searchHistory: (): Promise<SearchHistoryEntry[]> => ipcRenderer.invoke(RagChannels.SEARCH_HISTORY),
+    searchHistory: (): Promise<SearchHistoryEntry[]> =>
+      ipcRenderer.invoke(RagChannels.SEARCH_HISTORY),
     onProgress: (callback: (payload: { current: number; total: number }) => void): (() => void) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
@@ -296,8 +320,10 @@ const api = {
       ipcRenderer.invoke(ExportChannels.BATCH, recordingIds, options),
     preview: (recordingId: number, templateName: string): Promise<{ content: string }> =>
       ipcRenderer.invoke(ExportChannels.PREVIEW, recordingId, templateName),
-    setVaultPath: (): Promise<{ path: string | null }> => ipcRenderer.invoke(ExportChannels.SET_VAULT_PATH),
-    getVaultPath: (): Promise<{ path: string | null }> => ipcRenderer.invoke(ExportChannels.GET_VAULT_PATH),
+    setVaultPath: (): Promise<{ path: string | null }> =>
+      ipcRenderer.invoke(ExportChannels.SET_VAULT_PATH),
+    getVaultPath: (): Promise<{ path: string | null }> =>
+      ipcRenderer.invoke(ExportChannels.GET_VAULT_PATH),
     getTemplates: (): Promise<{ templates: ExportTemplateSummary[] }> =>
       ipcRenderer.invoke(ExportChannels.GET_TEMPLATES)
   },
@@ -311,12 +337,14 @@ const api = {
       ipcRenderer.invoke(ClassificationChannels.APPLY_TEMPLATE, recordingId, templateId)
   },
   templates: {
-    list: (): Promise<RecordingTemplate[]> => ipcRenderer.invoke(ClassificationChannels.TEMPLATES_LIST),
+    list: (): Promise<RecordingTemplate[]> =>
+      ipcRenderer.invoke(ClassificationChannels.TEMPLATES_LIST),
     get: (id: string): Promise<RecordingTemplate | null> =>
       ipcRenderer.invoke(ClassificationChannels.TEMPLATES_GET, id),
     create: (
       input: Omit<RecordingTemplate, 'id' | 'category' | 'createdAt' | 'updatedAt'>
-    ): Promise<RecordingTemplate> => ipcRenderer.invoke(ClassificationChannels.TEMPLATES_CREATE, input),
+    ): Promise<RecordingTemplate> =>
+      ipcRenderer.invoke(ClassificationChannels.TEMPLATES_CREATE, input),
     update: (id: string, updates: Partial<RecordingTemplate>): Promise<RecordingTemplate> =>
       ipcRenderer.invoke(ClassificationChannels.TEMPLATES_UPDATE, id, updates),
     delete: (id: string): Promise<{ success: boolean }> =>
@@ -345,13 +373,24 @@ const api = {
       targetLanguage: string,
       segmentId?: number
     ): Promise<TranslationResult> =>
-      ipcRenderer.invoke(TranslationChannels.TRANSLATE, text, sourceLanguage, targetLanguage, segmentId),
+      ipcRenderer.invoke(
+        TranslationChannels.TRANSLATE,
+        text,
+        sourceLanguage,
+        targetLanguage,
+        segmentId
+      ),
     batchTranslate: (
       items: BatchTranslationItem[],
       sourceLanguage: string,
       targetLanguage: string
     ): Promise<Array<{ id: number; result: TranslationResult }>> =>
-      ipcRenderer.invoke(TranslationChannels.BATCH_TRANSLATE, items, sourceLanguage, targetLanguage),
+      ipcRenderer.invoke(
+        TranslationChannels.BATCH_TRANSLATE,
+        items,
+        sourceLanguage,
+        targetLanguage
+      ),
     getLanguages: (): Promise<{ languages: SupportedLanguage[] }> =>
       ipcRenderer.invoke(TranslationChannels.GET_LANGUAGES),
     setTargetLanguage: (language: string): Promise<{ language: string }> =>

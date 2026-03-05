@@ -8,9 +8,8 @@ describe('VectorService', () => {
 
   beforeEach(() => {
     db = new Database(':memory:')
-    db
-      .prepare(
-        `CREATE TABLE vector_documents (
+    db.prepare(
+      `CREATE TABLE vector_documents (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           recording_id INTEGER NOT NULL,
           segment_id INTEGER,
@@ -18,8 +17,7 @@ describe('VectorService', () => {
           embedding BLOB NOT NULL,
           metadata TEXT
         )`
-      )
-      .run()
+    ).run()
     service = new VectorService(db)
   })
 

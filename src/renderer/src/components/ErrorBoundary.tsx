@@ -35,7 +35,9 @@ class ErrorBoundaryInner extends Component<Props, State> {
             {t('errors.componentCrash', 'Something went wrong')}
           </h2>
           <p className="text-sm text-gray-500 max-w-md">
-            {fallbackMessage ?? this.state.error?.message ?? t('errors.unknownError', 'An unexpected error occurred')}
+            {fallbackMessage ??
+              this.state.error?.message ??
+              t('errors.unknownError', 'An unexpected error occurred')}
           </p>
           <button
             type="button"

@@ -77,7 +77,9 @@ export class WhisperService {
 
     try {
       const moduleName = 'whisper-cpp-node'
-      const whisperModule = (await import(/* @vite-ignore */ moduleName)) as unknown as WhisperModule
+      const whisperModule = (await import(
+        /* @vite-ignore */ moduleName
+      )) as unknown as WhisperModule
       const WhisperCtor = whisperModule.Whisper ?? whisperModule.default
       if (!WhisperCtor) {
         this.nativeModuleAvailable = false
@@ -214,7 +216,9 @@ export class WhisperService {
           confidence: Number(segment.confidence ?? 0.5),
           words: Array.isArray(segment.words)
             ? segment.words
-                .filter((word) => word.word && Number.isFinite(word.start) && Number.isFinite(word.end))
+                .filter(
+                  (word) => word.word && Number.isFinite(word.start) && Number.isFinite(word.end)
+                )
                 .map((word) => ({
                   word: String(word.word),
                   start: Number(word.start),
@@ -251,7 +255,7 @@ export class WhisperService {
     const bump = this.segmentIndex * 0.001
     this.segmentIndex += 1
     const start = Number((segment.start + bump).toFixed(3))
-    const end = Number((Math.max(start + 0.1, segment.end + bump)).toFixed(3))
+    const end = Number(Math.max(start + 0.1, segment.end + bump).toFixed(3))
     return { ...segment, start, end }
   }
 

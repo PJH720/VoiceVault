@@ -34,7 +34,10 @@ export function LibraryView(): React.JSX.Element {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
           />
-          <select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}>
+          <select
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+          >
             <option value="createdAt">{t('library.sortNewest')}</option>
             <option value="duration">{t('library.sortDuration')}</option>
             <option value="title">{t('library.sortTitle')}</option>
@@ -70,7 +73,10 @@ export function LibraryView(): React.JSX.Element {
         </div>
       </div>
 
-      <RecordingDetail recording={selectedRecording} onDelete={(id) => deleteRecording(id, false)} />
+      <RecordingDetail
+        recording={selectedRecording}
+        onDelete={(id) => deleteRecording(id, false)}
+      />
     </div>
   )
 }

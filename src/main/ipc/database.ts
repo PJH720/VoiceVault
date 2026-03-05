@@ -20,9 +20,12 @@ export function registerDatabaseHandlers(databaseService: DatabaseService): void
     }
   )
 
-  ipcMain.handle(DatabaseChannels.SEARCH, (_event, query: string, options?: ListOptions): Recording[] => {
-    return databaseService.searchRecordings(query, options)
-  })
+  ipcMain.handle(
+    DatabaseChannels.SEARCH,
+    (_event, query: string, options?: ListOptions): Recording[] => {
+      return databaseService.searchRecordings(query, options)
+    }
+  )
 
   ipcMain.handle(
     DatabaseChannels.UPDATE,

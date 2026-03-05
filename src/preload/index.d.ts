@@ -71,10 +71,15 @@ interface VoiceVaultApi {
   transcription: {
     start: () => Promise<{ success: boolean }>
     stop: () => Promise<{ success: boolean; segmentCount: number }>
-    saveSegments: (recordingId: number, segments: TranscriptSegment[]) => Promise<{ inserted: number }>
+    saveSegments: (
+      recordingId: number,
+      segments: TranscriptSegment[]
+    ) => Promise<{ inserted: number }>
     listSegments: (recordingId: number) => Promise<TranscriptSegment[]>
     downloadModel: (modelSize: WhisperModelSize) => Promise<{ success: boolean }>
-    checkModel: (modelSize: WhisperModelSize) => Promise<{ modelSize: WhisperModelSize; available: boolean }>
+    checkModel: (
+      modelSize: WhisperModelSize
+    ) => Promise<{ modelSize: WhisperModelSize; available: boolean }>
     onSegment: (callback: (segment: TranscriptSegment) => void) => () => void
     onDownloadProgress: (
       callback: (payload: { modelSize: WhisperModelSize; percent: number }) => void
@@ -83,7 +88,11 @@ interface VoiceVaultApi {
   database: {
     listRecordings: (options?: ListOptions) => Promise<Recording[]>
     getRecording: (id: number) => Promise<RecordingWithTranscript | null>
-    createRecording: (title: string, duration: number, audioPath: string) => Promise<Recording | null>
+    createRecording: (
+      title: string,
+      duration: number,
+      audioPath: string
+    ) => Promise<Recording | null>
     updateRecording: (id: number, data: Partial<Recording>) => Promise<Recording | null>
     deleteRecording: (id: number, hard?: boolean) => Promise<Recording | null>
     search: (query: string, options?: ListOptions) => Promise<Recording[]>
@@ -96,7 +105,9 @@ interface VoiceVaultApi {
     ) => Promise<{ success: boolean; output: SummaryOutput | null; cancelled: boolean }>
     stop: () => Promise<{ success: boolean }>
     downloadModel: (modelName: LlmModelName) => Promise<{ success: boolean }>
-    checkModel: (modelName?: LlmModelName) => Promise<{ modelName: LlmModelName; available: boolean }>
+    checkModel: (
+      modelName?: LlmModelName
+    ) => Promise<{ modelName: LlmModelName; available: boolean }>
     unload: () => Promise<{ success: boolean }>
     saveSummary: (recordingId: number, output: SummaryOutput) => Promise<{ id: number }>
     getLatestSummary: (recordingId: number) => Promise<RecordingSummaryRow | null>
@@ -118,7 +129,10 @@ interface VoiceVaultApi {
     getOpenAIApiKey: () => Promise<{ key: string | null }>
     setGeminiApiKey: (key: string) => Promise<{ success: boolean }>
     getGeminiApiKey: () => Promise<{ key: string | null }>
-    summarize: (transcript: string, model?: CloudModelName) => Promise<{ success: boolean; output: SummaryOutput }>
+    summarize: (
+      transcript: string,
+      model?: CloudModelName
+    ) => Promise<{ success: boolean; output: SummaryOutput }>
     estimateCost: (
       text: string,
       model: CloudModelName
@@ -148,7 +162,10 @@ interface VoiceVaultApi {
     onSegment: (callback: (segment: SpeakerSegment) => void) => () => void
     listSpeakers: () => Promise<SpeakerProfile[]>
     createSpeaker: (name: string) => Promise<SpeakerProfile>
-    updateSpeaker: (id: number, updates: { name?: string; color?: string }) => Promise<SpeakerProfile | null>
+    updateSpeaker: (
+      id: number,
+      updates: { name?: string; color?: string }
+    ) => Promise<SpeakerProfile | null>
     mergeSpeakers: (sourceId: number, targetId: number) => Promise<{ success: boolean }>
   }
   rag: {
@@ -207,7 +224,9 @@ interface VoiceVaultApi {
     setTargetLanguage: (language: string) => Promise<{ language: string }>
     getTargetLanguage: () => Promise<{ language: string }>
     onProgress: (callback: (payload: TranslationProgress) => void) => () => void
-    onTranslated: (callback: (payload: { id: number; result: TranslationResult }) => void) => () => void
+    onTranslated: (
+      callback: (payload: { id: number; result: TranslationResult }) => void
+    ) => () => void
   }
 }
 

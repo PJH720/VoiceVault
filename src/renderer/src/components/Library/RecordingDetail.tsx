@@ -80,9 +80,15 @@ export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): 
             onSeek={(seconds) => player.seek(seconds)}
           />
         ))}
-        {recording.segments.length === 0 ? <p className="muted">{t('library.noTranscriptSegments')}</p> : null}
+        {recording.segments.length === 0 ? (
+          <p className="muted">{t('library.noTranscriptSegments')}</p>
+        ) : null}
       </div>
-      <ExportDialog open={isExportOpen} recordingId={recording.id} onClose={() => setIsExportOpen(false)} />
+      <ExportDialog
+        open={isExportOpen}
+        recordingId={recording.id}
+        onClose={() => setIsExportOpen(false)}
+      />
     </div>
   )
 }

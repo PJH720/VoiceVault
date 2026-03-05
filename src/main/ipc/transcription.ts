@@ -91,12 +91,15 @@ export function registerTranscriptionHandlers(
     }
   })
 
-  ipcMain.handle(WhisperChannels.SAVE_SEGMENTS, (_event, recordingId: number, segments?: TranscriptSegment[]) => {
-    const source = segments && segments.length > 0 ? segments : bufferedSegments
-    const inserted = databaseService.insertTranscriptSegments(recordingId, source)
-    bufferedSegments = []
-    return { inserted }
-  })
+  ipcMain.handle(
+    WhisperChannels.SAVE_SEGMENTS,
+    (_event, recordingId: number, segments?: TranscriptSegment[]) => {
+      const source = segments && segments.length > 0 ? segments : bufferedSegments
+      const inserted = databaseService.insertTranscriptSegments(recordingId, source)
+      bufferedSegments = []
+      return { inserted }
+    }
+  )
 
   ipcMain.handle(WhisperChannels.LIST_SEGMENTS, (_event, recordingId: number) => {
     return databaseService.listTranscriptSegments(recordingId)

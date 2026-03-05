@@ -30,9 +30,7 @@ export function SummaryView({
         </div>
       ) : null}
 
-      {!summary && !isGenerating ? (
-        <p className="muted">{t('summary.empty')}</p>
-      ) : null}
+      {!summary && !isGenerating ? <p className="muted">{t('summary.empty')}</p> : null}
 
       {summary ? (
         <div className="summary-sections">

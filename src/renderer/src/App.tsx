@@ -31,23 +31,13 @@ function AppContent(): React.JSX.Element {
     <div className="app-shell">
       <aside className="sidebar">
         <h1 className="sidebar-title">{t('app.name')}</h1>
-        <NavLink
-          to="/"
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          end
-        >
+        <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
           {t('nav.library')}
         </NavLink>
-        <NavLink
-          to="/record"
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-        >
+        <NavLink to="/record" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           {t('nav.record')}
         </NavLink>
-        <NavLink
-          to="/search"
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-        >
+        <NavLink to="/search" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           {t('nav.search')}
         </NavLink>
         <NavLink

@@ -72,7 +72,10 @@ export function SearchView(): React.JSX.Element {
               }
             }}
           />
-          <button onClick={() => void runSearch()} disabled={isSearching || query.trim().length === 0}>
+          <button
+            onClick={() => void runSearch()}
+            disabled={isSearching || query.trim().length === 0}
+          >
             {isSearching ? t('search.searching') : t('search.search')}
           </button>
           <button onClick={() => void runEmbed()} disabled={isEmbedding}>

@@ -29,11 +29,16 @@ export class ClassificationService {
     transcript: string,
     templates: RecordingTemplate[]
   ): Promise<ClassificationResult> {
-    const descriptions = templates.map((template) => `${template.id}: ${template.description}`).join('\n')
+    const descriptions = templates
+      .map((template) => `${template.id}: ${template.description}`)
+      .join('\n')
     const prompt = `Select one category id from this list:\n${descriptions}\nReturn only id.`
     const context = transcript.split(/\s+/).slice(0, 500).join(' ')
     const answer = await this.llmService.answerQuestion(prompt, context)
-    const candidate = answer.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+    const candidate = answer
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '')
     if (templates.some((template) => template.id === candidate)) {
       return {
         templateId: candidate,
@@ -44,7 +49,10 @@ export class ClassificationService {
     return this.classifyWithKeywords(transcript, templates)
   }
 
-  private classifyWithKeywords(transcript: string, templates: RecordingTemplate[]): ClassificationResult {
+  private classifyWithKeywords(
+    transcript: string,
+    templates: RecordingTemplate[]
+  ): ClassificationResult {
     const lower = transcript.toLowerCase()
     const scored = templates.map((template) => {
       const score = template.keywords.reduce((sum, keyword) => {

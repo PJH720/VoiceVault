@@ -125,6 +125,48 @@ describe('DatabaseService', () => {
     expect(results[0].id).toBe(firstId)
   })
 
+  it('searches with FTS5 special characters without throwing', () => {
+    const id = service.insertRecording({
+      title: 'Special chars',
+      duration: 5,
+      audioPath: '/tmp/sc.wav',
+      fileSizeBytes: 100
+    })
+    service.insertTranscriptSegments(id, [
+      { text: 'hello world', start: 0, end: 1, language: 'en', confidence: 0.9 }
+    ])
+
+    const specialInputs = [
+      'hello*',
+      'hello "world',
+      'AND',
+      'OR',
+      'NOT',
+      'NEAR(a,b)',
+      '(test)',
+      'a OR b AND c'
+    ]
+    for (const input of specialInputs) {
+      expect(() => service.searchRecordings(input)).not.toThrow()
+    }
+  })
+
+  it('searches with normal text still returns FTS results', () => {
+    const id = service.insertRecording({
+      title: 'Normal search',
+      duration: 5,
+      audioPath: '/tmp/ns.wav',
+      fileSizeBytes: 100
+    })
+    service.insertTranscriptSegments(id, [
+      { text: 'quarterly budget review', start: 0, end: 1, language: 'en', confidence: 0.9 }
+    ])
+
+    const results = service.searchRecordings('budget')
+    expect(results).toHaveLength(1)
+    expect(results[0].id).toBe(id)
+  })
+
   it('stores and loads latest summary', () => {
     const recordingId = service.insertRecording({
       title: 'Summary source',

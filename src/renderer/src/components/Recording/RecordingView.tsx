@@ -44,7 +44,10 @@ export function RecordingView(): React.JSX.Element {
   useEffect(() => {
     if (!isRecording) return
     const timer = setInterval(() => {
-      const transcript = transcription.segments.map((segment) => segment.text).join(' ').trim()
+      const transcript = transcription.segments
+        .map((segment) => segment.text)
+        .join(' ')
+        .trim()
       if (!transcript) return
       const wordCount = transcript.split(/\s+/).filter(Boolean).length
       if (wordCount < 100) return
@@ -58,7 +61,10 @@ export function RecordingView(): React.JSX.Element {
     if (isRecording) {
       const result = await stopRecording()
       await transcription.stopTranscription()
-      const finalTranscript = transcription.segments.map((segment) => segment.text).join(' ').trim()
+      const finalTranscript = transcription.segments
+        .map((segment) => segment.text)
+        .join(' ')
+        .trim()
       if (finalTranscript.length > 0) {
         await summary.estimateCloudCost(finalTranscript)
         const finalSummary = await summary.generateSummary(
@@ -104,7 +110,9 @@ export function RecordingView(): React.JSX.Element {
       <Waveform levels={levels} isRecording={isRecording} />
 
       {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
-      {transcription.errorMessage ? <p className="error-text">{transcription.errorMessage}</p> : null}
+      {transcription.errorMessage ? (
+        <p className="error-text">{transcription.errorMessage}</p>
+      ) : null}
       {diarization.errorMessage ? <p className="error-text">{diarization.errorMessage}</p> : null}
       {lastResult ? (
         <p className="muted">

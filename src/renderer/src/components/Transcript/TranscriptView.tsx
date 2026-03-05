@@ -34,7 +34,11 @@ export function TranscriptView({
       </div>
       <div className="transcript-list" ref={scrollRef}>
         {segments.map((segment, index) => (
-          <SegmentRow key={`${segment.start}-${segment.end}-${index}`} segment={segment} onSeek={onSeek} />
+          <SegmentRow
+            key={`${segment.start}-${segment.end}-${index}`}
+            segment={segment}
+            onSeek={onSeek}
+          />
         ))}
         {segments.length === 0 ? <p className="muted">{t('transcript.empty')}</p> : null}
       </div>

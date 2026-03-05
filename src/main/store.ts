@@ -1,5 +1,11 @@
 import { safeStorage } from 'electron'
-import type { CloudModelName, LlmModelName, SupportedLocale, UsageStats, WhisperModelSize } from '../shared/types'
+import type {
+  CloudModelName,
+  LlmModelName,
+  SupportedLocale,
+  UsageStats,
+  WhisperModelSize
+} from '../shared/types'
 
 type StoreShape = {
   locale: SupportedLocale

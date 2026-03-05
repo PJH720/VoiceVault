@@ -32,7 +32,11 @@ function fromTemplate(template?: RecordingTemplate | null): EditableState {
   }
 }
 
-export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorProps): React.JSX.Element {
+export function TemplateEditor({
+  template,
+  onSave,
+  onCancel
+}: TemplateEditorProps): React.JSX.Element {
   const { t } = useTranslation()
   const [form, setForm] = useState<EditableState>(() => fromTemplate(template))
   const keywords = useMemo(
@@ -73,11 +77,17 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
       <div className="template-editor-grid">
         <label>
           {t('templates.name')}
-          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          <input
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
         </label>
         <label>
           {t('templates.icon')}
-          <input value={form.icon} onChange={(event) => setForm({ ...form, icon: event.target.value })} />
+          <input
+            value={form.icon}
+            onChange={(event) => setForm({ ...form, icon: event.target.value })}
+          />
         </label>
         <label>
           {t('templates.description')}
@@ -88,7 +98,10 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
         </label>
         <label>
           {t('templates.color')}
-          <input value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} />
+          <input
+            value={form.color}
+            onChange={(event) => setForm({ ...form, color: event.target.value })}
+          />
         </label>
         <label>
           {t('templates.keywords')}

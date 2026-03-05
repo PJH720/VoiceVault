@@ -86,7 +86,9 @@ export class SystemAudioService {
     return this.currentConfig
   }
 
-  private async startCaptureCoreAudio(config: CaptureConfig): Promise<AsyncIterableIterator<Float32Array>> {
+  private async startCaptureCoreAudio(
+    config: CaptureConfig
+  ): Promise<AsyncIterableIterator<Float32Array>> {
     try {
       const moduleName = 'native-audio-node'
       const native = (await import(/* @vite-ignore */ moduleName)) as Record<string, unknown>
@@ -124,7 +126,12 @@ export class SystemAudioService {
   ): AsyncIterableIterator<Float32Array> {
     const micGain = Math.max(0, Math.min(1, config.micVolume))
     const sysGain = Math.max(0, Math.min(1, config.systemVolume))
-    const gain = config.mixMode === 'both' ? (micGain + sysGain) / 2 : config.mixMode === 'mic-only' ? micGain : sysGain
+    const gain =
+      config.mixMode === 'both'
+        ? (micGain + sysGain) / 2
+        : config.mixMode === 'mic-only'
+          ? micGain
+          : sysGain
     for await (const chunk of stream) {
       const mixed = new Float32Array(chunk.length)
       for (let i = 0; i < chunk.length; i += 1) {

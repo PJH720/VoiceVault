@@ -7,7 +7,9 @@ type PyannoteLike = {
   diarize: (
     audioPath: string,
     options?: { minSpeakers?: number; maxSpeakers?: number }
-  ) => Promise<{ segments: Array<{ start: number; end: number; speaker: string; confidence?: number }> }>
+  ) => Promise<{
+    segments: Array<{ start: number; end: number; speaker: string; confidence?: number }>
+  }>
   embed?: (audioPath: string, options: { start: number; end: number }) => Promise<Float32Array>
   destroy?: () => void
 }
@@ -98,7 +100,8 @@ export class DiarizationService {
       let bestSpeaker: SpeakerSegment | null = null
       let maxOverlap = 0
       for (const speakerSegment of speakerSegments) {
-        const overlap = Math.min(segment.end, speakerSegment.end) - Math.max(segment.start, speakerSegment.start)
+        const overlap =
+          Math.min(segment.end, speakerSegment.end) - Math.max(segment.start, speakerSegment.start)
         if (overlap > maxOverlap) {
           maxOverlap = overlap
           bestSpeaker = speakerSegment

@@ -34,7 +34,9 @@ describe('BilingualTranscript', () => {
       hookState.enabled = false
     })
     render(
-      <BilingualTranscript segments={[{ id: 1, text: 'hello', language: 'en', start: 0, end: 1, confidence: 1 }]} />
+      <BilingualTranscript
+        segments={[{ id: 1, text: 'hello', language: 'en', start: 0, end: 1, confidence: 1 }]}
+      />
     )
     expect(screen.getByText('translation.empty')).toBeTruthy()
   })
@@ -42,7 +44,9 @@ describe('BilingualTranscript', () => {
   it('toggles translation when header button clicked', async () => {
     hookState.enabled = true
     render(
-      <BilingualTranscript segments={[{ id: 1, text: 'hello', language: 'en', start: 0, end: 1, confidence: 1 }]} />
+      <BilingualTranscript
+        segments={[{ id: 1, text: 'hello', language: 'en', start: 0, end: 1, confidence: 1 }]}
+      />
     )
     // Wait for async translateBatch promise to resolve
     await waitFor(() => {

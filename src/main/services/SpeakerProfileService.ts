@@ -25,7 +25,10 @@ export class SpeakerProfileService {
     return this.databaseService.createSpeakerProfile(name, this.generateColor())
   }
 
-  public updateProfile(id: number, updates: { name?: string; color?: string }): SpeakerProfile | null {
+  public updateProfile(
+    id: number,
+    updates: { name?: string; color?: string }
+  ): SpeakerProfile | null {
     return this.databaseService.updateSpeakerProfile(id, updates)
   }
 

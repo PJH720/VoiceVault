@@ -8,7 +8,12 @@ const batchTranslate = vi.fn(
     _items: Array<{ id: number; text: string }>,
     _source: string,
     _target: string,
-    onProgress: (current: number, total: number, result: { translatedText: string }, id: number) => void
+    onProgress: (
+      current: number,
+      total: number,
+      result: { translatedText: string },
+      id: number
+    ) => void
   ) => {
     onProgress(1, 2, { translatedText: 'a' }, 11)
     onProgress(2, 2, { translatedText: 'b' }, 12)
@@ -32,21 +37,24 @@ vi.mock('electron', () => ({
   }
 }))
 
+const mockLlmService = {}
+
 vi.mock('../../src/main/services/LLMService', () => ({
   LLMService: vi.fn(function LLMServiceMock() {
     return {}
   })
 }))
 
-vi.mock('../../src/main/services/TranslationService', () => ({
-  TranslationService: vi.fn(function TranslationServiceMock() {
-    return {
+vi.mock('../../src/main/services/ServiceRegistry', () => ({
+  ServiceRegistry: {
+    getLLMService: () => mockLlmService,
+    getTranslationService: () => ({
       translate,
       batchTranslate,
       getSupportedLanguages,
       clearMemoryCache
-    }
-  })
+    })
+  }
 }))
 
 vi.mock('../../src/main/store', () => ({

@@ -23,7 +23,12 @@ declare global {
           items: Array<{ id: number; text: string }>,
           sourceLanguage: string,
           targetLanguage: string
-        ) => Promise<Array<{ id: number; result: { translatedText: string; confidence: number; model: string } }>>
+        ) => Promise<
+          Array<{
+            id: number
+            result: { translatedText: string; confidence: number; model: string }
+          }>
+        >
         onProgress: (callback: ProgressHandler) => () => void
       }
     }
@@ -40,7 +45,11 @@ describe('useTranslation hook', () => {
         getLanguages: vi.fn(async () => ({ languages: [{ code: 'en', name: 'English' }] })),
         getTargetLanguage: vi.fn(async () => ({ language: 'en' })),
         setTargetLanguage: vi.fn(async (language: string) => ({ language })),
-        translate: vi.fn(async () => ({ translatedText: '안녕하세요', confidence: 0.9, model: 'local' })),
+        translate: vi.fn(async () => ({
+          translatedText: '안녕하세요',
+          confidence: 0.9,
+          model: 'local'
+        })),
         batchTranslate: vi.fn(async () => [
           { id: 1, result: { translatedText: '안녕하세요', confidence: 0.9, model: 'local' } }
         ]),

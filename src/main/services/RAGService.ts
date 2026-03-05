@@ -35,10 +35,7 @@ export class RAGService {
   }
 
   private rerank(results: SearchResult[], question: string): SearchResult[] {
-    const words = question
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean)
+    const words = question.toLowerCase().split(/\s+/).filter(Boolean)
     if (words.length === 0) return results
     return results
       .map((entry) => {

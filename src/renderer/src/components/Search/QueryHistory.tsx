@@ -19,7 +19,9 @@ export function QueryHistory({ items, onSelect }: QueryHistoryProps): React.JSX.
             <li key={entry.id}>
               <button className="search-history-item" onClick={() => onSelect(entry.query)}>
                 <span>{entry.query}</span>
-                <span className="muted">{t('search.resultsCount', { count: entry.resultCount })}</span>
+                <span className="muted">
+                  {t('search.resultsCount', { count: entry.resultCount })}
+                </span>
               </button>
             </li>
           ))}

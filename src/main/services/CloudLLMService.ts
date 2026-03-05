@@ -69,8 +69,10 @@ export class CloudLLMService {
           }
         }
         const finalMessage = await stream.finalMessage()
-        const inputTokens = finalMessage.usage?.input_tokens ?? CostEstimator.estimateTokens(transcript)
-        const outputTokens = finalMessage.usage?.output_tokens ?? CostEstimator.estimateTokens(fullText)
+        const inputTokens =
+          finalMessage.usage?.input_tokens ?? CostEstimator.estimateTokens(transcript)
+        const outputTokens =
+          finalMessage.usage?.output_tokens ?? CostEstimator.estimateTokens(fullText)
         return this.parseAnthropicOutput(fullText, model, inputTokens, outputTokens)
       } catch (error) {
         lastError = error as Error
@@ -271,13 +273,17 @@ JSON schema:
     if (provider === 'openai') {
       const inputCostPer1M = model === 'gpt-4o' ? 2.5 : 0.15 // gpt-4o: $2.50, gpt-4o-mini: $0.15
       const outputCostPer1M = model === 'gpt-4o' ? 10.0 : 0.6 // gpt-4o: $10.00, gpt-4o-mini: $0.60
-      return (inputTokens / 1_000_000) * inputCostPer1M + (outputTokens / 1_000_000) * outputCostPer1M
+      return (
+        (inputTokens / 1_000_000) * inputCostPer1M + (outputTokens / 1_000_000) * outputCostPer1M
+      )
     }
     if (provider === 'gemini') {
       // Gemini pricing (approximated)
       const inputCostPer1M = model.includes('flash') ? 0.075 : 1.25
       const outputCostPer1M = model.includes('flash') ? 0.3 : 5.0
-      return (inputTokens / 1_000_000) * inputCostPer1M + (outputTokens / 1_000_000) * outputCostPer1M
+      return (
+        (inputTokens / 1_000_000) * inputCostPer1M + (outputTokens / 1_000_000) * outputCostPer1M
+      )
     }
     return 0
   }

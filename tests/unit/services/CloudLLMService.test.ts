@@ -15,7 +15,7 @@ const mockGeminiGetGenerativeModel = vi.fn().mockReturnValue({
 // Mock the SDK modules
 vi.mock('@anthropic-ai/sdk', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Anthropic = vi.fn(function(this: any) {
+  const Anthropic = vi.fn(function (this: any) {
     this.messages = mockAnthropicMessages
   })
   return { default: Anthropic }
@@ -23,7 +23,7 @@ vi.mock('@anthropic-ai/sdk', () => {
 
 vi.mock('openai', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const OpenAI = vi.fn(function(this: any) {
+  const OpenAI = vi.fn(function (this: any) {
     this.chat = {
       completions: {
         create: mockOpenAICreate
@@ -35,7 +35,7 @@ vi.mock('openai', () => {
 
 vi.mock('@google/generative-ai', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const GoogleGenerativeAI = vi.fn(function(this: any) {
+  const GoogleGenerativeAI = vi.fn(function (this: any) {
     this.getGenerativeModel = mockGeminiGetGenerativeModel
   })
   return { GoogleGenerativeAI }
@@ -82,7 +82,11 @@ describe('CloudLLMService - OpenAI Provider', () => {
     })
 
     const onToken = vi.fn()
-    const result = await service.summarizeWithOpenAI('Test transcript for OpenAI', 'gpt-4o-mini', onToken)
+    const result = await service.summarizeWithOpenAI(
+      'Test transcript for OpenAI',
+      'gpt-4o-mini',
+      onToken
+    )
 
     expect(result.summary).toBe('Test summary')
     expect(result.metadata?.provider).toBe('openai')
@@ -176,7 +180,7 @@ describe('CloudLLMService - Gemini Provider', () => {
     service = new CloudLLMService(null, null, mockApiKey)
 
     const mockResponse = {
-      stream: (async function*() {
+      stream: (async function* () {
         yield {
           text: () =>
             JSON.stringify({
@@ -192,7 +196,10 @@ describe('CloudLLMService - Gemini Provider', () => {
 
     mockGeminiGenerateContentStream.mockResolvedValue(mockResponse)
 
-    const result = await service.summarizeWithGemini('Test transcript for Gemini', 'gemini-2.5-flash')
+    const result = await service.summarizeWithGemini(
+      'Test transcript for Gemini',
+      'gemini-2.5-flash'
+    )
 
     expect(result.summary).toBe('Gemini summary')
     expect(result.metadata?.provider).toBe('gemini')
@@ -208,7 +215,7 @@ describe('CloudLLMService - Gemini Provider', () => {
     const chunks = ['Test ', 'chunk ', 'streaming']
 
     const mockResponse = {
-      stream: (async function*() {
+      stream: (async function* () {
         for (const chunk of chunks) {
           yield { text: () => chunk }
         }

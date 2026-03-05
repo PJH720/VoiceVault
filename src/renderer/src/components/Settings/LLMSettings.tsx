@@ -73,7 +73,11 @@ export function LLMSettings(): React.JSX.Element {
           {t('settings.save')}
         </button>
       </div>
-      {maskedKey ? <p className="muted">{t('settings.currentKey')}: {maskedKey}</p> : null}
+      {maskedKey ? (
+        <p className="muted">
+          {t('settings.currentKey')}: {maskedKey}
+        </p>
+      ) : null}
 
       <div className="settings-row">
         <label htmlFor="openai-api-key">OpenAI API Key</label>
@@ -89,7 +93,11 @@ export function LLMSettings(): React.JSX.Element {
           {t('settings.save')}
         </button>
       </div>
-      {maskedOpenaiKey ? <p className="muted">{t('settings.currentKey')}: {maskedOpenaiKey}</p> : null}
+      {maskedOpenaiKey ? (
+        <p className="muted">
+          {t('settings.currentKey')}: {maskedOpenaiKey}
+        </p>
+      ) : null}
 
       <div className="settings-row">
         <label htmlFor="gemini-api-key">Gemini API Key</label>
@@ -105,7 +113,11 @@ export function LLMSettings(): React.JSX.Element {
           {t('settings.save')}
         </button>
       </div>
-      {maskedGeminiKey ? <p className="muted">{t('settings.currentKey')}: {maskedGeminiKey}</p> : null}
+      {maskedGeminiKey ? (
+        <p className="muted">
+          {t('settings.currentKey')}: {maskedGeminiKey}
+        </p>
+      ) : null}
 
       <div className="settings-row">
         <label htmlFor="cloud-model">{t('settings.cloudModel')}</label>
@@ -143,9 +155,7 @@ export function LLMSettings(): React.JSX.Element {
         })}
       </p>
       <button onClick={() => void summary.resetUsageStats()}>{t('settings.resetStats')}</button>
-      <p className="muted">
-        {t('settings.privacyNotice')}
-      </p>
+      <p className="muted">{t('settings.privacyNotice')}</p>
     </div>
   )
 }

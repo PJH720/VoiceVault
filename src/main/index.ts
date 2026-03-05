@@ -17,7 +17,15 @@ import { registerSystemAudioHandlers } from './ipc/system-audio'
 import { registerTranslationHandlers } from './ipc/translation'
 import { buildAppMenu, getMainLocaleText } from './menu'
 import { AppChannels, SettingsChannels } from '../shared/ipc-channels'
-import { initStore, getLocale, setLocale, getWhisperModel, setWhisperModel, getLlmModel, setLlmModel } from './store'
+import {
+  initStore,
+  getLocale,
+  setLocale,
+  getWhisperModel,
+  setWhisperModel,
+  getLlmModel,
+  setLlmModel
+} from './store'
 import type { LlmModelName, SupportedLocale } from '../shared/types'
 import { ServiceRegistry } from './services/ServiceRegistry'
 
@@ -110,20 +118,21 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle(AppChannels.GET_VERSION, () => app.getVersion())
   ipcMain.handle(SettingsChannels.GET_LOCALE, () => getLocale())
-  ipcMain.handle(SettingsChannels.SET_LOCALE, (_event, locale: SupportedLocale) =>
-    {
-      const next = setLocale(locale)
-      Menu.setApplicationMenu(buildAppMenu(next))
-      setupTray(next)
-      return next
-    }
-  )
+  ipcMain.handle(SettingsChannels.SET_LOCALE, (_event, locale: SupportedLocale) => {
+    const next = setLocale(locale)
+    Menu.setApplicationMenu(buildAppMenu(next))
+    setupTray(next)
+    return next
+  })
   ipcMain.handle(SettingsChannels.GET_WHISPER_MODEL, () => getWhisperModel())
-  ipcMain.handle(SettingsChannels.SET_WHISPER_MODEL, (_event, model: 'base' | 'small' | 'medium' | 'large-v3-turbo') =>
-    setWhisperModel(model)
+  ipcMain.handle(
+    SettingsChannels.SET_WHISPER_MODEL,
+    (_event, model: 'base' | 'small' | 'medium' | 'large-v3-turbo') => setWhisperModel(model)
   )
   ipcMain.handle(SettingsChannels.GET_LLM_MODEL, () => getLlmModel())
-  ipcMain.handle(SettingsChannels.SET_LLM_MODEL, (_event, model: LlmModelName) => setLlmModel(model))
+  ipcMain.handle(SettingsChannels.SET_LLM_MODEL, (_event, model: LlmModelName) =>
+    setLlmModel(model)
+  )
   setupTray(getLocale())
 
   app.on('activate', function () {

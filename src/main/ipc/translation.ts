@@ -14,14 +14,25 @@ export function registerTranslationHandlers(
 
   ipcMain.handle(
     TranslationChannels.TRANSLATE,
-    async (_event, text: string, sourceLanguage: string, targetLanguage: string, segmentId?: number) => {
+    async (
+      _event,
+      text: string,
+      sourceLanguage: string,
+      targetLanguage: string,
+      segmentId?: number
+    ) => {
       return translationService.translate(text, sourceLanguage, targetLanguage, segmentId)
     }
   )
 
   ipcMain.handle(
     TranslationChannels.BATCH_TRANSLATE,
-    async (_event, items: BatchTranslationItem[], sourceLanguage: string, targetLanguage: string) => {
+    async (
+      _event,
+      items: BatchTranslationItem[],
+      sourceLanguage: string,
+      targetLanguage: string
+    ) => {
       const map = await translationService.batchTranslate(
         items,
         sourceLanguage,
