@@ -212,6 +212,7 @@ export function getAnthropicApiKey(): string | null {
     try {
       return safeStorage.decryptString(Buffer.from(raw, 'base64'))
     } catch {
+      // decryption failed, key may have changed
       return null
     }
   }
@@ -238,6 +239,7 @@ export function getOpenAIApiKey(): string | null {
     try {
       return safeStorage.decryptString(Buffer.from(raw, 'base64'))
     } catch {
+      // decryption failed, key may have changed
       return null
     }
   }
@@ -264,6 +266,7 @@ export function getGeminiApiKey(): string | null {
     try {
       return safeStorage.decryptString(Buffer.from(raw, 'base64'))
     } catch {
+      // decryption failed, key may have changed
       return null
     }
   }

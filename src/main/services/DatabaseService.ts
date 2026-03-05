@@ -774,6 +774,7 @@ export class DatabaseService {
       try {
         tags = JSON.parse(row.tags) as string[]
       } catch {
+        // invalid JSON tags, default to empty array
         tags = []
       }
     }

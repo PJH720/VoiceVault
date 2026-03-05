@@ -21,6 +21,7 @@ export class ClassificationService {
     try {
       return await this.classifyWithLLM(trimmed, templates)
     } catch {
+      // LLM unavailable, fall back to keyword matching
       return this.classifyWithKeywords(trimmed, templates)
     }
   }

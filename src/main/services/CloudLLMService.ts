@@ -242,6 +242,7 @@ JSON schema:
         }
       }
     } catch {
+      // structured output parse failed, return raw text
       return {
         summary: text,
         actionItems: [],

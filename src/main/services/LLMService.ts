@@ -62,6 +62,7 @@ export class LLMService {
       await fsp.access(this.getModelPath(modelName), fs.constants.R_OK)
       return true
     } catch {
+      // model file not accessible
       return false
     }
   }
@@ -124,6 +125,7 @@ export class LLMService {
       })
       return this.parseStructuredOutput(response, trimmed, previousSummary, type)
     } catch {
+      // LLM inference failed, use fallback summary
       return this.fallbackSummary(trimmed, previousSummary, type)
     }
   }
@@ -161,6 +163,7 @@ Answer:`
       const trimmed = response.trim()
       return trimmed || this.fallbackAnswer(context)
     } catch {
+      // LLM answer failed, use fallback
       return this.fallbackAnswer(context)
     }
   }
@@ -232,6 +235,7 @@ Answer:`
         decisions: Array.isArray(parsed.decisions) ? parsed.decisions : []
       }
     } catch {
+      // JSON parse of LLM output failed, use fallback
       return this.fallbackSummary(transcript, previousSummary, type)
     }
   }

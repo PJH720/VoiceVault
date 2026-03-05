@@ -74,6 +74,7 @@ export class DiarizationService {
           confidence: segment.confidence ?? 1
         }))
     } catch {
+      // diarization failed, use single-speaker fallback
       return this.fallbackDiarization(audioPath)
     }
   }
@@ -88,6 +89,7 @@ export class DiarizationService {
       if (!this.pyannote?.embed) return null
       return await this.pyannote.embed(audioPath, { start, end })
     } catch {
+      // speaker embedding extraction failed
       return null
     }
   }

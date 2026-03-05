@@ -60,6 +60,7 @@ export class WhisperService {
       await fsp.access(this.getModelPath(modelSize), fs.constants.R_OK)
       return true
     } catch {
+      // model file not accessible
       return false
     }
   }
@@ -176,6 +177,7 @@ export class WhisperService {
       })
       return this.parseSegments(result)
     } catch {
+      // whisper inference failed, use fallback segment
       return this.fallbackSegment(frame, startedAtMs)
     }
   }

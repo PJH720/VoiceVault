@@ -170,6 +170,7 @@ export class TranslationService {
     try {
       translated = await this.llmService.answerQuestion(prompt, normalized)
     } catch {
+      // LLM translation failed, return original text
       translated = normalized
     }
     const clean = this.cleanupResponse(translated)
@@ -235,6 +236,7 @@ export class TranslationService {
         this.cache.set(row.cache_key, row.translation)
       }
     } catch {
+      // cache table may not exist yet (migration pending)
       // migration may not be applied yet
     }
   }

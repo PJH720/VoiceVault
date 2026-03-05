@@ -29,6 +29,7 @@ async function loadNativeAudio(): Promise<boolean> {
     MicrophoneRecorderCtor = mod.MicrophoneRecorder ?? mod.default?.MicrophoneRecorder ?? null
     NativeAudioAvailable = MicrophoneRecorderCtor !== null
   } catch {
+    // native audio module not available on this platform
     NativeAudioAvailable = false
     MicrophoneRecorderCtor = null
   }
@@ -97,6 +98,7 @@ export class AudioCaptureService {
       await this.recorder.start()
       this.captureMode = 'native'
     } catch {
+      // native recorder failed, entering fallback mode
       this.captureMode = 'fallback'
       this.chunkListeners.clear()
       this.startLevelEvents()

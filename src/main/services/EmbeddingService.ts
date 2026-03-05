@@ -43,6 +43,7 @@ export class EmbeddingService {
         embedding: true
       })
     } catch {
+      // embedding model failed to load
       this.context = null
       this.model = null
     }
@@ -58,6 +59,7 @@ export class EmbeddingService {
         return this.normalize(vec)
       }
     } catch {
+      // embedding generation failed, use fallback
       // fallback below
     }
     return this.fallbackEmbedding(trimmed)
@@ -72,6 +74,7 @@ export class EmbeddingService {
       await fsp.access(this.modelPath, fs.constants.R_OK)
       return true
     } catch {
+      // model file not accessible
       return false
     }
   }

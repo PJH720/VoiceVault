@@ -53,6 +53,7 @@ export class SystemAudioService {
         }
       }
     } catch {
+      // system audio enumeration failed, use defaults
       // fall through to default virtual devices
     }
 
@@ -111,6 +112,7 @@ export class SystemAudioService {
         return stream
       }
     } catch {
+      // system audio capture failed, use fallback stream
       // fallback stream below
     }
     const fallback = this.fallbackStream()

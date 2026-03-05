@@ -182,6 +182,7 @@ export class VectorService {
     try {
       return JSON.parse(raw) as VectorDocumentMetadata
     } catch {
+      // corrupted metadata JSON, use default
       return { recordingTitle: 'Unknown recording' }
     }
   }

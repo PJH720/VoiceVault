@@ -256,6 +256,7 @@ export class ExportService {
       await fs.access(targetPath)
       return true
     } catch {
+      // file does not exist
       return false
     }
   }

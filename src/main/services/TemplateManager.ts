@@ -105,6 +105,7 @@ export class TemplateManager {
         this.templates.set(template.id, template)
       }
     } catch {
+      // built-in templates absent in test environment
       // built-in templates can be absent in tests
     }
   }
