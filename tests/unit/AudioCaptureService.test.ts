@@ -17,11 +17,13 @@ describe('AudioCaptureService', () => {
   let service: AudioCaptureService
 
   beforeEach(() => {
+    vi.useFakeTimers()
     outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'voicevault-audio-test-'))
     service = new AudioCaptureService()
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     fs.rmSync(outputDir, { recursive: true, force: true })
   })
 
@@ -29,7 +31,7 @@ describe('AudioCaptureService', () => {
     const startPath = await service.startRecording(outputDir)
     expect(startPath.endsWith('.wav')).toBe(true)
 
-    await new Promise((resolve) => setTimeout(resolve, 60))
+    await vi.advanceTimersByTimeAsync(60)
     const result = await service.stopRecording()
 
     expect(result.audioPath).toBe(startPath)
