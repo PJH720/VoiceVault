@@ -51,7 +51,7 @@ Desktop.ini
 *.code-workspace
 
 # Local agent/IDE artifacts
-.cursor/plans/
+.cursor/
 .serena/
 .claude/
 .eslintcache
