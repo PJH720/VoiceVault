@@ -1,6 +1,7 @@
 export const AudioChannels = {
   START_RECORDING: 'audio:start-recording',
   STOP_RECORDING: 'audio:stop-recording',
+  CAPTURE_MODE: 'audio:capture-mode',
   AUDIO_LEVEL: 'audio:level',
   REQUEST_PERMISSION: 'audio:request-permission'
 } as const
