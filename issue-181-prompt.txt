@@ -1,0 +1,35 @@
+Issue #181: Implement Content Security Policy
+
+TASK: Add CSP to secure the Electron app against XSS and code injection attacks.
+
+IMPLEMENTATION OPTIONS:
+1. Via session.webRequest in src/main/index.ts (preferred - more dynamic)
+2. Via <meta> tag in src/renderer/index.html (simpler fallback)
+
+REQUIREMENTS:
+- Block eval() and inline scripts
+- Block remote script loading
+- Allow only necessary origins:
+  * localhost for dev server
+  * file: protocol for production builds
+  * self for same-origin resources
+- Must work with react-router-dom HashRouter (from #179)
+- Verify app still functions correctly after CSP implementation
+
+RECOMMENDED CSP DIRECTIVES:
+```
+default-src 'self';
+script-src 'self';
+style-src 'self' 'unsafe-inline';  // React inline styles may need this
+connect-src 'self' http://localhost:* ws://localhost:*;  // Dev server
+font-src 'self';
+img-src 'self' data:;
+```
+
+STEPS:
+1. Read src/main/index.ts to understand the current setup
+2. Implement CSP via session.webRequest.onHeadersReceived
+3. Test that the app still loads and functions
+4. Document the CSP rules
+
+DO IT NOW. Make the changes.

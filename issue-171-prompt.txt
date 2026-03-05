@@ -1,0 +1,30 @@
+Implement issue #171: Add OpenAI and Gemini LLM providers
+
+Current state:
+- LLMService.ts has Ollama (local) and Claude (Anthropic API) providers
+- ServiceRegistry.ts exists for service management
+- types.ts has shared types
+- Packages installed: openai@6.25.0, @google/generative-ai@0.24.1
+
+Tasks:
+1. Read src/main/services/LLMService.ts to understand current structure
+2. Add to src/shared/types.ts:
+   - LLMProvider enum values: 'openai' and 'gemini' 
+   - OpenAI models: gpt-4o, gpt-4o-mini
+   - Gemini models: gemini-2.5-flash, gemini-2.5-pro
+3. Update src/main/services/LLMService.ts:
+   - Import OpenAI and GoogleGenerativeAI SDKs
+   - Add generateOpenAI() method for OpenAI API calls
+   - Add generateGemini() method for Gemini API calls
+   - Update generate() to route to correct provider
+   - Handle streaming for both providers
+4. Read src/main/store.ts and add:
+   - openaiApiKey setting
+   - geminiApiKey setting
+5. Check settings UI files and update to:
+   - Add provider selector dropdown
+   - Add API key input fields for OpenAI and Gemini
+   - Show/hide based on selected provider
+
+Keep backward compatibility with existing Ollama and Claude providers.
+All code must follow existing patterns and TypeScript strict mode.
