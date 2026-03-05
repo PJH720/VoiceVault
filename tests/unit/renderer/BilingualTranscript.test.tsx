@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { BilingualTranscript } from '../../../src/renderer/src/components/Translation/BilingualTranscript'
 
@@ -30,19 +30,27 @@ describe('BilingualTranscript', () => {
   void React
 
   it('shows empty state when translation disabled', () => {
-    hookState.enabled = false
+    act(() => {
+      hookState.enabled = false
+    })
     render(
       <BilingualTranscript segments={[{ id: 1, text: 'hello', language: 'en', start: 0, end: 1, confidence: 1 }]} />
     )
     expect(screen.getByText('translation.empty')).toBeTruthy()
   })
 
-  it('toggles translation when header button clicked', () => {
+  it('toggles translation when header button clicked', async () => {
     hookState.enabled = true
     render(
       <BilingualTranscript segments={[{ id: 1, text: 'hello', language: 'en', start: 0, end: 1, confidence: 1 }]} />
     )
-    fireEvent.click(screen.getByText('translation.off'))
+    // Wait for async translateBatch promise to resolve
+    await waitFor(() => {
+      expect(screen.getByText('translation.off')).toBeTruthy()
+    })
+    act(() => {
+      fireEvent.click(screen.getByText('translation.off'))
+    })
     expect(hookState.toggleEnabled).toHaveBeenCalledTimes(1)
   })
 })
