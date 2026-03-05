@@ -52,6 +52,9 @@ export function registerDiarizationHandlers(
   )
 
   ipcMain.handle(DiarizationChannels.LIST_SPEAKER_SEGMENTS, (_event, recordingId: number) => {
+    if (typeof recordingId !== 'number' || !Number.isFinite(recordingId)) {
+      throw new Error('Invalid recordingId')
+    }
     return databaseService.listSpeakerSegments(recordingId)
   })
 

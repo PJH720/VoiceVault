@@ -31,6 +31,12 @@ export function registerExportHandlers(databaseService: DatabaseService): void {
   ipcMain.handle(
     ExportChannels.PREVIEW,
     async (_event, recordingId: number, templateName: string) => {
+      if (typeof recordingId !== 'number' || !Number.isFinite(recordingId)) {
+        throw new Error('Invalid recordingId')
+      }
+      if (typeof templateName !== 'string' || templateName.trim().length === 0) {
+        throw new Error('templateName must be a non-empty string')
+      }
       const recording = databaseService.getRecordingWithTranscript(recordingId)
       if (!recording) {
         throw new Error('Recording not found')

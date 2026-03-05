@@ -47,23 +47,8 @@ import type {
   WhisperModelSize
 } from '../shared/types'
 
-type AppPathName =
-  | 'home'
-  | 'appData'
-  | 'userData'
-  | 'sessionData'
-  | 'temp'
-  | 'exe'
-  | 'module'
-  | 'desktop'
-  | 'documents'
-  | 'downloads'
-  | 'music'
-  | 'pictures'
-  | 'videos'
-  | 'recent'
-  | 'logs'
-  | 'crashDumps'
+// Security: restrict to allowlisted path names only (issue #214)
+type AppPathName = 'userData' | 'documents' | 'downloads' | 'temp' | 'logs'
 
 const api = {
   startRecording: async (): Promise<{ streamId: string; audioPath: string }> =>

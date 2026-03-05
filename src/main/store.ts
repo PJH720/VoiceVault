@@ -192,6 +192,11 @@ export function setLlmModel(model: LlmModelName): LlmModelName {
   return model
 }
 
+// SECURITY NOTE (issue #214): API keys use safeStorage encryption when available.
+// On systems where safeStorage is unavailable (e.g., some Linux without keyring),
+// keys fall back to plaintext in electron-store JSON. This is a known limitation.
+// TODO: Implement mandatory encryption or refuse to store keys when safeStorage is unavailable.
+
 export function setAnthropicApiKey(key: string): void {
   if (!key) {
     ensureStore().delete('anthropicApiKey')

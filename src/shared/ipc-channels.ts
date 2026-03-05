@@ -38,8 +38,7 @@ export const WhisperChannels = {
   BINARY_STATUS: 'whisper:binary-status',
   DOWNLOAD_MODEL: 'whisper:download-model',
   MODEL_STATUS: 'whisper:model-status',
-  SET_MODEL: 'whisper:set-model',
-  GET_MODEL: 'whisper:get-model',
+  // SET_MODEL and GET_MODEL removed (issue #214) — use SettingsChannels instead
   SAVE_SEGMENTS: 'whisper:save-segments',
   LIST_SEGMENTS: 'whisper:list-segments',
   ON_SEGMENT: 'whisper:on-segment',

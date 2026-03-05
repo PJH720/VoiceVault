@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { useRecordingContext } from '../../hooks/useRecordingContext'
+import { useLibraryContext } from '../../hooks/useLibraryContext'
 import { useDiarization } from '../../hooks/useDiarization'
 import { useSummary } from '../../hooks/useSummary'
 import { useTranscription } from '../../hooks/useTranscription'
@@ -22,6 +24,7 @@ function toClock(ms: number): string {
 
 export function RecordingView(): React.JSX.Element {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const {
     isRecording,
     durationMs,
@@ -31,10 +34,23 @@ export function RecordingView(): React.JSX.Element {
     startRecording,
     stopRecording
   } = useRecordingContext()
+  const { refreshRecordings, selectRecording } = useLibraryContext()
   const transcription = useTranscription()
   const summary = useSummary()
   const diarization = useDiarization()
   const lastSummaryRef = useRef('')
+
+  // Handle interruptions: warn user and save partial data on window close during recording
+  useEffect(() => {
+    if (!isRecording) return
+    const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
+      event.preventDefault()
+      // Trigger stop to save partial data — main process before-quit also handles this
+      void stopRecording()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isRecording, stopRecording])
 
   useEffect(() => {
     if (!summary.summary?.summary) return
@@ -87,6 +103,10 @@ export function RecordingView(): React.JSX.Element {
           }
         }
         await diarization.processDiarization(result.id, result.audioPath, transcription.segments)
+        // Navigate to library and select the new recording
+        await refreshRecordings()
+        await selectRecording(result.id)
+        navigate('/')
       }
       return
     }
