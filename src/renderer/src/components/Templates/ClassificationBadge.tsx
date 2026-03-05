@@ -6,8 +6,10 @@ type ClassificationBadgeProps = {
 export function ClassificationBadge({
   templateId,
   confidence
-}: ClassificationBadgeProps): React.JSX.Element | null {
-  if (!templateId) return null
+}: ClassificationBadgeProps): React.JSX.Element {
+  if (!templateId) {
+    return <span className="summary-chip muted">#Unclassified</span>
+  }
   const percent = typeof confidence === 'number' ? ` (${(confidence * 100).toFixed(0)}%)` : ''
   return (
     <span className="summary-chip">
