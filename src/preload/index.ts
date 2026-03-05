@@ -98,6 +98,8 @@ const api = {
   getAppPath: async (name: AppPathName): Promise<string> =>
     ipcRenderer.invoke(AppChannels.GET_PATH, name),
   getVersion: async (): Promise<string> => ipcRenderer.invoke(AppChannels.GET_VERSION),
+  reportError: async (report: { message: string; stack?: string; page?: string }): Promise<void> =>
+    ipcRenderer.invoke(AppChannels.REPORT_ERROR, report),
   getLocale: async (): Promise<SupportedLocale> => ipcRenderer.invoke(SettingsChannels.GET_LOCALE),
   setLocale: async (locale: SupportedLocale): Promise<SupportedLocale> =>
     ipcRenderer.invoke(SettingsChannels.SET_LOCALE, locale),

@@ -127,6 +127,15 @@ app.whenReady().then(async () => {
   registerSystemAudioHandlers()
   registerTranslationHandlers(mainWindow, databaseService)
   registerAudioHandlers(audioService, databaseService, transcriptionRuntime)
+  // Error reporting from renderer ErrorBoundary
+  ipcMain.handle(
+    AppChannels.REPORT_ERROR,
+    (_event, report: { message: string; stack?: string; page?: string }) => {
+      console.error(`[ErrorBoundary] ${report.page ?? 'unknown'}: ${report.message}`)
+      if (report.stack) console.error(report.stack)
+    }
+  )
+
   Menu.setApplicationMenu(buildAppMenu(getLocale()))
 
   ipcMain.handle(AppChannels.GET_PATH, (_event, name: Parameters<typeof app.getPath>[0]) => {

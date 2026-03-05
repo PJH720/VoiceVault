@@ -26,7 +26,8 @@ export const SettingsChannels = {
 
 export const AppChannels = {
   GET_PATH: 'app:get-path',
-  GET_VERSION: 'app:get-version'
+  GET_VERSION: 'app:get-version',
+  REPORT_ERROR: 'app:report-error'
 } as const
 
 export const WhisperChannels = {

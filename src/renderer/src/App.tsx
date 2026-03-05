@@ -57,7 +57,7 @@ function AppContent(): React.JSX.Element {
             <Route
               path="/"
               element={
-                <ErrorBoundary>
+                <ErrorBoundary fallbackMessage="Couldn't load recordings. Your data is safe — try refreshing.">
                   <LibraryView />
                 </ErrorBoundary>
               }
@@ -65,7 +65,7 @@ function AppContent(): React.JSX.Element {
             <Route
               path="/record"
               element={
-                <ErrorBoundary>
+                <ErrorBoundary fallbackMessage="Recording was interrupted. Your audio is saved.">
                   <RecordingView />
                 </ErrorBoundary>
               }
@@ -73,7 +73,7 @@ function AppContent(): React.JSX.Element {
             <Route
               path="/search"
               element={
-                <ErrorBoundary>
+                <ErrorBoundary fallbackMessage="Search index unavailable. Try again in a moment.">
                   <SearchView />
                 </ErrorBoundary>
               }
@@ -81,7 +81,7 @@ function AppContent(): React.JSX.Element {
             <Route
               path="/settings"
               element={
-                <ErrorBoundary>
+                <ErrorBoundary fallbackMessage="Settings couldn't load. Defaults are active.">
                   <SettingsView />
                 </ErrorBoundary>
               }

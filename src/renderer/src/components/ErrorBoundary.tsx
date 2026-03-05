@@ -4,6 +4,7 @@ import { withTranslation, type WithTranslation } from 'react-i18next'
 type Props = WithTranslation & {
   children: ReactNode
   fallbackMessage?: string
+  pageName?: string
 }
 
 type State = {
@@ -23,6 +24,11 @@ class ErrorBoundaryInner extends Component<Props, State> {
 
   public componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[ErrorBoundary] Caught error:', error, info.componentStack)
+    window.api.reportError({
+      message: error.message,
+      stack: error.stack,
+      page: this.props.pageName
+    })
   }
 
   public render(): ReactNode {
