@@ -7,260 +7,15 @@ on:
     branches: [main]
 
 env:
-  PYTHON_VERSION: "3.12"
   NODE_VERSION: "22"
 
 jobs:
   # ===========================================================================
-  # Path Filter — determine which jobs to run
-  # ===========================================================================
-  changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      plugin: ${{ steps.filter.outputs.plugin }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check changed paths
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-              - 'src/**'
-              - 'tests/**'
-              - 'requirements*.txt'
-              - 'pyproject.toml'
-              - 'pytest.ini'
-            frontend:
-              - 'frontend/**'
-            plugin:
-              - 'plugin/**'
-
-  # ===========================================================================
-  # Backend — Linting & Formatting
+  # Lint & Type Check
   # ===========================================================================
   lint:
-    name: "Backend: Lint & Format"
+    name: "Lint & Type Check"
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
-
-      - name: Run Ruff (linting)
-        run: uvx ruff check src/ tests/ backend/src/
-
-      - name: Run Ruff (formatting check)
-        run: uvx ruff format --check src/ tests/ backend/src/
-
-      - name: Run MyPy (type checking)
-        continue-on-error: true
-        run: uvx mypy src/ --ignore-missing-imports
-
-  # ===========================================================================
-  # Backend — Testing
-  # ===========================================================================
-  test:
-    name: "Backend: Test (Python ${{ matrix.python-version }})"
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-      fail-fast: false
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsndfile1 ffmpeg
-
-      - name: Create virtual environment
-        run: uv venv --python ${{ matrix.python-version }}
-
-      - name: Install Python dependencies
-        working-directory: backend
-        run: |
-          uv pip install -r requirements.txt
-          uv pip install -e ".[dev]"
-
-      - name: Create test directories
-        run: mkdir -p data/recordings data/exports data/chroma_db logs
-
-      - name: Run tests
-        env:
-          PYTHONPATH: ${{ github.workspace }}/backend
-          ENVIRONMENT: test
-          LLM_PROVIDER: ollama
-          WHISPER_PROVIDER: local
-          WHISPER_MODEL: tiny
-          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-        run: |
-          source .venv/bin/activate
-          pytest tests/unit/ tests/integration/ tests/e2e/ --cov=src --cov-report=xml --cov-report=term-missing -v
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: matrix.python-version == '3.12'
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-
-  # ===========================================================================
-  # Backend — Security Scanning
-  # ===========================================================================
-  security:
-    name: "Backend: Security Scan"
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
-
-      - name: Run Bandit security scan
-        run: uvx --with "bandit[toml]" bandit -r src/ -f json -o bandit-report.json || true
-
-      - name: Upload Bandit report
-        uses: actions/upload-artifact@v4
-        with:
-          name: bandit-security-report
-          path: backend/bandit-report.json
-          retention-days: 30
-
-  # ===========================================================================
-  # API Contract Check (OpenAPI + TypeScript types freshness)
-  # ===========================================================================
-  api-contract-check:
-    name: API Contract Check
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # -- Backend: regenerate openapi.json --
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
-
-      - name: Create backend venv & install deps
-        working-directory: backend
-        run: |
-          uv venv --python ${{ env.PYTHON_VERSION }}
-          uv pip install -r requirements.txt
-
-      - name: Regenerate OpenAPI schema
-        env:
-          PYTHONPATH: ${{ github.workspace }}/backend
-        run: backend/.venv/bin/python backend/scripts/export_openapi.py
-
-      # -- Frontend: regenerate api.generated.ts --
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Regenerate TypeScript types
-        working-directory: frontend
-        run: pnpm gen:types
-
-      - name: Regenerate Plugin TypeScript types
-        run: node scripts/generate-plugin-types.mjs
-
-      # -- Diff check --
-      - name: Check for uncommitted changes
-        run: |
-          if git diff --exit-code docs/openapi.json frontend/src/types/api.generated.ts; then
-            echo "API contract is up to date."
-          else
-            echo ""
-            echo "============================================================"
-            echo "ERROR: API contract files are out of date!"
-            echo "============================================================"
-            echo ""
-            echo "The following generated files do not match the current code:"
-            git diff --stat docs/openapi.json frontend/src/types/api.generated.ts
-            echo ""
-            echo "To fix, run from the repo root:"
-            echo ""
-            echo "  make gen-openapi && make gen-types"
-            echo ""
-            echo "Then commit the updated files."
-            echo "============================================================"
-            exit 1
-          fi
-
-  # ===========================================================================
-  # Frontend — Lint & Type Check
-  # ===========================================================================
-  frontend-lint:
-    name: "Frontend: Lint & Type Check"
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    defaults:
-      run:
-        working-directory: frontend
 
     steps:
       - name: Checkout code
@@ -280,23 +35,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run TypeScript type check
-        run: pnpm type-check
-
       - name: Run ESLint
         run: pnpm lint
 
+      - name: Run TypeScript type check
+        run: pnpm typecheck
+
   # ===========================================================================
-  # Frontend — Unit Tests (Vitest)
+  # Unit Tests (Vitest)
   # ===========================================================================
-  frontend-test:
-    name: "Frontend: Test (Vitest)"
+  test:
+    name: "Test (Vitest)"
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    defaults:
-      run:
-        working-directory: frontend
 
     steps:
       - name: Checkout code
@@ -320,16 +70,11 @@ jobs:
         run: pnpm test
 
   # ===========================================================================
-  # Frontend — Build Verification
+  # Build Verification
   # ===========================================================================
-  frontend-build:
-    name: "Frontend: Build"
+  build:
+    name: "Build"
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    defaults:
-      run:
-        working-directory: frontend
 
     steps:
       - name: Checkout code
@@ -349,38 +94,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Next.js
+      - name: Build
         run: pnpm build
-
-  # ===========================================================================
-  # Plugin — Type Check & Build
-  # ===========================================================================
-  plugin-check:
-    name: "Plugin: Type Check & Build"
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.plugin == 'true'
-    defaults:
-      run:
-        working-directory: plugin
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run TypeScript type check
-        run: npx tsc --noEmit
-
-      - name: Build plugin
-        run: npm run build
 
   # ===========================================================================
   # Summary
@@ -388,68 +103,27 @@ jobs:
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [changes, lint, test, security, api-contract-check, frontend-lint, frontend-test, frontend-build, plugin-check]
+    needs: [lint, test, build]
     if: always()
 
     steps:
       - name: Check results
         env:
-          BACKEND_CHANGED: ${{ needs.changes.outputs.backend }}
-          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
           LINT_RESULT: ${{ needs.lint.result }}
           TEST_RESULT: ${{ needs.test.result }}
-          SECURITY_RESULT: ${{ needs.security.result }}
-          API_CONTRACT_RESULT: ${{ needs.api-contract-check.result }}
-          FE_LINT_RESULT: ${{ needs.frontend-lint.result }}
-          FE_TEST_RESULT: ${{ needs.frontend-test.result }}
-          FE_BUILD_RESULT: ${{ needs.frontend-build.result }}
-          PLUGIN_RESULT: ${{ needs.plugin-check.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
         run: |
-          echo "=== Path Changes ==="
-          echo "Backend changed: $BACKEND_CHANGED"
-          echo "Frontend changed: $FRONTEND_CHANGED"
-          echo ""
-          echo "=== Backend Results ==="
-          echo "Lint: $LINT_RESULT"
+          echo "=== CI Results ==="
+          echo "Lint & Type Check: $LINT_RESULT"
           echo "Test: $TEST_RESULT"
-          echo "Security: $SECURITY_RESULT"
-          echo ""
-          echo "=== Frontend Results ==="
-          echo "Frontend Lint: $FE_LINT_RESULT"
-          echo "Frontend Test: $FE_TEST_RESULT"
-          echo "Frontend Build: $FE_BUILD_RESULT"
-          echo ""
-          echo "=== Plugin Results ==="
-          echo "Plugin: $PLUGIN_RESULT"
-          echo ""
-          echo "=== Shared ==="
-          echo "API Contract: $API_CONTRACT_RESULT"
+          echo "Build: $BUILD_RESULT"
 
           FAILED=false
-
-          # Check backend jobs
-          for result in "$LINT_RESULT" "$TEST_RESULT"; do
+          for result in "$LINT_RESULT" "$TEST_RESULT" "$BUILD_RESULT"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
               FAILED=true
             fi
           done
-
-          # Check frontend jobs
-          for result in "$FE_LINT_RESULT" "$FE_TEST_RESULT" "$FE_BUILD_RESULT"; do
-            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              FAILED=true
-            fi
-          done
-
-          # Check plugin job
-          if [ "$PLUGIN_RESULT" != "success" ] && [ "$PLUGIN_RESULT" != "skipped" ]; then
-            FAILED=true
-          fi
-
-          # Check API contract
-          if [ "$API_CONTRACT_RESULT" != "success" ] && [ "$API_CONTRACT_RESULT" != "skipped" ]; then
-            FAILED=true
-          fi
 
           if [ "$FAILED" = "true" ]; then
             echo ""
