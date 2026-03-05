@@ -93,6 +93,22 @@ app.whenReady().then(async () => {
     })
   })
 
+  // Security: restrict navigation to app origin only
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-navigate', (event, url) => {
+      const parsed = new URL(url)
+      if (parsed.protocol !== 'file:' && !url.startsWith('http://localhost')) {
+        event.preventDefault()
+      }
+    })
+  })
+
+  // Security: only allow microphone permission
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    const allowed = ['media', 'microphone'].includes(permission)
+    callback(allowed)
+  })
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
