@@ -39,6 +39,7 @@ export function BilingualTranscript({
 
   useEffect(() => {
     if (!enabled) return
+    // Reset + async batch translation — setState is intentional
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTranslations(new Map())
     if (translatableSegments.length === 0) return

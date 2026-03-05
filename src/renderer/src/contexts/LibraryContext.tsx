@@ -34,6 +34,7 @@ export function LibraryProvider({ children }: { children: ReactNode }): React.JS
   }, [searchQuery, selectedRecording, sortBy])
 
   useEffect(() => {
+    // Async data loading on dependency change — setState is intentional
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshRecordings()
   }, [refreshRecordings])

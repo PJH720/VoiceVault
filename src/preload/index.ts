@@ -424,8 +424,9 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
+  // Window augmentation is in index.d.ts but not resolved by tsconfig.node.json
+  // @ts-expect-error — types defined in preload/index.d.ts for renderer consumption
   window.electron = electronAPI
-  // @ts-ignore (define in dts)
+  // @ts-expect-error — types defined in preload/index.d.ts for renderer consumption
   window.api = api
 }

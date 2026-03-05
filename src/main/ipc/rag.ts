@@ -6,7 +6,10 @@ import { RAGService } from '../services/RAGService'
 import { VectorService } from '../services/VectorService'
 import { ServiceRegistry } from '../services/ServiceRegistry'
 
-export function registerRAGHandlers(mainWindow: BrowserWindow, databaseService: DatabaseService): void {
+export function registerRAGHandlers(
+  mainWindow: BrowserWindow,
+  databaseService: DatabaseService
+): void {
   const embeddingService = ServiceRegistry.getEmbeddingService()
   const vectorService = new VectorService(databaseService.getConnection())
   const llmService = ServiceRegistry.getLLMService()

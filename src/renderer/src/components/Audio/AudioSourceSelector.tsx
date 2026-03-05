@@ -49,6 +49,7 @@ export function AudioSourceSelector(): React.JSX.Element {
   }
 
   useEffect(() => {
+    // Async data loading on mount — setState is intentional
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
   }, [])
