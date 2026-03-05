@@ -1,14 +1,20 @@
 import type { CloudModelName } from '../../shared/types'
 
 const PRICING_PER_1K: Record<CloudModelName, { input: number; output: number }> = {
-  // Current models
+  // Current Anthropic models
   'claude-sonnet-4-5-20250514': { input: 0.003, output: 0.015 },
   'claude-opus-4-6-20250612': { input: 0.015, output: 0.075 },
   'claude-haiku-3-5-20241022': { input: 0.0008, output: 0.004 },
-  // Legacy models
+  // Legacy Anthropic models
   'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
   'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
-  'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 }
+  'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
+  // OpenAI models
+  'gpt-4o': { input: 0.0025, output: 0.01 },
+  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+  // Gemini models
+  'gemini-2.5-flash': { input: 0.00015, output: 0.0006 },
+  'gemini-2.5-pro': { input: 0.00125, output: 0.01 }
 }
 
 export class CostEstimator {

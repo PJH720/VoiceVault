@@ -196,6 +196,14 @@ const api = {
     setApiKey: (key: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke(CloudLlmChannels.SET_API_KEY, key),
     getApiKey: (): Promise<{ key: string | null }> => ipcRenderer.invoke(CloudLlmChannels.GET_API_KEY),
+    setOpenAIApiKey: (key: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(CloudLlmChannels.SET_OPENAI_API_KEY, key),
+    getOpenAIApiKey: (): Promise<{ key: string | null }> =>
+      ipcRenderer.invoke(CloudLlmChannels.GET_OPENAI_API_KEY),
+    setGeminiApiKey: (key: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(CloudLlmChannels.SET_GEMINI_API_KEY, key),
+    getGeminiApiKey: (): Promise<{ key: string | null }> =>
+      ipcRenderer.invoke(CloudLlmChannels.GET_GEMINI_API_KEY),
     summarize: (
       transcript: string,
       model?: CloudModelName

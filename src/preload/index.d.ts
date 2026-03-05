@@ -114,6 +114,10 @@ interface VoiceVaultApi {
   cloudLLM: {
     setApiKey: (key: string) => Promise<{ success: boolean }>
     getApiKey: () => Promise<{ key: string | null }>
+    setOpenAIApiKey: (key: string) => Promise<{ success: boolean }>
+    getOpenAIApiKey: () => Promise<{ key: string | null }>
+    setGeminiApiKey: (key: string) => Promise<{ success: boolean }>
+    getGeminiApiKey: () => Promise<{ key: string | null }>
     summarize: (transcript: string, model?: CloudModelName) => Promise<{ success: boolean; output: SummaryOutput }>
     estimateCost: (
       text: string,

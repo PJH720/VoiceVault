@@ -6,6 +6,8 @@ type StoreShape = {
   whisperModel: WhisperModelSize
   llmModel: LlmModelName
   anthropicApiKey?: string
+  openaiApiKey?: string
+  geminiApiKey?: string
   preferredLlmProvider: 'local' | 'cloud'
   cloudModel: CloudModelName
   localOnlyMode: boolean
@@ -55,6 +57,12 @@ const schema = {
     anthropicApiKey: {
       type: 'string'
     },
+    openaiApiKey: {
+      type: 'string'
+    },
+    geminiApiKey: {
+      type: 'string'
+    },
     preferredLlmProvider: {
       type: 'string',
       enum: ['local', 'cloud']
@@ -65,7 +73,13 @@ const schema = {
         'claude-sonnet-4-5-20250514',
         'claude-opus-4-6-20250612',
         'claude-haiku-3-5-20241022',
-        'claude-3-5-sonnet-20241022'
+        'claude-3-5-sonnet-20241022',
+        'claude-3-opus-20240229',
+        'claude-3-haiku-20240307',
+        'gpt-4o',
+        'gpt-4o-mini',
+        'gemini-2.5-flash',
+        'gemini-2.5-pro'
       ]
     },
     localOnlyMode: {
@@ -198,6 +212,58 @@ export function getAnthropicApiKey(): string | null {
   return raw
 }
 
+export function setOpenAIApiKey(key: string): void {
+  if (!key) {
+    ensureStore().delete('openaiApiKey')
+    return
+  }
+  if (safeStorage.isEncryptionAvailable()) {
+    const encrypted = safeStorage.encryptString(key)
+    ensureStore().set('openaiApiKey', encrypted.toString('base64'))
+    return
+  }
+  ensureStore().set('openaiApiKey', key)
+}
+
+export function getOpenAIApiKey(): string | null {
+  const raw = store.get('openaiApiKey')
+  if (!raw) return null
+  if (safeStorage.isEncryptionAvailable()) {
+    try {
+      return safeStorage.decryptString(Buffer.from(raw, 'base64'))
+    } catch {
+      return null
+    }
+  }
+  return raw
+}
+
+export function setGeminiApiKey(key: string): void {
+  if (!key) {
+    ensureStore().delete('geminiApiKey')
+    return
+  }
+  if (safeStorage.isEncryptionAvailable()) {
+    const encrypted = safeStorage.encryptString(key)
+    ensureStore().set('geminiApiKey', encrypted.toString('base64'))
+    return
+  }
+  ensureStore().set('geminiApiKey', key)
+}
+
+export function getGeminiApiKey(): string | null {
+  const raw = store.get('geminiApiKey')
+  if (!raw) return null
+  if (safeStorage.isEncryptionAvailable()) {
+    try {
+      return safeStorage.decryptString(Buffer.from(raw, 'base64'))
+    } catch {
+      return null
+    }
+  }
+  return raw
+}
+
 export function maskApiKey(key: string | null): string | null {
   if (!key) return null
   if (key.length < 10) return '***'
@@ -220,7 +286,13 @@ export function getCloudModel(): CloudModelName {
     'claude-sonnet-4-5-20250514',
     'claude-opus-4-6-20250612',
     'claude-haiku-3-5-20241022',
-    'claude-3-5-sonnet-20241022'
+    'claude-3-5-sonnet-20241022',
+    'claude-3-opus-20240229',
+    'claude-3-haiku-20240307',
+    'gpt-4o',
+    'gpt-4o-mini',
+    'gemini-2.5-flash',
+    'gemini-2.5-pro'
   ]
   return validModels.includes(value) ? value : defaults.cloudModel
 }
