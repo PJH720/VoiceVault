@@ -82,6 +82,7 @@ app.whenReady().then(async () => {
           [
             "default-src 'self'",
             "script-src 'self'",
+            // TODO(#214): Remove 'unsafe-inline' once CSS-in-JS is replaced with static CSS modules
             "style-src 'self' 'unsafe-inline'",
             "connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*",
             "font-src 'self'",
@@ -100,6 +101,16 @@ app.whenReady().then(async () => {
       if (parsed.protocol !== 'file:' && !url.startsWith('http://localhost')) {
         event.preventDefault()
       }
+    })
+
+    // Block webview creation entirely
+    contents.on('will-attach-webview', (event) => {
+      event.preventDefault()
+    })
+
+    // Block new window creation (except shell.openExternal handled by setWindowOpenHandler)
+    contents.setWindowOpenHandler(() => {
+      return { action: 'deny' }
     })
   })
 
@@ -175,10 +186,18 @@ app.on('before-quit', async () => {
   tray?.destroy()
   tray = null
 
-  // Stop active recording first
+  // Stop active recording and save partial data to DB
   if (audioService?.recording) {
     try {
-      await audioService.stopRecording()
+      const result = await audioService.stopRecording()
+      if (databaseService) {
+        databaseService.insertRecording({
+          title: `Recording ${new Date().toLocaleString()} (partial)`,
+          audioPath: result.audioPath,
+          duration: result.duration,
+          fileSizeBytes: result.fileSizeBytes
+        })
+      }
     } catch (err) {
       console.error('[shutdown] AudioCaptureService stop failed:', err)
     }

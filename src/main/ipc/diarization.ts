@@ -38,6 +38,12 @@ export function registerDiarizationHandlers(
       transcriptSegments: TranscriptSegment[],
       speakerSegments?: SpeakerSegment[]
     ) => {
+      if (typeof recordingId !== 'number' || !Number.isFinite(recordingId)) {
+        throw new Error('Invalid recordingId')
+      }
+      if (!Array.isArray(transcriptSegments)) {
+        throw new Error('transcriptSegments must be an array')
+      }
       const sourceSegments = speakerSegments ?? databaseService.listSpeakerSegments(recordingId)
       const aligned = diarizationService.alignTranscript(transcriptSegments, sourceSegments)
       databaseService.assignTranscriptSpeakers(recordingId, aligned)
@@ -46,6 +52,9 @@ export function registerDiarizationHandlers(
   )
 
   ipcMain.handle(DiarizationChannels.LIST_SPEAKER_SEGMENTS, (_event, recordingId: number) => {
+    if (typeof recordingId !== 'number' || !Number.isFinite(recordingId)) {
+      throw new Error('Invalid recordingId')
+    }
     return databaseService.listSpeakerSegments(recordingId)
   })
 

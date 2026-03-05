@@ -53,6 +53,8 @@ interface VoiceVaultApi {
   startRecording: () => Promise<{ streamId: string; audioPath: string }>
   stopRecording: () => Promise<RecordingResult>
   requestMicPermission: () => Promise<boolean>
+  sendAudioChunk: (pcmData: ArrayBuffer) => void
+  getCaptureMode: () => Promise<string>
   onAudioLevel: (callback: (event: AudioLevelEvent) => void) => () => void
   listRecordings: (options?: ListOptions) => Promise<Recording[]>
   getRecording: (id: number) => Promise<RecordingWithTranscript | null>
@@ -81,6 +83,11 @@ interface VoiceVaultApi {
     checkModel: (
       modelSize: WhisperModelSize
     ) => Promise<{ modelSize: WhisperModelSize; available: boolean }>
+    checkBinary: () => Promise<{ available: boolean; binaryPath: string | null }>
+    transcribeFile: (
+      wavFilePath: string,
+      language?: string
+    ) => Promise<{ success: boolean; segments: TranscriptSegment[] }>
     onSegment: (callback: (segment: TranscriptSegment) => void) => () => void
     onDownloadProgress: (
       callback: (payload: { modelSize: WhisperModelSize; percent: number }) => void

@@ -30,6 +30,9 @@
     "cloudModel": "클라우드 모델",
     "localOnly": "로컬 전용 모드",
     "localOnlyDesc": "활성화하면 클라우드 요청이 차단됩니다.",
+    "localOnlyTooltip": "로컬 전용 모드는 모든 처리(전사, 요약)를 기기에서 수행합니다. 외부 서버로 데이터가 전송되지 않습니다. 최대 프라이버시를 위해 활성화하세요.",
+    "testConnection": "연결 테스트",
+    "testSuccess": "연결 성공!",
     "usage": "사용량: 요청 {{requests}}회 / ${{cost}}",
     "resetStats": "통계 초기화",
     "privacyNotice": "개인정보 안내: 클라우드 모드에서는 요약을 위해 전사 텍스트가 Anthropic으로 전송됩니다."

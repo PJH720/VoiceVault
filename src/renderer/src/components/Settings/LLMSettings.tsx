@@ -13,6 +13,10 @@ export function LLMSettings(): React.JSX.Element {
   const [maskedOpenaiKey, setMaskedOpenaiKey] = useState<string | null>(null)
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('')
   const [maskedGeminiKey, setMaskedGeminiKey] = useState<string | null>(null)
+  const [openaiKeyError, setOpenaiKeyError] = useState<string | null>(null)
+  const [geminiKeyError, setGeminiKeyError] = useState<string | null>(null)
+  const [testingConnection, setTestingConnection] = useState(false)
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   useEffect(() => {
     void summary.getMaskedApiKey().then(setMaskedKey)
@@ -29,18 +33,48 @@ export function LLMSettings(): React.JSX.Element {
 
   const saveOpenaiApiKey = async (): Promise<void> => {
     if (!openaiApiKeyInput.trim()) return
-    await window.api.cloudLLM.setOpenAIApiKey(openaiApiKeyInput.trim())
-    setOpenaiApiKeyInput('')
-    const result = await window.api.cloudLLM.getOpenAIApiKey()
-    setMaskedOpenaiKey(result.key)
+    setOpenaiKeyError(null)
+    try {
+      await window.api.cloudLLM.setOpenAIApiKey(openaiApiKeyInput.trim())
+      setOpenaiApiKeyInput('')
+      const result = await window.api.cloudLLM.getOpenAIApiKey()
+      setMaskedOpenaiKey(result.key)
+    } catch (error) {
+      setOpenaiKeyError((error as Error).message)
+    }
   }
 
   const saveGeminiApiKey = async (): Promise<void> => {
     if (!geminiApiKeyInput.trim()) return
-    await window.api.cloudLLM.setGeminiApiKey(geminiApiKeyInput.trim())
-    setGeminiApiKeyInput('')
-    const result = await window.api.cloudLLM.getGeminiApiKey()
-    setMaskedGeminiKey(result.key)
+    setGeminiKeyError(null)
+    try {
+      await window.api.cloudLLM.setGeminiApiKey(geminiApiKeyInput.trim())
+      setGeminiApiKeyInput('')
+      const result = await window.api.cloudLLM.getGeminiApiKey()
+      setMaskedGeminiKey(result.key)
+    } catch (error) {
+      setGeminiKeyError((error as Error).message)
+    }
+  }
+
+  const testConnection = async (): Promise<void> => {
+    setTestingConnection(true)
+    setTestResult(null)
+    try {
+      if (summary.localOnlyMode) {
+        setTestResult({ success: false, message: t('settings.localOnlyDesc') })
+        return
+      }
+      await window.api.cloudLLM.summarize('Connection test', summary.cloudModel)
+      setTestResult({ success: true, message: t('settings.testSuccess') })
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: (error as Error).message
+      })
+    } finally {
+      setTestingConnection(false)
+    }
   }
 
   return (
@@ -93,6 +127,7 @@ export function LLMSettings(): React.JSX.Element {
           {t('settings.save')}
         </button>
       </div>
+      {openaiKeyError ? <p className="error-text">{openaiKeyError}</p> : null}
       {maskedOpenaiKey ? (
         <p className="muted">
           {t('settings.currentKey')}: {maskedOpenaiKey}
@@ -113,6 +148,7 @@ export function LLMSettings(): React.JSX.Element {
           {t('settings.save')}
         </button>
       </div>
+      {geminiKeyError ? <p className="error-text">{geminiKeyError}</p> : null}
       {maskedGeminiKey ? (
         <p className="muted">
           {t('settings.currentKey')}: {maskedGeminiKey}
@@ -144,6 +180,20 @@ export function LLMSettings(): React.JSX.Element {
             <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
           </optgroup>
         </select>
+      </div>
+
+      <div className="settings-row">
+        <button
+          onClick={() => void testConnection()}
+          disabled={testingConnection || summary.localOnlyMode}
+        >
+          {testingConnection ? `${t('settings.testConnection')}…` : t('settings.testConnection')}
+        </button>
+        {testResult ? (
+          <span className={testResult.success ? 'success-text' : 'error-text'}>
+            {testResult.message}
+          </span>
+        ) : null}
       </div>
 
       <PrivacyToggle enabled={summary.localOnlyMode} onChange={summary.setLocalOnlyMode} />

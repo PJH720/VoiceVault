@@ -30,6 +30,9 @@
     "cloudModel": "Cloud model",
     "localOnly": "Local-only mode",
     "localOnlyDesc": "When enabled, cloud requests are blocked.",
+    "localOnlyTooltip": "Local-only mode ensures all processing (transcription, summarization) happens on your device. No data is sent to external servers. Enable this for maximum privacy.",
+    "testConnection": "Test Connection",
+    "testSuccess": "Connection successful!",
     "usage": "Usage: {{requests}} requests / ${{cost}}",
     "resetStats": "Reset Stats",
     "privacyNotice": "Privacy notice: cloud mode sends transcript text to Anthropic for summarization."

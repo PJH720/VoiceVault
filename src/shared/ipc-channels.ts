@@ -3,7 +3,8 @@ export const AudioChannels = {
   STOP_RECORDING: 'audio:stop-recording',
   CAPTURE_MODE: 'audio:capture-mode',
   AUDIO_LEVEL: 'audio:level',
-  REQUEST_PERMISSION: 'audio:request-permission'
+  REQUEST_PERMISSION: 'audio:request-permission',
+  SEND_CHUNK: 'audio:send-chunk'
 } as const
 
 export const DatabaseChannels = {
@@ -33,14 +34,16 @@ export const AppChannels = {
 export const WhisperChannels = {
   START_STREAM: 'whisper:transcribe-stream',
   STOP: 'whisper:stop',
+  TRANSCRIBE_FILE: 'whisper:transcribe-file',
+  BINARY_STATUS: 'whisper:binary-status',
   DOWNLOAD_MODEL: 'whisper:download-model',
   MODEL_STATUS: 'whisper:model-status',
-  SET_MODEL: 'whisper:set-model',
-  GET_MODEL: 'whisper:get-model',
+  // SET_MODEL and GET_MODEL removed (issue #214) — use SettingsChannels instead
   SAVE_SEGMENTS: 'whisper:save-segments',
   LIST_SEGMENTS: 'whisper:list-segments',
   ON_SEGMENT: 'whisper:on-segment',
-  ON_DOWNLOAD_PROGRESS: 'whisper:download-progress'
+  ON_DOWNLOAD_PROGRESS: 'whisper:download-progress',
+  ON_TRANSCRIBE_PROGRESS: 'whisper:transcribe-progress'
 } as const
 
 export const LlmChannels = {

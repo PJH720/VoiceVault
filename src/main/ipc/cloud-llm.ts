@@ -41,6 +41,9 @@ function isGeminiModel(model: CloudModelName): model is GeminiModelName {
 
 export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(CloudLlmChannels.SET_API_KEY, (_event, key: string) => {
+    if (typeof key !== 'string') {
+      throw new Error('API key must be a string')
+    }
     setAnthropicApiKey(key.trim())
     return { success: true }
   })
@@ -51,6 +54,9 @@ export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
   })
 
   ipcMain.handle(CloudLlmChannels.SET_OPENAI_API_KEY, (_event, key: string) => {
+    if (typeof key !== 'string') {
+      throw new Error('API key must be a string')
+    }
     setOpenAIApiKey(key.trim())
     return { success: true }
   })
@@ -61,6 +67,9 @@ export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
   })
 
   ipcMain.handle(CloudLlmChannels.SET_GEMINI_API_KEY, (_event, key: string) => {
+    if (typeof key !== 'string') {
+      throw new Error('API key must be a string')
+    }
     setGeminiApiKey(key.trim())
     return { success: true }
   })
@@ -106,6 +115,12 @@ export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
   )
 
   ipcMain.handle(CloudLlmChannels.ESTIMATE_COST, (_event, text: string, model: CloudModelName) => {
+    if (typeof text !== 'string' || text.length === 0) {
+      throw new Error('Text must be a non-empty string')
+    }
+    if (typeof model !== 'string') {
+      throw new Error('Model must be a string')
+    }
     return CostEstimator.estimateCost(text, model)
   })
 
@@ -113,18 +128,27 @@ export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(CloudLlmChannels.RESET_STATS, () => resetUsageStats())
 
   ipcMain.handle(CloudLlmChannels.SET_LOCAL_ONLY, (_event, enabled: boolean) => {
+    if (typeof enabled !== 'boolean') {
+      throw new Error('enabled must be a boolean')
+    }
     return { enabled: setLocalOnlyMode(enabled) }
   })
 
   ipcMain.handle(CloudLlmChannels.GET_LOCAL_ONLY, () => ({ enabled: getLocalOnlyMode() }))
 
   ipcMain.handle(CloudLlmChannels.SET_PROVIDER, (_event, provider: 'local' | 'cloud') => {
+    if (provider !== 'local' && provider !== 'cloud') {
+      throw new Error('Provider must be "local" or "cloud"')
+    }
     return { provider: setPreferredLlmProvider(provider) }
   })
 
   ipcMain.handle(CloudLlmChannels.GET_PROVIDER, () => ({ provider: getPreferredLlmProvider() }))
 
   ipcMain.handle(CloudLlmChannels.SET_MODEL, (_event, model: CloudModelName) => {
+    if (typeof model !== 'string') {
+      throw new Error('Model must be a string')
+    }
     return { model: setCloudModel(model) }
   })
 

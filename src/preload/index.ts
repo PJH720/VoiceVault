@@ -47,23 +47,8 @@ import type {
   WhisperModelSize
 } from '../shared/types'
 
-type AppPathName =
-  | 'home'
-  | 'appData'
-  | 'userData'
-  | 'sessionData'
-  | 'temp'
-  | 'exe'
-  | 'module'
-  | 'desktop'
-  | 'documents'
-  | 'downloads'
-  | 'music'
-  | 'pictures'
-  | 'videos'
-  | 'recent'
-  | 'logs'
-  | 'crashDumps'
+// Security: restrict to allowlisted path names only (issue #214)
+type AppPathName = 'userData' | 'documents' | 'downloads' | 'temp' | 'logs'
 
 const api = {
   startRecording: async (): Promise<{ streamId: string; audioPath: string }> =>
@@ -72,6 +57,10 @@ const api = {
     ipcRenderer.invoke(AudioChannels.STOP_RECORDING),
   requestMicPermission: async (): Promise<boolean> =>
     ipcRenderer.invoke(AudioChannels.REQUEST_PERMISSION),
+  sendAudioChunk: (pcmData: ArrayBuffer): void => {
+    ipcRenderer.send(AudioChannels.SEND_CHUNK, pcmData)
+  },
+  getCaptureMode: async (): Promise<string> => ipcRenderer.invoke(AudioChannels.CAPTURE_MODE),
   onAudioLevel: (callback: (event: AudioLevelEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: AudioLevelEvent): void => {
       callback(payload)
@@ -129,6 +118,13 @@ const api = {
       modelSize: WhisperModelSize
     ): Promise<{ modelSize: WhisperModelSize; available: boolean }> =>
       ipcRenderer.invoke(WhisperChannels.MODEL_STATUS, modelSize),
+    checkBinary: async (): Promise<{ available: boolean; binaryPath: string | null }> =>
+      ipcRenderer.invoke(WhisperChannels.BINARY_STATUS),
+    transcribeFile: async (
+      wavFilePath: string,
+      language?: string
+    ): Promise<{ success: boolean; segments: import('../shared/types').TranscriptSegment[] }> =>
+      ipcRenderer.invoke(WhisperChannels.TRANSCRIBE_FILE, wavFilePath, language),
     onSegment: (callback: (segment: TranscriptSegment) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, segment: TranscriptSegment): void => {
         callback(segment)
