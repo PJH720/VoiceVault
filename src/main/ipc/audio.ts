@@ -56,4 +56,8 @@ export function registerAudioHandlers(
 
     return payload
   })
+
+  ipcMain.handle(AudioChannels.CAPTURE_MODE, async () => {
+    return audioService.getCaptureMode()
+  })
 }

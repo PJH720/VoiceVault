@@ -97,6 +97,7 @@ export class AudioCaptureService {
       this.captureMode = 'native'
     } catch {
       this.captureMode = 'fallback'
+      this.chunkListeners.clear()
       this.startLevelEvents()
     }
 
