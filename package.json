@@ -1,6 +1,6 @@
 {
   "name": "voice-vault",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Record, transcribe, summarize, and organize voice recordings — all on-device",
   "main": "./out/main/index.js",
   "author": "VoiceVault Contributors",

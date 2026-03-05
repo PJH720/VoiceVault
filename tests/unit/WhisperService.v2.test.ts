@@ -88,7 +88,7 @@ describe('WhisperService — extended', () => {
     const pcm = Buffer.alloc(16000 * 2 * 2, 0)
     const segments = await service.transcribeChunk(pcm, 16000, Date.now())
     // Silent audio should produce no segments (or empty)
-    expect(segments.every(s => s.text === '[speech detected]' || s.text === '')).toBe(true)
+    expect(segments.every((s) => s.text === '[speech detected]' || s.text === '')).toBe(true)
   })
 
   it('handles resampling from different sample rate', async () => {

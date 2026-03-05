@@ -5,9 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({
   BrowserWindow: {
-    getAllWindows: () => [
-      { webContents: { send: vi.fn() } }
-    ]
+    getAllWindows: () => [{ webContents: { send: vi.fn() } }]
   }
 }))
 
@@ -30,7 +28,7 @@ describe('AudioCaptureService — extended', () => {
 
   it('enters fallback mode when native-audio-node is unavailable', async () => {
     await service.startRecording(outputDir)
-    expect(service.getCaptureMode()).toBe('fallback')
+    expect(service.getCaptureMode()).toBe('web-audio')
   })
 
   it('throws when starting a second recording', async () => {
