@@ -2,16 +2,14 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { DiarizationChannels } from '../../shared/ipc-channels'
 import type { SpeakerSegment, TranscriptSegment } from '../../shared/types'
 import { DatabaseService } from '../services/DatabaseService'
-import { DiarizationService } from '../services/DiarizationService'
 import { SpeakerProfileService } from '../services/SpeakerProfileService'
-import { registerShutdownCallback } from '../index'
+import { ServiceRegistry } from '../services/ServiceRegistry'
 
 export function registerDiarizationHandlers(
   mainWindow: BrowserWindow,
   databaseService: DatabaseService
 ): void {
-  const diarizationService = new DiarizationService()
-  registerShutdownCallback('DiarizationService', () => diarizationService.destroy())
+  const diarizationService = ServiceRegistry.getDiarizationService()
   const profileService = new SpeakerProfileService(databaseService)
 
   ipcMain.handle(

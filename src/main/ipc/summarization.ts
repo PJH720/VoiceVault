@@ -1,20 +1,17 @@
-import { BrowserWindow, app, ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { LlmChannels } from '../../shared/ipc-channels'
 import type { LlmModelName, SummaryOutput } from '../../shared/types'
-import { getLlmModel, setLlmModel } from '../store'
+import { setLlmModel } from '../store'
 import { DatabaseService } from '../services/DatabaseService'
-import { LLMService } from '../services/LLMService'
 import type { SummaryPromptType } from '../services/PromptService'
+import { ServiceRegistry } from '../services/ServiceRegistry'
 
 export function registerSummarizationHandlers(
   mainWindow: BrowserWindow,
   databaseService: DatabaseService
 ): void {
-  const llmService = new LLMService(getLlmModel())
+  const llmService = ServiceRegistry.getLLMService()
   let cancelled = false
-  app.on('before-quit', () => {
-    void llmService.unload()
-  })
 
   ipcMain.handle(
     LlmChannels.SUMMARIZE_STREAM,

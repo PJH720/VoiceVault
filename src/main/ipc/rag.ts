@@ -1,20 +1,15 @@
 import type { BrowserWindow } from 'electron'
 import { ipcMain } from 'electron'
 import { RagChannels } from '../../shared/ipc-channels'
-import { getLlmModel } from '../store'
 import { DatabaseService } from '../services/DatabaseService'
-import { EmbeddingService } from '../services/EmbeddingService'
-import { LLMService } from '../services/LLMService'
 import { RAGService } from '../services/RAGService'
 import { VectorService } from '../services/VectorService'
-import { registerShutdownCallback } from '../index'
+import { ServiceRegistry } from '../services/ServiceRegistry'
 
 export function registerRAGHandlers(mainWindow: BrowserWindow, databaseService: DatabaseService): void {
-  const embeddingService = new EmbeddingService()
+  const embeddingService = ServiceRegistry.getEmbeddingService()
   const vectorService = new VectorService(databaseService.getConnection())
-  const llmService = new LLMService(getLlmModel())
-  registerShutdownCallback('EmbeddingService', () => embeddingService.destroy())
-  registerShutdownCallback('LLMService (RAG)', () => llmService.unload())
+  const llmService = ServiceRegistry.getLLMService()
   const ragService = new RAGService(embeddingService, vectorService, llmService)
 
   ipcMain.handle(RagChannels.QUERY, async (_event, question: string, topK = 5) => {
