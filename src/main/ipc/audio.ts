@@ -60,4 +60,8 @@ export function registerAudioHandlers(
   ipcMain.handle(AudioChannels.CAPTURE_MODE, async () => {
     return audioService.getCaptureMode()
   })
+
+  ipcMain.on(AudioChannels.SEND_CHUNK, (_event, chunk: ArrayBuffer) => {
+    audioService.receiveAudioChunk(Buffer.from(chunk))
+  })
 }

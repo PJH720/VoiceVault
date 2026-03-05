@@ -53,7 +53,7 @@ export class AudioCaptureService {
   private levelTimer: NodeJS.Timeout | null = null
   private rawChunks: Buffer[] = []
   private metadata: AudioMetadata | null = null
-  private captureMode: 'native' | 'fallback' = 'fallback'
+  private captureMode: 'native' | 'web-audio' | 'fallback' = 'fallback'
   private readonly chunkListeners = new Set<(chunk: Buffer, sampleRate: number) => void>()
 
   public async startRecording(outputDir: string): Promise<string> {
@@ -70,6 +70,7 @@ export class AudioCaptureService {
     this.rawChunks = []
     this.metadata = null
 
+    // Try native first, then fall back to web-audio (renderer sends chunks via IPC)
     try {
       const hasNative = await loadNativeAudio()
       if (!hasNative || !MicrophoneRecorderCtor) {
@@ -98,10 +99,8 @@ export class AudioCaptureService {
       await this.recorder.start()
       this.captureMode = 'native'
     } catch {
-      // native recorder failed, entering fallback mode
-      this.captureMode = 'fallback'
-      this.chunkListeners.clear()
-      this.startLevelEvents()
+      // Native not available — use web-audio mode (renderer captures via MediaRecorder)
+      this.captureMode = 'web-audio'
     }
 
     return this.audioPath
@@ -123,6 +122,9 @@ export class AudioCaptureService {
         this.metadata?.sampleRate ?? SAMPLE_RATE
       )
       fs.writeFileSync(this.audioPath, bytes)
+    } else if (this.captureMode === 'web-audio' && this.rawChunks.length > 0) {
+      const bytes = this.generateWavFromChunks(this.rawChunks, SAMPLE_RATE)
+      fs.writeFileSync(this.audioPath, bytes)
     } else {
       const bytes = this.generateSilentWav(durationSeconds)
       fs.writeFileSync(this.audioPath, bytes)
@@ -135,7 +137,7 @@ export class AudioCaptureService {
     this.recorder = null
     this.rawChunks = []
     this.metadata = null
-    this.captureMode = 'fallback'
+    this.captureMode = 'web-audio'
 
     return {
       audioPath: finishedPath,
@@ -152,8 +154,18 @@ export class AudioCaptureService {
     return this.startedAt
   }
 
-  public getCaptureMode(): 'native' | 'fallback' {
+  public getCaptureMode(): 'native' | 'web-audio' | 'fallback' {
     return this.captureMode
+  }
+
+  /** Receive a PCM audio chunk from the renderer (web-audio mode). */
+  public receiveAudioChunk(pcmData: Buffer): void {
+    if (!this.isRecording || this.captureMode !== 'web-audio') return
+    this.rawChunks.push(pcmData)
+    this.emitLevelFromChunk(pcmData)
+    for (const listener of this.chunkListeners) {
+      listener(pcmData, SAMPLE_RATE)
+    }
   }
 
   public async isNativeAvailable(): Promise<boolean> {
