@@ -41,7 +41,7 @@ export function useRecording(): RecordingState {
       setErrorMessage(t('recording.micPermissionDenied'))
     }
     return granted
-  }, [])
+  }, [t])
 
   const startRecording = useCallback(async (): Promise<void> => {
     setErrorMessage(null)
