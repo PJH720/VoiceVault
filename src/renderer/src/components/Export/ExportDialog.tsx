@@ -10,7 +10,7 @@ import { TemplateSelector } from './TemplateSelector'
 
 type ExportDialogProps = {
   open: boolean
-  recordingId: number
+  recordingId: number | number[]
   onClose: () => void
 }
 
@@ -29,6 +29,11 @@ export function ExportDialog({
   const [preview, setPreview] = useState('')
   const [templates, setTemplates] = useState<ExportTemplateSummary[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+
+  const isBatch = Array.isArray(recordingId)
+  const previewId = isBatch ? recordingId[0] : recordingId
+  const recordingIds = isBatch ? recordingId : [recordingId]
 
   useEffect(() => {
     if (!open) return
@@ -46,16 +51,16 @@ export function ExportDialog({
   }, [open])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || previewId == null) return
     void (async () => {
       try {
-        const result = await window.api.export.preview(recordingId, template)
+        const result = await window.api.export.preview(previewId, template)
         setPreview(result.content)
       } catch (error) {
         setErrorMessage((error as Error).message)
       }
     })()
-  }, [open, recordingId, template])
+  }, [open, previewId, template])
 
   if (!open) return null
 
@@ -78,18 +83,30 @@ export function ExportDialog({
       audioAsAttachment: true,
       generateWikilinks: true
     }
+    setExporting(true)
     try {
-      await window.api.export.obsidian(recordingId, options)
+      if (recordingIds.length === 1) {
+        await window.api.export.obsidian(recordingIds[0], options)
+      } else {
+        await window.api.export.batch(recordingIds, options)
+      }
       onClose()
     } catch (error) {
       setErrorMessage((error as Error).message)
+    } finally {
+      setExporting(false)
     }
   }
 
   return (
     <div className="export-dialog-backdrop">
       <div className="panel export-dialog">
-        <h3>{t('export.title')}</h3>
+        <h3>
+          {t('export.title')}
+          {isBatch && recordingIds.length > 1
+            ? ` (${recordingIds.length} ${t('export.recordings', { count: recordingIds.length })})`
+            : ''}
+        </h3>
         <div className="export-grid">
           <div className="export-controls">
             <TemplateSelector value={template} templates={templates} onChange={setTemplate} />
@@ -128,12 +145,19 @@ export function ExportDialog({
             </label>
             {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
             <div className="export-actions">
-              <button onClick={onClose}>{t('export.cancel')}</button>
-              <button onClick={() => void handleExport()}>{t('export.run')}</button>
+              <button onClick={onClose} disabled={exporting}>
+                {t('export.cancel')}
+              </button>
+              <button onClick={() => void handleExport()} disabled={exporting}>
+                {exporting ? t('export.exporting') : t('export.run')}
+              </button>
             </div>
           </div>
           <div>
-            <label>{t('export.preview')}</label>
+            <label>
+              {t('export.preview')}
+              {isBatch && recordingIds.length > 1 ? ` (${t('export.previewFirst')})` : ''}
+            </label>
             <MarkdownPreview content={preview} />
           </div>
         </div>

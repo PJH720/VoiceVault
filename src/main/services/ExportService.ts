@@ -15,7 +15,11 @@ const TEMPLATE_LABELS: Record<string, string> = {
   'meeting-notes': 'Meeting Notes',
   lecture: 'Lecture Notes',
   interview: 'Interview Transcript',
-  basic: 'Basic'
+  basic: 'Basic',
+  brainstorm: 'Brainstorm',
+  memo: 'Voice Memo',
+  'personal-note': 'Personal Note',
+  podcast: 'Podcast'
 }
 
 export class ExportService {

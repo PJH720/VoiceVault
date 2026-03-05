@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { RecordingDetail } from './RecordingDetail'
 import { RecordingCard } from './RecordingCard'
 import { useLibraryContext } from '../../hooks/useLibraryContext'
@@ -69,7 +70,16 @@ export function LibraryView(): React.JSX.Element {
               onClick={() => void selectRecording(recording.id)}
             />
           ))}
-          {recordings.length === 0 ? <p className="muted">{emptyMessage}</p> : null}
+          {recordings.length === 0 ? (
+            <div className="empty-state">
+              <p className="muted">{emptyMessage}</p>
+              {!searchQuery ? (
+                <Link to="/record" className="btn btn-primary" role="button">
+                  {t('library.emptyCta')}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

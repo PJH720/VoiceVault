@@ -95,7 +95,9 @@ export const RagChannels = {
   QUERY: 'rag:query',
   EMBED_RECORDINGS: 'rag:embed-recordings',
   ON_PROGRESS: 'rag:on-progress',
-  SEARCH_HISTORY: 'search:history'
+  SEARCH_HISTORY: 'search:history',
+  EMBEDDING_MODEL_STATUS: 'rag:embedding-model-status',
+  INDEX_STATUS: 'rag:index-status'
 } as const
 
 export const ExportChannels = {

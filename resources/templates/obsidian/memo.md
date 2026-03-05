@@ -1,4 +1,4 @@
-# {{title}}
+# 📝 {{title}}
 
 **Date:** {{formatDate date}}  
 **Duration:** {{formatDuration duration}}  
@@ -10,7 +10,7 @@
 {{summary}}
 
 {{#if discussionPoints}}
-## Key Topics Covered
+## Key Points
 
 {{#each discussionPoints}}
 - {{this}}
@@ -18,30 +18,22 @@
 {{/if}}
 
 {{#if actionItems}}
-## Follow-up Items
+## Action Items
 
 {{#each actionItems}}
 - [ ] {{task}}{{#if assignee}} (@{{assignee}}){{/if}}{{#if deadline}} — Due: {{deadline}}{{/if}}
 {{/each}}
 {{/if}}
 
-{{#if decisions}}
-## Outcomes / Decisions
-
-{{#each decisions}}
-- {{this}}
-{{/each}}
-{{/if}}
-
-## Interview Transcript
+## Full Transcript
 
 {{#each transcript}}
-{{#if speaker}}**{{speaker}}** ({{formatTime timestamp}}): {{else}}**({{formatTime timestamp}}):** {{/if}}{{text}}
+**({{formatTime timestamp}}):** {{text}}
 
 {{/each}}
 
 {{#if relatedRecordings}}
-## Related Recordings
+## Related
 
 {{#each relatedRecordings}}
 - {{wikilink title}}

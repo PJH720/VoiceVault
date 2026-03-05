@@ -302,6 +302,10 @@ const api = {
       ipcRenderer.invoke(RagChannels.EMBED_RECORDINGS),
     searchHistory: (): Promise<SearchHistoryEntry[]> =>
       ipcRenderer.invoke(RagChannels.SEARCH_HISTORY),
+    embeddingModelStatus: (): Promise<{ available: boolean }> =>
+      ipcRenderer.invoke(RagChannels.EMBEDDING_MODEL_STATUS),
+    indexStatus: (): Promise<{ vectorCount: number }> =>
+      ipcRenderer.invoke(RagChannels.INDEX_STATUS),
     onProgress: (callback: (payload: { current: number; total: number }) => void): (() => void) => {
       const listener = (
         _event: Electron.IpcRendererEvent,

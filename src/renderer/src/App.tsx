@@ -9,6 +9,17 @@ import { LibraryView } from './components/Library/LibraryView'
 import { SearchView } from './components/Search/SearchView'
 import { SettingsView } from './components/Settings/SettingsView'
 
+function RouteErrorBoundary({
+  i18nKey,
+  children
+}: {
+  i18nKey: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  const { t } = useTranslation()
+  return <ErrorBoundary fallbackMessage={t(i18nKey)}>{children}</ErrorBoundary>
+}
+
 function AppContent(): React.JSX.Element {
   const { t } = useTranslation()
   const location = useLocation()
@@ -57,33 +68,33 @@ function AppContent(): React.JSX.Element {
             <Route
               path="/"
               element={
-                <ErrorBoundary fallbackMessage="Couldn't load recordings. Your data is safe — try refreshing.">
+                <RouteErrorBoundary i18nKey="errors.libraryFallback">
                   <LibraryView />
-                </ErrorBoundary>
+                </RouteErrorBoundary>
               }
             />
             <Route
               path="/record"
               element={
-                <ErrorBoundary fallbackMessage="Recording was interrupted. Your audio is saved.">
+                <RouteErrorBoundary i18nKey="errors.recordingFallback">
                   <RecordingView />
-                </ErrorBoundary>
+                </RouteErrorBoundary>
               }
             />
             <Route
               path="/search"
               element={
-                <ErrorBoundary fallbackMessage="Search index unavailable. Try again in a moment.">
+                <RouteErrorBoundary i18nKey="errors.searchFallback">
                   <SearchView />
-                </ErrorBoundary>
+                </RouteErrorBoundary>
               }
             />
             <Route
               path="/settings"
               element={
-                <ErrorBoundary fallbackMessage="Settings couldn't load. Defaults are active.">
+                <RouteErrorBoundary i18nKey="errors.settingsFallback">
                   <SettingsView />
-                </ErrorBoundary>
+                </RouteErrorBoundary>
               }
             />
           </Routes>
