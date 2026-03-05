@@ -14,6 +14,7 @@ const mockGeminiGetGenerativeModel = vi.fn().mockReturnValue({
 
 // Mock the SDK modules
 vi.mock('@anthropic-ai/sdk', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Anthropic = vi.fn(function(this: any) {
     this.messages = mockAnthropicMessages
   })
@@ -21,6 +22,7 @@ vi.mock('@anthropic-ai/sdk', () => {
 })
 
 vi.mock('openai', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const OpenAI = vi.fn(function(this: any) {
     this.chat = {
       completions: {
@@ -32,6 +34,7 @@ vi.mock('openai', () => {
 })
 
 vi.mock('@google/generative-ai', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const GoogleGenerativeAI = vi.fn(function(this: any) {
     this.getGenerativeModel = mockGeminiGetGenerativeModel
   })
