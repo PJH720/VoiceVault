@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useRecordingContext } from '../../hooks/useRecordingContext'
@@ -40,6 +40,21 @@ export function RecordingView(): React.JSX.Element {
   const diarization = useDiarization()
   const lastSummaryRef = useRef('')
 
+  // Keep refs current to avoid timer dep resets
+  const segmentsRef = useRef(transcription.segments)
+  const generateSummaryRef = useRef(summary.generateSummary)
+  const estimateCloudCostRef = useRef(summary.estimateCloudCost)
+
+  useEffect(() => {
+    segmentsRef.current = transcription.segments
+  }, [transcription.segments])
+  useEffect(() => {
+    generateSummaryRef.current = summary.generateSummary
+  }, [summary.generateSummary])
+  useEffect(() => {
+    estimateCloudCostRef.current = summary.estimateCloudCost
+  }, [summary.estimateCloudCost])
+
   // Handle interruptions: warn user and save partial data on window close during recording
   useEffect(() => {
     if (!isRecording) return
@@ -57,23 +72,24 @@ export function RecordingView(): React.JSX.Element {
     lastSummaryRef.current = summary.summary.summary
   }, [summary.summary])
 
+  // 60-second auto-summarization during recording
   useEffect(() => {
     if (!isRecording) return
     const timer = setInterval(() => {
-      const transcript = transcription.segments
+      const transcript = segmentsRef.current
         .map((segment) => segment.text)
         .join(' ')
         .trim()
       if (!transcript) return
       const wordCount = transcript.split(/\s+/).filter(Boolean).length
       if (wordCount < 100) return
-      void summary.estimateCloudCost(transcript)
-      void summary.generateSummary(transcript, 'incremental', lastSummaryRef.current)
-    }, 60000)
+      void estimateCloudCostRef.current(transcript)
+      void generateSummaryRef.current(transcript, 'incremental', lastSummaryRef.current)
+    }, 60_000)
     return () => clearInterval(timer)
-  }, [isRecording, summary, transcription.segments])
+  }, [isRecording])
 
-  const onRecordToggle = async (): Promise<void> => {
+  const onRecordToggle = useCallback(async (): Promise<void> => {
     if (isRecording) {
       const result = await stopRecording()
       await transcription.stopTranscription()
@@ -116,7 +132,17 @@ export function RecordingView(): React.JSX.Element {
     }
     await startRecording()
     await transcription.startTranscription()
-  }
+  }, [
+    isRecording,
+    stopRecording,
+    transcription,
+    summary,
+    diarization,
+    refreshRecordings,
+    selectRecording,
+    navigate,
+    startRecording
+  ])
 
   return (
     <div className="panel">
@@ -129,7 +155,23 @@ export function RecordingView(): React.JSX.Element {
 
       <Waveform levels={levels} isRecording={isRecording} />
 
-      {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <div className="error-block">
+          <p className="error-text">{errorMessage}</p>
+          {errorMessage.includes('permission') || errorMessage.includes('denied') ? (
+            <div className="mic-recovery">
+              <p className="muted">{t('recording.micPermissionRecovery')}</p>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void window.api.openSystemPreferences?.('microphone')}
+              >
+                {t('recording.openSystemSettings')}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {transcription.errorMessage ? (
         <p className="error-text">{transcription.errorMessage}</p>
       ) : null}
@@ -159,6 +201,7 @@ export function RecordingView(): React.JSX.Element {
         streamingText={summary.streamingText}
         isGenerating={summary.isGenerating}
         estimatedCost={summary.estimatedCost}
+        errorMessage={summary.errorMessage}
       />
     </div>
   )

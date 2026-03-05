@@ -35,13 +35,18 @@
     "testSuccess": "Connection successful!",
     "usage": "Usage: {{requests}} requests / ${{cost}}",
     "resetStats": "Reset Stats",
-    "privacyNotice": "Privacy notice: cloud mode sends transcript text to Anthropic for summarization."
+    "privacyNotice": "Privacy notice: cloud mode sends transcript text to Anthropic for summarization.",
+    "firstLaunchTitle": "Getting Started",
+    "firstLaunchWhisper": "Download a Whisper model to enable transcription. We recommend \"small\" for a balance of speed and accuracy.",
+    "firstLaunchLlm": "Download a local LLM model for on-device summarization, or configure a cloud provider below."
   },
   "recording": {
     "start": "Record",
     "stop": "Stop",
     "lastSaved": "Last saved: {{path}} ({{duration}}s)",
-    "micPermissionDenied": "Microphone permission denied."
+    "micPermissionDenied": "Microphone permission denied.",
+    "micPermissionRecovery": "To fix this, open macOS System Settings → Privacy & Security → Microphone, and enable access for VoiceVault.",
+    "openSystemSettings": "Open System Settings"
   },
   "library": {
     "searchPlaceholder": "Search title/transcript...",
@@ -51,7 +56,8 @@
     "viewList": "List",
     "viewGrid": "Grid",
     "refresh": "Refresh",
-    "empty": "No recordings yet. Start recording.",
+    "empty": "No recordings yet.",
+    "emptyCta": "Record your first conversation",
     "emptySearch": "No recordings matched your search.",
     "selectRecording": "Select a recording.",
     "speed": "Speed",
@@ -76,7 +82,13 @@
     "answer": "Answer",
     "sources": "Sources",
     "noSources": "No sources found.",
-    "relevance": "Relevance: {{value}}%"
+    "relevance": "Relevance: {{value}}%",
+    "emptyLibrary": "No recordings indexed yet. Record something first!",
+    "modelRequired": "Embedding model required",
+    "modelRequiredDesc": "Download the embedding model in Settings to enable semantic search.",
+    "goToSettings": "Go to Settings",
+    "errorMessage": "Something went wrong while searching. Please try again.",
+    "viewRecording": "View recording"
   },
   "transcript": {
     "live": "Live Transcript",
@@ -94,6 +106,10 @@
     "emptyActionItems": "No action items.",
     "emptyDiscussionPoints": "No discussion points.",
     "emptyDecisions": "No decisions.",
+    "keyStatements": "Key Statements",
+    "emptyKeyStatements": "No key statements.",
+    "llmUnavailable": "LLM is not available.",
+    "configureLlm": "Configure LLM in Settings to enable summarization.",
     "estimatedCost": "Estimated cost: ${{cost}} ({{input}} in / {{output}} out)"
   },
   "translation": {
@@ -151,7 +167,10 @@
     "cancel": "Cancel",
     "run": "Export",
     "vaultRequired": "Obsidian vault path is required.",
-    "noPreview": "No preview yet."
+    "noPreview": "No preview yet.",
+    "recordings": "recordings",
+    "exporting": "Exporting...",
+    "previewFirst": "showing first"
   },
   "templates": {
     "libraryTitle": "Template Library",
@@ -213,7 +232,11 @@
     "componentCrash": "Something went wrong",
     "unknownError": "An unexpected error occurred",
     "retry": "Try Again",
-    "contextError": "Hook must be used within provider"
+    "contextError": "Hook must be used within provider",
+    "libraryFallback": "Couldn't load recordings. Your data is safe — try refreshing.",
+    "recordingFallback": "Recording was interrupted. Your audio is saved.",
+    "searchFallback": "Search index unavailable. Try again in a moment.",
+    "settingsFallback": "Settings couldn't load. Defaults are active."
   },
   "models": {
     "whisper": {

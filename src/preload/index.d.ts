@@ -180,6 +180,8 @@ interface VoiceVaultApi {
     query: (question: string, topK?: number) => Promise<RAGAnswer>
     embedRecordings: () => Promise<{ success: boolean; embedded: number }>
     searchHistory: () => Promise<SearchHistoryEntry[]>
+    embeddingModelStatus: () => Promise<{ available: boolean }>
+    indexStatus: () => Promise<{ vectorCount: number }>
     onProgress: (callback: (payload: { current: number; total: number }) => void) => () => void
   }
   export: {

@@ -35,13 +35,18 @@
     "testSuccess": "接続成功！",
     "usage": "使用量: {{requests}} リクエスト / ${{cost}}",
     "resetStats": "統計をリセット",
-    "privacyNotice": "プライバシー通知: クラウドモードでは要約のために文字起こしテキストを Anthropic に送信します。"
+    "privacyNotice": "プライバシー通知: クラウドモードでは要約のために文字起こしテキストを Anthropic に送信します。",
+    "firstLaunchTitle": "はじめに",
+    "firstLaunchWhisper": "文字起こしを有効にするには Whisper モデルをダウンロードしてください。速度と精度のバランスが良い \"small\" をお勧めします。",
+    "firstLaunchLlm": "デバイス上で要約するにはローカル LLM モデルをダウンロードするか、以下でクラウドプロバイダーを設定してください。"
   },
   "recording": {
     "start": "録音開始",
     "stop": "停止",
     "lastSaved": "直近の保存: {{path}} ({{duration}}秒)",
-    "micPermissionDenied": "マイクの権限が拒否されました。"
+    "micPermissionDenied": "マイクの権限が拒否されました。",
+    "micPermissionRecovery": "修正するには、macOS システム設定 → プライバシーとセキュリティ → マイクで VoiceVault のアクセスを許可してください。",
+    "openSystemSettings": "システム設定を開く"
   },
   "library": {
     "searchPlaceholder": "タイトル/文字起こしを検索...",
@@ -51,7 +56,8 @@
     "viewList": "リスト",
     "viewGrid": "グリッド",
     "refresh": "更新",
-    "empty": "まだ録音がありません。録音を開始してください。",
+    "empty": "まだ録音がありません。",
+    "emptyCta": "最初の会話を録音しましょう",
     "emptySearch": "検索結果がありません。",
     "selectRecording": "録音を選択してください。",
     "speed": "再生速度",
@@ -76,7 +82,13 @@
     "answer": "回答",
     "sources": "根拠",
     "noSources": "根拠が見つかりませんでした。",
-    "relevance": "関連度: {{value}}%"
+    "relevance": "関連度: {{value}}%",
+    "emptyLibrary": "まだインデックスされた録音がありません。まず録音してみましょう！",
+    "modelRequired": "埋め込みモデルが必要です",
+    "modelRequiredDesc": "セマンティック検索を有効にするには、設定から埋め込みモデルをダウンロードしてください。",
+    "goToSettings": "設定へ移動",
+    "errorMessage": "検索中にエラーが発生しました。もう一度お試しください。",
+    "viewRecording": "録音を表示"
   },
   "transcript": {
     "live": "ライブ文字起こし",
@@ -94,6 +106,10 @@
     "emptyActionItems": "アクションアイテムはありません。",
     "emptyDiscussionPoints": "議論ポイントはありません。",
     "emptyDecisions": "決定事項はありません。",
+    "keyStatements": "重要な発言",
+    "emptyKeyStatements": "重要な発言はありません。",
+    "llmUnavailable": "LLMが利用できません。",
+    "configureLlm": "設定でLLMを構成して要約機能を有効にしてください。",
     "estimatedCost": "推定コスト: ${{cost}} (入力 {{input}} / 出力 {{output}})"
   },
   "translation": {
@@ -151,7 +167,10 @@
     "cancel": "キャンセル",
     "run": "エクスポート",
     "vaultRequired": "Obsidian Vault のパスが必要です。",
-    "noPreview": "プレビューはまだありません。"
+    "noPreview": "プレビューはまだありません。",
+    "recordings": "件の録音",
+    "exporting": "エクスポート中...",
+    "previewFirst": "最初のプレビュー"
   },
   "templates": {
     "libraryTitle": "テンプレートライブラリ",
@@ -213,7 +232,11 @@
     "componentCrash": "問題が発生しました",
     "unknownError": "予期しないエラーが発生しました",
     "retry": "もう一度試す",
-    "contextError": "Provider 内で Hook を使用する必要があります"
+    "contextError": "Provider 内で Hook を使用する必要があります",
+    "libraryFallback": "録音を読み込めません。データは安全です — 更新してみてください。",
+    "recordingFallback": "録音が中断されました。音声は保存されています。",
+    "searchFallback": "検索インデックスが利用できません。しばらくしてから再試行してください。",
+    "settingsFallback": "設定を読み込めません。デフォルト値が適用されています。"
   },
   "models": {
     "whisper": {

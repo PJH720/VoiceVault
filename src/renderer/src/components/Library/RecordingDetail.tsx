@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { RecordingWithTranscript } from '../../../../shared/types'
+import type { RecordingTemplate, RecordingWithTranscript } from '../../../../shared/types'
 import { useAudioPlayer } from '../../hooks/useAudioPlayer'
 import { ExportDialog } from '../Export/ExportDialog'
+import { ClassificationBadge } from '../Templates/ClassificationBadge'
 import { SegmentRow } from '../Transcript/SegmentRow'
 
 type RecordingDetailProps = {
@@ -14,6 +15,21 @@ export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): 
   const { t } = useTranslation()
   const player = useAudioPlayer()
   const [isExportOpen, setIsExportOpen] = useState(false)
+  const [template, setTemplate] = useState<RecordingTemplate | null>(null)
+
+  useEffect(() => {
+    const loadTemplate = async (): Promise<void> => {
+      if (!recording?.templateId) {
+        setTemplate(null)
+        return
+      }
+      const result = await window.api.templates.get(recording.templateId)
+      setTemplate(result)
+    }
+    // Async data loading on mount — setState is intentional
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTemplate()
+  }, [recording?.templateId])
   const formatTime = (value: number): string => {
     const safe = Number.isFinite(value) && value >= 0 ? value : 0
     const total = Math.floor(safe)
@@ -35,6 +51,17 @@ export function RecordingDetail({ recording, onDelete }: RecordingDetailProps): 
   return (
     <div className="panel">
       <h3>{recording.title}</h3>
+      <div className="recording-meta">
+        <ClassificationBadge
+          templateId={recording.templateId}
+          confidence={recording.classificationConfidence}
+        />
+        {template ? (
+          <span className="muted">
+            {template.icon} {template.name}
+          </span>
+        ) : null}
+      </div>
       <p className="muted">{recording.audioPath}</p>
 
       <div className="playback-controls">

@@ -1,39 +1,31 @@
-# {{title}}
+# 🎙️ {{title}}
 
 **Date:** {{formatDate date}}  
 **Duration:** {{formatDuration duration}}  
 {{#if category}}**Category:** {{category}}  {{/if}}
 {{#if tags}}**Tags:** {{#each tags}}#{{this}} {{/each}}{{/if}}
 
-## Summary
+## Episode Summary
 
 {{summary}}
 
 {{#if discussionPoints}}
-## Key Topics Covered
+## Topics Discussed
 
 {{#each discussionPoints}}
 - {{this}}
 {{/each}}
 {{/if}}
 
-{{#if actionItems}}
-## Follow-up Items
-
-{{#each actionItems}}
-- [ ] {{task}}{{#if assignee}} (@{{assignee}}){{/if}}{{#if deadline}} — Due: {{deadline}}{{/if}}
-{{/each}}
-{{/if}}
-
 {{#if decisions}}
-## Outcomes / Decisions
+## Key Takeaways
 
 {{#each decisions}}
 - {{this}}
 {{/each}}
 {{/if}}
 
-## Interview Transcript
+## Transcript
 
 {{#each transcript}}
 {{#if speaker}}**{{speaker}}** ({{formatTime timestamp}}): {{else}}**({{formatTime timestamp}}):** {{/if}}{{text}}
@@ -41,7 +33,7 @@
 {{/each}}
 
 {{#if relatedRecordings}}
-## Related Recordings
+## Related Episodes
 
 {{#each relatedRecordings}}
 - {{wikilink title}}

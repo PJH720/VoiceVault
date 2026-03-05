@@ -35,13 +35,18 @@
     "testSuccess": "연결 성공!",
     "usage": "사용량: 요청 {{requests}}회 / ${{cost}}",
     "resetStats": "통계 초기화",
-    "privacyNotice": "개인정보 안내: 클라우드 모드에서는 요약을 위해 전사 텍스트가 Anthropic으로 전송됩니다."
+    "privacyNotice": "개인정보 안내: 클라우드 모드에서는 요약을 위해 전사 텍스트가 Anthropic으로 전송됩니다.",
+    "firstLaunchTitle": "시작하기",
+    "firstLaunchWhisper": "전사를 사용하려면 Whisper 모델을 다운로드하세요. 속도와 정확도의 균형을 위해 \"small\"을 권장합니다.",
+    "firstLaunchLlm": "로컬 LLM 모델을 다운로드하면 기기에서 요약할 수 있습니다. 또는 아래에서 클라우드 제공자를 설정하세요."
   },
   "recording": {
     "start": "녹음 시작",
     "stop": "중지",
     "lastSaved": "최근 저장: {{path}} ({{duration}}초)",
-    "micPermissionDenied": "마이크 권한이 거부되었습니다."
+    "micPermissionDenied": "마이크 권한이 거부되었습니다.",
+    "micPermissionRecovery": "해결 방법: macOS 시스템 설정 → 개인정보 보호 및 보안 → 마이크에서 VoiceVault 접근을 허용해 주세요.",
+    "openSystemSettings": "시스템 설정 열기"
   },
   "library": {
     "searchPlaceholder": "제목/전사 검색...",
@@ -51,7 +56,8 @@
     "viewList": "목록",
     "viewGrid": "그리드",
     "refresh": "새로고침",
-    "empty": "아직 녹음이 없습니다. 녹음을 시작해 보세요.",
+    "empty": "아직 녹음이 없습니다.",
+    "emptyCta": "첫 대화를 녹음해 보세요",
     "emptySearch": "검색 결과가 없습니다.",
     "selectRecording": "녹음을 선택하세요.",
     "speed": "배속",
@@ -76,7 +82,13 @@
     "answer": "답변",
     "sources": "근거",
     "noSources": "근거를 찾지 못했습니다.",
-    "relevance": "관련도: {{value}}%"
+    "relevance": "관련도: {{value}}%",
+    "emptyLibrary": "아직 인덱싱된 녹음이 없습니다. 먼저 녹음해 보세요!",
+    "modelRequired": "임베딩 모델 필요",
+    "modelRequiredDesc": "시맨틱 검색을 사용하려면 설정에서 임베딩 모델을 다운로드하세요.",
+    "goToSettings": "설정으로 이동",
+    "errorMessage": "검색 중 오류가 발생했습니다. 다시 시도해 주세요.",
+    "viewRecording": "녹음 보기"
   },
   "transcript": {
     "live": "실시간 전사",
@@ -94,6 +106,10 @@
     "emptyActionItems": "액션 아이템이 없습니다.",
     "emptyDiscussionPoints": "논의 포인트가 없습니다.",
     "emptyDecisions": "결정 사항이 없습니다.",
+    "keyStatements": "주요 발언",
+    "emptyKeyStatements": "주요 발언이 없습니다.",
+    "llmUnavailable": "LLM을 사용할 수 없습니다.",
+    "configureLlm": "설정에서 LLM을 구성하여 요약 기능을 활성화하세요.",
     "estimatedCost": "예상 비용: ${{cost}} (입력 {{input}} / 출력 {{output}})"
   },
   "translation": {
@@ -151,7 +167,10 @@
     "cancel": "취소",
     "run": "내보내기",
     "vaultRequired": "Obsidian 볼트 경로가 필요합니다.",
-    "noPreview": "미리보기가 없습니다."
+    "noPreview": "미리보기가 없습니다.",
+    "recordings": "개 녹음",
+    "exporting": "내보내는 중...",
+    "previewFirst": "첫 번째 미리보기"
   },
   "templates": {
     "libraryTitle": "템플릿 라이브러리",
@@ -213,7 +232,11 @@
     "componentCrash": "문제가 발생했습니다",
     "unknownError": "예기치 않은 오류가 발생했습니다",
     "retry": "다시 시도",
-    "contextError": "Provider 내에서 Hook을 사용해야 합니다"
+    "contextError": "Provider 내에서 Hook을 사용해야 합니다",
+    "libraryFallback": "녹음을 불러올 수 없습니다. 데이터는 안전합니다 — 새로고침해 보세요.",
+    "recordingFallback": "녹음이 중단되었습니다. 오디오는 저장되었습니다.",
+    "searchFallback": "검색 인덱스를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+    "settingsFallback": "설정을 불러올 수 없습니다. 기본값이 적용됩니다."
   },
   "models": {
     "whisper": {

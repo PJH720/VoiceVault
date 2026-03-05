@@ -47,4 +47,14 @@ export function registerRAGHandlers(
   ipcMain.handle(RagChannels.SEARCH_HISTORY, () => {
     return databaseService.listSearchHistory(20)
   })
+
+  ipcMain.handle(RagChannels.EMBEDDING_MODEL_STATUS, async () => {
+    const available = await embeddingService.isModelAvailable()
+    return { available }
+  })
+
+  ipcMain.handle(RagChannels.INDEX_STATUS, () => {
+    const count = vectorService.getVectorCount()
+    return { vectorCount: count }
+  })
 }

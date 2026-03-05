@@ -35,6 +35,13 @@ export function SettingsView(): React.JSX.Element {
 
   return (
     <div className="settings-stack">
+      {!transcription.modelAvailable && !summary.modelAvailable ? (
+        <div className="panel first-launch-guide">
+          <h3>{t('settings.firstLaunchTitle')}</h3>
+          <p className="muted">{t('settings.firstLaunchWhisper')}</p>
+          <p className="muted">{t('settings.firstLaunchLlm')}</p>
+        </div>
+      ) : null}
       <div className="panel">
         <h3>{t('settings.preferences')}</h3>
         <LanguagePicker />
