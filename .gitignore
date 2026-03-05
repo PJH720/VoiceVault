@@ -55,6 +55,17 @@ Desktop.ini
 .serena/
 .claude/
 .eslintcache
+AGENTS.md
+CLAUDE.md
+CHANGELOG.md
+TRANSLATING.md
+issue-171-prompt.txt
+issue-177-prompt.txt
+issue-179-prompt.txt
+issue-181-prompt.txt
+issue-182-prompt.txt
+prompt-184.txt
+docs/
 
 # Logs
 *.log
