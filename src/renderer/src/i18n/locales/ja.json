@@ -30,6 +30,9 @@
     "cloudModel": "クラウドモデル",
     "localOnly": "ローカル専用モード",
     "localOnlyDesc": "有効にするとクラウドリクエストをブロックします。",
+    "localOnlyTooltip": "ローカル専用モードでは、すべての処理（文字起こし、要約）がデバイス上で行われます。外部サーバーにデータは送信されません。最大限のプライバシーのために有効にしてください。",
+    "testConnection": "接続テスト",
+    "testSuccess": "接続成功！",
     "usage": "使用量: {{requests}} リクエスト / ${{cost}}",
     "resetStats": "統計をリセット",
     "privacyNotice": "プライバシー通知: クラウドモードでは要約のために文字起こしテキストを Anthropic に送信します。"

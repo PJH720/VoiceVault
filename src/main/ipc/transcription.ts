@@ -1,7 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { WhisperChannels } from '../../shared/ipc-channels'
 import type { TranscriptSegment, WhisperModelSize } from '../../shared/types'
-import { setWhisperModel } from '../store'
 import { DatabaseService } from '../services/DatabaseService'
 import { ServiceRegistry } from '../services/ServiceRegistry'
 
@@ -62,6 +61,10 @@ export function registerTranscriptionHandlers(
   })
 
   ipcMain.handle(WhisperChannels.DOWNLOAD_MODEL, async (event, modelSize: WhisperModelSize) => {
+    const VALID: string[] = ['base', 'small', 'medium', 'large-v3-turbo']
+    if (modelSize != null && (typeof modelSize !== 'string' || !VALID.includes(modelSize))) {
+      throw new Error(`Invalid model size "${modelSize}"`)
+    }
     const size = modelSize ?? whisperService.getModelSize()
     await whisperService.downloadModel(size, (percent) => {
       event.sender.send(WhisperChannels.ON_DOWNLOAD_PROGRESS, {
@@ -78,22 +81,18 @@ export function registerTranscriptionHandlers(
     return { modelSize: requested, available }
   })
 
-  ipcMain.handle(WhisperChannels.SET_MODEL, async (_event, modelSize: WhisperModelSize) => {
-    setWhisperModel(modelSize)
-    whisperService.setModelSize(modelSize)
-    return { modelSize }
-  })
-
-  ipcMain.handle(WhisperChannels.GET_MODEL, () => {
-    return {
-      modelSize: whisperService.getModelSize(),
-      supported: whisperService.listSupportedModels()
-    }
-  })
+  // Dead channels whisper:set-model and whisper:get-model removed (issue #214).
+  // Use settings:set-whisper-model / settings:get-whisper-model instead.
 
   ipcMain.handle(
     WhisperChannels.SAVE_SEGMENTS,
     (_event, recordingId: number, segments?: TranscriptSegment[]) => {
+      if (typeof recordingId !== 'number' || !Number.isFinite(recordingId)) {
+        throw new Error('Invalid recordingId')
+      }
+      if (segments != null && !Array.isArray(segments)) {
+        throw new Error('Segments must be an array')
+      }
       const source = segments && segments.length > 0 ? segments : bufferedSegments
       const inserted = databaseService.insertTranscriptSegments(recordingId, source)
       bufferedSegments = []
@@ -102,6 +101,9 @@ export function registerTranscriptionHandlers(
   )
 
   ipcMain.handle(WhisperChannels.LIST_SEGMENTS, (_event, recordingId: number) => {
+    if (typeof recordingId !== 'number' || !Number.isFinite(recordingId)) {
+      throw new Error('Invalid recordingId')
+    }
     return databaseService.listTranscriptSegments(recordingId)
   })
 

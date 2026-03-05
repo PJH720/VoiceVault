@@ -60,20 +60,41 @@ export function registerClassificationHandlers(databaseService: DatabaseService)
   )
 
   ipcMain.handle(ClassificationChannels.TEMPLATES_LIST, async () => templateManager.listTemplates())
-  ipcMain.handle(ClassificationChannels.TEMPLATES_GET, async (_event, id: string) =>
-    templateManager.getTemplate(id)
-  )
-  ipcMain.handle(ClassificationChannels.TEMPLATES_CREATE, async (_event, input) =>
-    templateManager.createTemplate(input)
-  )
-  ipcMain.handle(ClassificationChannels.TEMPLATES_UPDATE, async (_event, id: string, updates) =>
-    templateManager.updateTemplate(id, updates)
-  )
+  ipcMain.handle(ClassificationChannels.TEMPLATES_GET, async (_event, id: string) => {
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Template id must be a non-empty string')
+    }
+    return templateManager.getTemplate(id)
+  })
+  ipcMain.handle(ClassificationChannels.TEMPLATES_CREATE, async (_event, input) => {
+    if (input == null || typeof input !== 'object') {
+      throw new Error('Template input must be an object')
+    }
+    if (typeof input.name !== 'string' || input.name.trim().length === 0) {
+      throw new Error('Template name must be a non-empty string')
+    }
+    return templateManager.createTemplate(input)
+  })
+  ipcMain.handle(ClassificationChannels.TEMPLATES_UPDATE, async (_event, id: string, updates) => {
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Template id must be a non-empty string')
+    }
+    if (updates == null || typeof updates !== 'object') {
+      throw new Error('Updates must be an object')
+    }
+    return templateManager.updateTemplate(id, updates)
+  })
   ipcMain.handle(ClassificationChannels.TEMPLATES_DELETE, async (_event, id: string) => {
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Template id must be a non-empty string')
+    }
     await templateManager.deleteTemplate(id)
     return { success: true }
   })
   ipcMain.handle(ClassificationChannels.TEMPLATES_EXPORT, async (_event, id: string) => {
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Template id must be a non-empty string')
+    }
     return { json: await templateManager.exportTemplate(id) }
   })
 }

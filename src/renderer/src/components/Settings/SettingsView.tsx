@@ -11,6 +11,7 @@ import { useTranscription } from '../../hooks/useTranscription'
 export function SettingsView(): React.JSX.Element {
   const { t } = useTranslation()
   const [version, setVersion] = useState('')
+  const [vaultPath, setVaultPath] = useState<string | null>(null)
   const transcription = useTranscription()
   const summary = useSummary()
 
@@ -19,7 +20,18 @@ export function SettingsView(): React.JSX.Element {
       .getVersion()
       .then(setVersion)
       .catch(() => setVersion('-'))
+    window.api.export
+      .getVaultPath()
+      .then((result) => setVaultPath(result.path))
+      .catch(() => setVaultPath(null))
   }, [])
+
+  const selectVaultPath = async (): Promise<void> => {
+    const result = await window.api.export.setVaultPath()
+    if (result.path) {
+      setVaultPath(result.path)
+    }
+  }
 
   return (
     <div className="settings-stack">
@@ -76,6 +88,15 @@ export function SettingsView(): React.JSX.Element {
         <p className="muted">
           {t('settings.version')}: {version}
         </p>
+      </div>
+
+      <div className="panel">
+        <h3>{t('export.title')}</h3>
+        <div className="settings-row">
+          <label>{t('export.vault')}</label>
+          <span className="muted">{vaultPath ?? t('export.vaultNotSelected')}</span>
+          <button onClick={() => void selectVaultPath()}>{t('export.select')}</button>
+        </div>
       </div>
 
       <LLMSettings />

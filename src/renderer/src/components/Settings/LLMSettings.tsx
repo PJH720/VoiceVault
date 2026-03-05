@@ -93,6 +93,7 @@ export function LLMSettings(): React.JSX.Element {
           {t('settings.save')}
         </button>
       </div>
+      {openaiKeyError ? <p className="error-text">{openaiKeyError}</p> : null}
       {maskedOpenaiKey ? (
         <p className="muted">
           {t('settings.currentKey')}: {maskedOpenaiKey}
@@ -113,6 +114,7 @@ export function LLMSettings(): React.JSX.Element {
           {t('settings.save')}
         </button>
       </div>
+      {geminiKeyError ? <p className="error-text">{geminiKeyError}</p> : null}
       {maskedGeminiKey ? (
         <p className="muted">
           {t('settings.currentKey')}: {maskedGeminiKey}
@@ -144,6 +146,20 @@ export function LLMSettings(): React.JSX.Element {
             <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
           </optgroup>
         </select>
+      </div>
+
+      <div className="settings-row">
+        <button
+          onClick={() => void testConnection()}
+          disabled={testingConnection || summary.localOnlyMode}
+        >
+          {testingConnection ? `${t('settings.testConnection')}…` : t('settings.testConnection')}
+        </button>
+        {testResult ? (
+          <span className={testResult.success ? 'success-text' : 'error-text'}>
+            {testResult.message}
+          </span>
+        ) : null}
       </div>
 
       <PrivacyToggle enabled={summary.localOnlyMode} onChange={summary.setLocalOnlyMode} />
