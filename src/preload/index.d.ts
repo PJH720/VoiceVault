@@ -65,6 +65,7 @@ interface VoiceVaultApi {
   getAppPath: (name: AppPathName) => Promise<string>
   getVersion: () => Promise<string>
   reportError: (report: { message: string; stack?: string; page?: string }) => Promise<void>
+  openSystemPreferences?: (pane: string) => Promise<void>
   getLocale: () => Promise<SupportedLocale>
   setLocale: (locale: SupportedLocale) => Promise<SupportedLocale>
   getWhisperModel: () => Promise<WhisperModelSize>
