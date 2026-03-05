@@ -80,7 +80,10 @@ export interface RecordingResult {
 
 export type WhisperModelSize = 'base' | 'small' | 'medium' | 'large-v3-turbo'
 export type LlmModelName = 'gemma-2-3n-instruct-q4_k_m' | 'llama-3.2-3b-instruct-q4_k_m'
-export type CloudModelName =
+
+export type LlmProvider = 'local' | 'anthropic' | 'openai' | 'gemini'
+
+export type AnthropicModelName =
   | 'claude-sonnet-4-5-20250514'
   | 'claude-opus-4-6-20250612'
   | 'claude-haiku-3-5-20241022'
@@ -88,6 +91,12 @@ export type CloudModelName =
   | 'claude-3-5-sonnet-20241022'
   | 'claude-3-opus-20240229'
   | 'claude-3-haiku-20240307'
+
+export type OpenAIModelName = 'gpt-4o' | 'gpt-4o-mini'
+
+export type GeminiModelName = 'gemini-2.5-flash' | 'gemini-2.5-pro'
+
+export type CloudModelName = AnthropicModelName | OpenAIModelName | GeminiModelName
 
 export interface TranscriptWord {
   word: string
@@ -244,7 +253,7 @@ export interface SummaryOutput {
   keyStatements: SummaryKeyStatement[]
   decisions: string[]
   metadata?: {
-    provider: 'local' | 'anthropic'
+    provider: LlmProvider
     model?: string
     inputTokens?: number
     outputTokens?: number

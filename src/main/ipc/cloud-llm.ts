@@ -1,11 +1,13 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { CloudLlmChannels } from '../../shared/ipc-channels'
-import type { CloudModelName } from '../../shared/types'
+import type { CloudModelName, AnthropicModelName, OpenAIModelName, GeminiModelName } from '../../shared/types'
 import { CloudLLMService } from '../services/CloudLLMService'
 import { CostEstimator } from '../services/CostEstimator'
 import {
   addUsage,
   getAnthropicApiKey,
+  getOpenAIApiKey,
+  getGeminiApiKey,
   getCloudModel,
   getLocalOnlyMode,
   getPreferredLlmProvider,
@@ -13,10 +15,24 @@ import {
   maskApiKey,
   resetUsageStats,
   setAnthropicApiKey,
+  setOpenAIApiKey,
+  setGeminiApiKey,
   setCloudModel,
   setLocalOnlyMode,
   setPreferredLlmProvider
 } from '../store'
+
+function isAnthropicModel(model: CloudModelName): model is AnthropicModelName {
+  return model.startsWith('claude-')
+}
+
+function isOpenAIModel(model: CloudModelName): model is OpenAIModelName {
+  return model.startsWith('gpt-')
+}
+
+function isGeminiModel(model: CloudModelName): model is GeminiModelName {
+  return model.startsWith('gemini-')
+}
 
 export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(CloudLlmChannels.SET_API_KEY, (_event, key: string) => {
@@ -29,16 +45,53 @@ export function registerCloudLlmHandlers(mainWindow: BrowserWindow): void {
     return { key: maskApiKey(key) }
   })
 
+  ipcMain.handle(CloudLlmChannels.SET_OPENAI_API_KEY, (_event, key: string) => {
+    setOpenAIApiKey(key.trim())
+    return { success: true }
+  })
+
+  ipcMain.handle(CloudLlmChannels.GET_OPENAI_API_KEY, () => {
+    const key = getOpenAIApiKey()
+    return { key: maskApiKey(key) }
+  })
+
+  ipcMain.handle(CloudLlmChannels.SET_GEMINI_API_KEY, (_event, key: string) => {
+    setGeminiApiKey(key.trim())
+    return { success: true }
+  })
+
+  ipcMain.handle(CloudLlmChannels.GET_GEMINI_API_KEY, () => {
+    const key = getGeminiApiKey()
+    return { key: maskApiKey(key) }
+  })
+
   ipcMain.handle(CloudLlmChannels.SUMMARIZE, async (_event, transcript: string, model?: CloudModelName) => {
     if (getLocalOnlyMode()) {
       throw new Error('Cloud LLM disabled in local-only mode')
     }
-    const apiKey = getAnthropicApiKey()
-    const service = new CloudLLMService(apiKey)
+    const anthropicApiKey = getAnthropicApiKey()
+    const openaiApiKey = getOpenAIApiKey()
+    const geminiApiKey = getGeminiApiKey()
+    const service = new CloudLLMService(anthropicApiKey, openaiApiKey, geminiApiKey)
     const selectedModel = model ?? getCloudModel()
-    const output = await service.summarize(transcript, selectedModel, (token) => {
-      mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
-    })
+
+    let output
+    if (isAnthropicModel(selectedModel)) {
+      output = await service.summarize(transcript, selectedModel, (token) => {
+        mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
+      })
+    } else if (isOpenAIModel(selectedModel)) {
+      output = await service.summarizeWithOpenAI(transcript, selectedModel, (token) => {
+        mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
+      })
+    } else if (isGeminiModel(selectedModel)) {
+      output = await service.summarizeWithGemini(transcript, selectedModel, (token) => {
+        mainWindow.webContents.send(CloudLlmChannels.ON_TOKEN, token)
+      })
+    } else {
+      throw new Error(`Unsupported model: ${selectedModel}`)
+    }
+
     addUsage(output.metadata?.cost ?? 0)
     mainWindow.webContents.send(CloudLlmChannels.ON_COMPLETE, output)
     return { success: true, output }

@@ -9,9 +9,15 @@ export function LLMSettings(): React.JSX.Element {
   const summary = useSummary()
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [maskedKey, setMaskedKey] = useState<string | null>(null)
+  const [openaiApiKeyInput, setOpenaiApiKeyInput] = useState('')
+  const [maskedOpenaiKey, setMaskedOpenaiKey] = useState<string | null>(null)
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('')
+  const [maskedGeminiKey, setMaskedGeminiKey] = useState<string | null>(null)
 
   useEffect(() => {
     void summary.getMaskedApiKey().then(setMaskedKey)
+    void window.api.cloudLLM.getOpenAIApiKey().then((result) => setMaskedOpenaiKey(result.key))
+    void window.api.cloudLLM.getGeminiApiKey().then((result) => setMaskedGeminiKey(result.key))
   }, [summary])
 
   const saveApiKey = async (): Promise<void> => {
@@ -19,6 +25,22 @@ export function LLMSettings(): React.JSX.Element {
     await summary.setApiKey(apiKeyInput.trim())
     setApiKeyInput('')
     setMaskedKey(await summary.getMaskedApiKey())
+  }
+
+  const saveOpenaiApiKey = async (): Promise<void> => {
+    if (!openaiApiKeyInput.trim()) return
+    await window.api.cloudLLM.setOpenAIApiKey(openaiApiKeyInput.trim())
+    setOpenaiApiKeyInput('')
+    const result = await window.api.cloudLLM.getOpenAIApiKey()
+    setMaskedOpenaiKey(result.key)
+  }
+
+  const saveGeminiApiKey = async (): Promise<void> => {
+    if (!geminiApiKeyInput.trim()) return
+    await window.api.cloudLLM.setGeminiApiKey(geminiApiKeyInput.trim())
+    setGeminiApiKeyInput('')
+    const result = await window.api.cloudLLM.getGeminiApiKey()
+    setMaskedGeminiKey(result.key)
   }
 
   return (
@@ -38,7 +60,7 @@ export function LLMSettings(): React.JSX.Element {
       </div>
 
       <div className="settings-row">
-        <label htmlFor="api-key">{t('settings.apiKey')}</label>
+        <label htmlFor="api-key">{t('settings.apiKey')} (Anthropic)</label>
         <input
           id="api-key"
           type="password"
@@ -54,6 +76,38 @@ export function LLMSettings(): React.JSX.Element {
       {maskedKey ? <p className="muted">{t('settings.currentKey')}: {maskedKey}</p> : null}
 
       <div className="settings-row">
+        <label htmlFor="openai-api-key">OpenAI API Key</label>
+        <input
+          id="openai-api-key"
+          type="password"
+          placeholder="sk-..."
+          value={openaiApiKeyInput}
+          onChange={(event) => setOpenaiApiKeyInput(event.target.value)}
+          disabled={summary.localOnlyMode}
+        />
+        <button onClick={() => void saveOpenaiApiKey()} disabled={summary.localOnlyMode}>
+          {t('settings.save')}
+        </button>
+      </div>
+      {maskedOpenaiKey ? <p className="muted">{t('settings.currentKey')}: {maskedOpenaiKey}</p> : null}
+
+      <div className="settings-row">
+        <label htmlFor="gemini-api-key">Gemini API Key</label>
+        <input
+          id="gemini-api-key"
+          type="password"
+          placeholder="AI..."
+          value={geminiApiKeyInput}
+          onChange={(event) => setGeminiApiKeyInput(event.target.value)}
+          disabled={summary.localOnlyMode}
+        />
+        <button onClick={() => void saveGeminiApiKey()} disabled={summary.localOnlyMode}>
+          {t('settings.save')}
+        </button>
+      </div>
+      {maskedGeminiKey ? <p className="muted">{t('settings.currentKey')}: {maskedGeminiKey}</p> : null}
+
+      <div className="settings-row">
         <label htmlFor="cloud-model">{t('settings.cloudModel')}</label>
         <select
           id="cloud-model"
@@ -61,9 +115,22 @@ export function LLMSettings(): React.JSX.Element {
           onChange={(event) => void summary.switchCloudModel(event.target.value as CloudModelName)}
           disabled={summary.localOnlyMode}
         >
-          <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-          <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-          <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+          <optgroup label="Anthropic">
+            <option value="claude-sonnet-4-5-20250514">Claude Sonnet 4.5</option>
+            <option value="claude-opus-4-6-20250612">Claude Opus 4.6</option>
+            <option value="claude-haiku-3-5-20241022">Claude Haiku 3.5</option>
+            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+            <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+            <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+          </optgroup>
+          <optgroup label="OpenAI">
+            <option value="gpt-4o">GPT-4o</option>
+            <option value="gpt-4o-mini">GPT-4o Mini</option>
+          </optgroup>
+          <optgroup label="Google">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          </optgroup>
         </select>
       </div>
 
