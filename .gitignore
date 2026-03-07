@@ -75,3 +75,9 @@ pnpm-debug.log*
 # Misc
 *.tmp
 *~
+
+# macOS metadata
+._*
+.DS_Store
+.AppleDouble
+.LSOverride

@@ -1,5 +1,62 @@
-import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
+
+// Inlined from @electron-toolkit/preload to avoid electron-vite externalization issue
+const electronAPI = {
+  ipcRenderer: {
+    send(channel: string, ...args: unknown[]): void {
+      ipcRenderer.send(channel, ...args)
+    },
+    sendSync(channel: string, ...args: unknown[]): unknown {
+      return ipcRenderer.sendSync(channel, ...args)
+    },
+    invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+      return ipcRenderer.invoke(channel, ...args)
+    },
+    on(
+      channel: string,
+      listener: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
+    ): void {
+      ipcRenderer.on(channel, listener)
+    },
+    once(
+      channel: string,
+      listener: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
+    ): void {
+      ipcRenderer.once(channel, listener)
+    },
+    removeListener(
+      channel: string,
+      listener: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
+    ): void {
+      ipcRenderer.removeListener(channel, listener)
+    },
+    removeAllListeners(channel: string): void {
+      ipcRenderer.removeAllListeners(channel)
+    }
+  },
+  webFrame: {
+    insertCSS(css: string): string {
+      return webFrame.insertCSS(css)
+    },
+    setZoomFactor(factor: number): void {
+      webFrame.setZoomFactor(factor)
+    },
+    setZoomLevel(level: number): void {
+      webFrame.setZoomLevel(level)
+    }
+  },
+  process: {
+    get platform(): NodeJS.Platform {
+      return process.platform
+    },
+    get versions(): NodeJS.ProcessVersions {
+      return process.versions
+    },
+    get env(): NodeJS.ProcessEnv {
+      return process.env
+    }
+  }
+}
 import {
   AppChannels,
   AudioChannels,

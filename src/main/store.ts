@@ -45,89 +45,77 @@ const defaults: StoreShape = {
   translationTargetLanguage: 'en'
 }
 
+// electron-store@11 / conf@15 expects per-key JSON Schema definitions (not a full JSON Schema object).
+// Each key maps to a { type, ... } schema validated individually by ajv@8 (JSON Schema 2020-12).
 const schema = {
-  type: 'object',
-  properties: {
-    locale: {
-      type: 'string',
-      enum: ['ko', 'en', 'ja']
-    },
-    whisperModel: {
-      type: 'string',
-      enum: ['base', 'small', 'medium', 'large-v3-turbo']
-    },
-    llmModel: {
-      type: 'string',
-      enum: ['gemma-2-3n-instruct-q4_k_m', 'llama-3.2-3b-instruct-q4_k_m']
-    },
-    anthropicApiKey: {
-      type: 'string'
-    },
-    openaiApiKey: {
-      type: 'string'
-    },
-    geminiApiKey: {
-      type: 'string'
-    },
-    preferredLlmProvider: {
-      type: 'string',
-      enum: ['local', 'cloud']
-    },
-    cloudModel: {
-      type: 'string',
-      enum: [
-        'claude-sonnet-4-5-20250514',
-        'claude-opus-4-6-20250612',
-        'claude-haiku-3-5-20241022',
-        'claude-3-5-sonnet-20241022',
-        'claude-3-opus-20240229',
-        'claude-3-haiku-20240307',
-        'gpt-4o',
-        'gpt-4o-mini',
-        'gemini-2.5-flash',
-        'gemini-2.5-pro'
-      ]
-    },
-    localOnlyMode: {
-      type: 'boolean'
-    },
-    usageStats: {
-      type: 'object',
-      properties: {
-        totalCost: {
-          type: 'number',
-          minimum: 0
-        },
-        totalRequests: {
-          type: 'number',
-          minimum: 0
-        },
-        lastReset: {
-          type: 'string',
-          format: 'date-time'
-        }
-      },
-      required: ['totalCost', 'totalRequests', 'lastReset']
-    },
-    obsidianVaultPath: {
-      type: 'string'
-    },
-    translationTargetLanguage: {
-      type: 'string',
-      minLength: 2,
-      maxLength: 5
-    }
+  locale: {
+    type: 'string' as const,
+    enum: ['ko', 'en', 'ja']
   },
-  required: [
-    'locale',
-    'whisperModel',
-    'llmModel',
-    'preferredLlmProvider',
-    'cloudModel',
-    'localOnlyMode',
-    'usageStats',
-    'translationTargetLanguage'
-  ]
+  whisperModel: {
+    type: 'string' as const,
+    enum: ['base', 'small', 'medium', 'large-v3-turbo']
+  },
+  llmModel: {
+    type: 'string' as const,
+    enum: ['gemma-2-3n-instruct-q4_k_m', 'llama-3.2-3b-instruct-q4_k_m']
+  },
+  anthropicApiKey: {
+    type: 'string' as const
+  },
+  openaiApiKey: {
+    type: 'string' as const
+  },
+  geminiApiKey: {
+    type: 'string' as const
+  },
+  preferredLlmProvider: {
+    type: 'string' as const,
+    enum: ['local', 'cloud']
+  },
+  cloudModel: {
+    type: 'string' as const,
+    enum: [
+      'claude-sonnet-4-5-20250514',
+      'claude-opus-4-6-20250612',
+      'claude-haiku-3-5-20241022',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-opus-20240229',
+      'claude-3-haiku-20240307',
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gemini-2.5-flash',
+      'gemini-2.5-pro'
+    ]
+  },
+  localOnlyMode: {
+    type: 'boolean' as const
+  },
+  usageStats: {
+    type: 'object' as const,
+    properties: {
+      totalCost: {
+        type: 'number' as const,
+        minimum: 0
+      },
+      totalRequests: {
+        type: 'number' as const,
+        minimum: 0
+      },
+      lastReset: {
+        type: 'string' as const
+      }
+    },
+    required: ['totalCost', 'totalRequests', 'lastReset'] as const
+  },
+  obsidianVaultPath: {
+    type: 'string' as const
+  },
+  translationTargetLanguage: {
+    type: 'string' as const,
+    minLength: 2,
+    maxLength: 5
+  }
 } as const
 
 export async function initStore(): Promise<void> {

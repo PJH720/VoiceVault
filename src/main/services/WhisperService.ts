@@ -5,22 +5,47 @@ import path from 'node:path'
 import { app } from 'electron'
 import type { TranscriptSegment, WhisperModelSize } from '../../shared/types'
 
-type WhisperLike = {
-  transcribe: (audio: Float32Array, options?: Record<string, unknown>) => Promise<unknown>
-  destroy?: () => void
+// whisper-cpp-node types — imported dynamically to handle missing native binary gracefully
+type WhisperContext = {
+  getSystemInfo(): string
+  isMultilingual(): boolean
+  free(): void
 }
 
-type WhisperModule = {
-  Whisper?: new (options: Record<string, unknown>) => WhisperLike
-  default?: new (options: Record<string, unknown>) => WhisperLike
+type WhisperTranscribeResult = {
+  segments: Array<{ start: string; end: string; text: string }>
+  language?: string
 }
+
+type CreateWhisperContextFn = (options: {
+  model: string
+  use_gpu?: boolean
+  use_coreml?: boolean
+  no_prints?: boolean
+}) => WhisperContext
+
+type TranscribeAsyncFn = (
+  context: WhisperContext,
+  options: {
+    pcmf32?: Float32Array
+    fname_inp?: string
+    language?: string
+    translate?: boolean
+    split_on_word?: boolean
+    max_len?: number
+    temperature?: number
+    beam_size?: number
+    token_timestamps?: boolean
+  }
+) => Promise<WhisperTranscribeResult>
 
 const MODEL_BASE_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main'
 const MODEL_LIST: WhisperModelSize[] = ['base', 'small', 'medium', 'large-v3-turbo']
 const TARGET_SAMPLE_RATE = 16000
 
 export class WhisperService {
-  private whisper: WhisperLike | null = null
+  private ctx: WhisperContext | null = null
+  private transcribeAsyncFn: TranscribeAsyncFn | null = null
   private modelSize: WhisperModelSize
   public modelAvailable = false
   private nativeModuleAvailable: boolean | null = null
@@ -66,7 +91,7 @@ export class WhisperService {
   }
 
   public async initialize(): Promise<void> {
-    if (this.whisper) return
+    if (this.ctx) return
     if (!(await this.isModelAvailable())) {
       throw new Error(`Whisper model not found: ${this.modelSize}`)
     }
@@ -78,24 +103,34 @@ export class WhisperService {
 
     try {
       const moduleName = 'whisper-cpp-node'
-      const whisperModule = (await import(
-        /* @vite-ignore */ moduleName
-      )) as unknown as WhisperModule
-      const WhisperCtor = whisperModule.Whisper ?? whisperModule.default
-      if (!WhisperCtor) {
+      const whisperModule = (await import(/* @vite-ignore */ moduleName)) as {
+        createWhisperContext?: CreateWhisperContextFn
+        default?: {
+          createWhisperContext?: CreateWhisperContextFn
+          transcribeAsync?: TranscribeAsyncFn
+        }
+        transcribeAsync?: TranscribeAsyncFn
+      }
+
+      const createCtx =
+        whisperModule.createWhisperContext ?? whisperModule.default?.createWhisperContext
+      const transcribeAsync =
+        whisperModule.transcribeAsync ?? whisperModule.default?.transcribeAsync
+
+      if (!createCtx || !transcribeAsync) {
         this.nativeModuleAvailable = false
         this.modelAvailable = false
-        throw new Error('Whisper constructor not found in whisper-cpp-node')
+        throw new Error('createWhisperContext or transcribeAsync not found in whisper-cpp-node')
       }
-      this.nativeModuleAvailable = true
 
-      this.whisper = new WhisperCtor({
-        modelPath: this.getModelPath(),
-        coreMLEnabled: process.platform === 'darwin',
-        language: 'auto',
-        translate: false,
-        splitOnWord: true,
-        maxLen: 1
+      this.nativeModuleAvailable = true
+      this.transcribeAsyncFn = transcribeAsync
+
+      this.ctx = createCtx({
+        model: this.getModelPath(),
+        use_gpu: true,
+        use_coreml: process.platform === 'darwin',
+        no_prints: true
       })
       this.modelAvailable = true
     } catch (err) {
@@ -169,11 +204,14 @@ export class WhisperService {
     const frame = new Float32Array(this.pcmWindow.splice(0, minWindow))
     try {
       await this.initialize()
-      if (!this.whisper) return []
-      const result = await this.whisper.transcribe(frame, {
-        sampleRate: TARGET_SAMPLE_RATE,
+      if (!this.ctx || !this.transcribeAsyncFn) return []
+      const result = await this.transcribeAsyncFn(this.ctx, {
+        pcmf32: frame,
+        language: 'auto',
         temperature: 0,
-        beamSize: 5
+        beam_size: 5,
+        split_on_word: true,
+        max_len: 1
       })
       return this.parseSegments(result)
     } catch {
@@ -183,50 +221,44 @@ export class WhisperService {
   }
 
   public destroy(): void {
-    this.whisper?.destroy?.()
-    this.whisper = null
+    this.ctx?.free()
+    this.ctx = null
+    this.transcribeAsyncFn = null
     this.pcmWindow.length = 0
     this.segmentIndex = 0
   }
 
-  private parseSegments(raw: unknown): TranscriptSegment[] {
-    const result = raw as {
-      language?: string
-      segments?: Array<{
-        text?: string
-        confidence?: number
-        startTime?: number
-        endTime?: number
-        words?: Array<{ word?: string; start?: number; end?: number }>
-      }>
-    }
-    if (!result.segments || result.segments.length === 0) {
+  /**
+   * Parse timestamp string "HH:MM:SS,mmm" or "HH:MM:SS.mmm" to seconds
+   */
+  private parseTimestamp(ts: string): number {
+    // Format: "HH:MM:SS,mmm" or "HH:MM:SS.mmm"
+    const match = ts.match(/^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})$/)
+    if (!match) return 0
+    const hours = Number(match[1])
+    const minutes = Number(match[2])
+    const seconds = Number(match[3])
+    const millis = Number(match[4])
+    return hours * 3600 + minutes * 60 + seconds + millis / 1000
+  }
+
+  private parseSegments(raw: WhisperTranscribeResult): TranscriptSegment[] {
+    if (!raw.segments || raw.segments.length === 0) {
       return []
     }
 
-    return result.segments
+    return raw.segments
       .map((segment): TranscriptSegment | null => {
         const text = (segment.text ?? '').trim()
         if (!text) return null
-        const start = Number(segment.startTime ?? 0)
-        const end = Number(segment.endTime ?? start + 1)
+        const start = this.parseTimestamp(segment.start)
+        const end = this.parseTimestamp(segment.end)
         return {
           text,
           start: Math.max(0, start),
           end: Math.max(start, end),
-          language: (result.language ?? 'auto').toLowerCase(),
-          confidence: Number(segment.confidence ?? 0.5),
-          words: Array.isArray(segment.words)
-            ? segment.words
-                .filter(
-                  (word) => word.word && Number.isFinite(word.start) && Number.isFinite(word.end)
-                )
-                .map((word) => ({
-                  word: String(word.word),
-                  start: Number(word.start),
-                  end: Number(word.end)
-                }))
-            : undefined
+          language: (raw.language ?? 'auto').toLowerCase(),
+          confidence: 0.9
         }
       })
       .filter((segment): segment is TranscriptSegment => segment !== null)

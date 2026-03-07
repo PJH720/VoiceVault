@@ -53,6 +53,9 @@ importers:
       tailwindcss:
         specifier: ^4.2.1
         version: 4.2.1
+      whisper-cpp-node:
+        specifier: ^0.2.9
+        version: 0.2.9
     devDependencies:
       '@electron-toolkit/eslint-config-prettier':
         specifier: ^3.0.0
@@ -1371,6 +1374,21 @@ packages:
 
   '@vitest/utils@4.0.18':
     resolution: {integrity: sha512-msMRKLMVLWygpK3u2Hybgi4MNjcYJvwTb0Ru09+fOyCXIgT5raYP041DRRdiJiI3k/2U6SEbAETB3YtBrUkCFA==}
+
+  '@whisper-cpp-node/darwin-arm64@0.2.3':
+    resolution: {integrity: sha512-acosjvSgr9i1Mzp8PG+cwSLkG/AlnI0X10zBKh5qqkC+fDsmV3hTLDXu7O2MEvBdO0HAIgLVsb5VzmeSv0FURg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@whisper-cpp-node/win32-ia32@0.2.7':
+    resolution: {integrity: sha512-L3D7Kpi76yBGXOXkHcVCye6jcINyg4R6eis8MhC08bCVbojamTEbEtoUD7XYcLPXX1KJxrm51DO0uzhVsRgOlQ==}
+    cpu: [ia32]
+    os: [win32]
+
+  '@whisper-cpp-node/win32-x64@0.2.9':
+    resolution: {integrity: sha512-tnA/WL6AbGrd8vIwTFaVhth08np7KuAYyQRFyz32bA9axv+HE3VFic5DJWYB7WEF63NqA4ZDdmbPnB7jEyk2Rw==}
+    cpu: [x64]
+    os: [win32]
 
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
@@ -3921,6 +3939,10 @@ packages:
     engines: {node: ^20.17.0 || >=22.9.0}
     hasBin: true
 
+  whisper-cpp-node@0.2.9:
+    resolution: {integrity: sha512-Srs12X/YBu5xTz+y9/6bsafKcgUkCPcMGzUK6HkQPGheScWhrOWSZ23jJ/0x4P/z5CxlzsqNxWcDHD4CDYOGew==}
+    engines: {node: '>=18.0.0'}
+
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
@@ -5087,6 +5109,15 @@ snapshots:
     dependencies:
       '@vitest/pretty-format': 4.0.18
       tinyrainbow: 3.0.3
+
+  '@whisper-cpp-node/darwin-arm64@0.2.3':
+    optional: true
+
+  '@whisper-cpp-node/win32-ia32@0.2.7':
+    optional: true
+
+  '@whisper-cpp-node/win32-x64@0.2.9':
+    optional: true
 
   '@xmldom/xmldom@0.8.11': {}
 
@@ -8051,6 +8082,12 @@ snapshots:
   which@6.0.1:
     dependencies:
       isexe: 4.0.0
+
+  whisper-cpp-node@0.2.9:
+    optionalDependencies:
+      '@whisper-cpp-node/darwin-arm64': 0.2.3
+      '@whisper-cpp-node/win32-ia32': 0.2.7
+      '@whisper-cpp-node/win32-x64': 0.2.9
 
   why-is-node-running@2.3.0:
     dependencies:
