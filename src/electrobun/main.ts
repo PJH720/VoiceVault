@@ -6,6 +6,7 @@ import { getDb, closeDb } from './services/db'
 import { closeSettings, getLocale } from './services/settings'
 import { ServiceRegistry } from './services/registry'
 import { allRPCHandlers } from './rpc/index'
+import { startHttpRpcServer } from './http-rpc'
 
 // ── Resolve user data path ──────────────────────────────────────────────────
 const userDataPath =
@@ -26,6 +27,10 @@ const rpc = BrowserView.defineRPC({
   },
   maxRequestTime: 300_000 // 5 min for long LLM operations
 })
+
+// ── Start HTTP RPC server for renderer bridge ──────────────────────────────
+const HTTP_RPC_PORT = Number(process.env.VOICEVAULT_RPC_PORT) || 50100
+const { port: rpcPort } = startHttpRpcServer(allRPCHandlers, HTTP_RPC_PORT)
 
 // ── Determine renderer URL ──────────────────────────────────────────────────
 const isDev = process.env.NODE_ENV === 'development' || process.env.VOICEVAULT_DEV === '1'
@@ -108,4 +113,4 @@ process.on('SIGTERM', () => {
 })
 
 console.log('[VoiceVault] Electrobun app started successfully')
-console.log(`[VoiceVault] Locale: ${getLocale()}, Dev: ${isDev}`)
+console.log(`[VoiceVault] Locale: ${getLocale()}, Dev: ${isDev}, RPC port: ${rpcPort}`)
