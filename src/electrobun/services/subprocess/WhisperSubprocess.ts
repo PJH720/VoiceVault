@@ -17,7 +17,10 @@ export class WhisperSubprocess {
   private getBinaryPath(): string {
     const candidates = [
       join(getUserDataPath(), 'bin', this.binaryName),
-      join('/usr/local/bin', this.binaryName),
+      '/home/linuxbrew/.linuxbrew/bin/' + this.binaryName,
+      '/usr/local/bin/' + this.binaryName,
+      '/opt/homebrew/bin/' + this.binaryName,
+      '/usr/bin/' + this.binaryName,
       this.binaryName
     ]
     return candidates.find((p) => existsSync(p)) ?? this.binaryName
@@ -49,7 +52,16 @@ export class WhisperSubprocess {
 
     const proc = Bun.spawn(args, {
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: {
+        ...process.env,
+        PATH: [
+          process.env.PATH,
+          '/home/linuxbrew/.linuxbrew/bin',
+          '/usr/local/bin',
+          '/opt/homebrew/bin'
+        ].filter(Boolean).join(':')
+      }
     })
 
     this.runningProc = proc
@@ -95,7 +107,16 @@ export class WhisperSubprocess {
 
     const proc = Bun.spawn(args, {
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: {
+        ...process.env,
+        PATH: [
+          process.env.PATH,
+          '/home/linuxbrew/.linuxbrew/bin',
+          '/usr/local/bin',
+          '/opt/homebrew/bin'
+        ].filter(Boolean).join(':')
+      }
     })
 
     this.runningProc = proc
@@ -203,7 +224,7 @@ export class WhisperSubprocess {
 
   async getBinaryStatus(): Promise<{ available: boolean; path: string }> {
     const binaryPath = this.getBinaryPath()
-    const available = existsSync(binaryPath)
+    const available = existsSync(binaryPath) || Bun.which(binaryPath) !== null
     return { available, path: binaryPath }
   }
 
