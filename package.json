@@ -23,7 +23,12 @@
     "build:unpack": "pnpm run build && electron-builder --dir",
     "build:win": "pnpm run build && electron-builder --win",
     "build:mac": "pnpm run build && electron-builder --mac",
-    "build:linux": "electron-vite build && electron-builder --linux"
+    "build:linux": "electron-vite build && electron-builder --linux",
+    "dev:electrobun": "concurrently \"vite src/renderer --port 5173\" \"VOICEVAULT_DEV=1 bun run src/electrobun/main.ts\"",
+    "build:electrobun": "vite build src/renderer && bun build src/electrobun/main.ts --outdir out/electrobun/main --target bun",
+    "build:electrobun:linux": "bun run build:electrobun && electrobun package --platform linux",
+    "build:electrobun:mac": "bun run build:electrobun && electrobun package --platform mac",
+    "build:electrobun:win": "bun run build:electrobun && electrobun package --platform win"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -32,6 +37,7 @@
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/vite": "^4.2.1",
     "better-sqlite3": "^12.6.2",
+    "electrobun": "^1.15.1",
     "electron-store": "^11.0.2",
     "handlebars": "^4.7.8",
     "i18next": "^25.8.14",
