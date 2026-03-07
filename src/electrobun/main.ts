@@ -9,9 +9,10 @@ import { allRPCHandlers } from './rpc/index'
 import { startHttpRpcServer } from './http-rpc'
 
 // ── Resolve user data path ──────────────────────────────────────────────────
+const homeDir = PATHS.HOME_DIR ?? process.env.HOME ?? require('os').homedir()
 const userDataPath =
   process.env.VOICEVAULT_USER_DATA_PATH ??
-  join(PATHS.HOME_DIR, '.voicevault')
+  join(homeDir, '.voicevault')
 
 mkdirSync(userDataPath, { recursive: true })
 setUserDataPath(userDataPath)
@@ -93,12 +94,19 @@ mainWindow.on('close', () => {
 // ── Cleanup ──────────────────────────────────────────────────────────────────
 function cleanup(): void {
   console.log('[VoiceVault] Shutting down...')
-  ServiceRegistry.shutdown().catch((err) => {
-    console.error('[shutdown] ServiceRegistry shutdown failed:', err)
-  })
-  closeDb()
-  closeSettings()
-  tray.remove()
+  try {
+    ServiceRegistry.shutdown().catch((err) => {
+      console.error('[shutdown] ServiceRegistry shutdown failed:', err)
+    })
+    closeDb()
+    closeSettings()
+    // Guard: tray.remove() calls native.symbols.removeTray() via FFI.
+    // If the native library failed to initialize (e.g. libasar.so not found),
+    // this will throw — we catch and log to avoid a cascading crash.
+    tray.remove()
+  } catch (err) {
+    console.error('[cleanup] Native FFI error during shutdown (FFI may not have initialized):', (err as Error).message)
+  }
 }
 
 // Handle process termination signals
