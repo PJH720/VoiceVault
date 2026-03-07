@@ -4,11 +4,28 @@
  * Accepts POST /rpc with { channel, params } and dispatches to allRPCHandlers.
  * WebSocket at /events delivers main→renderer push events (onToken, onSegment, etc.).
  */
-import type { ServerWebSocket } from 'bun'
+import type { Server, ServerWebSocket } from 'bun'
 
 type RPCHandlers = Record<string, ((...args: unknown[]) => unknown) | undefined>
 
 let eventClients: Set<ServerWebSocket<unknown>> = new Set()
+let _server: Server | null = null
+
+/**
+ * Stop the HTTP RPC server and close all WebSocket connections.
+ * Safe to call multiple times.
+ */
+export function stopHttpRpcServer(): void {
+  if (_server) {
+    try {
+      _server.stop(true) // force=true: close immediately without draining
+    } catch (err) {
+      console.error('[HTTP RPC] Error stopping server:', (err as Error).message)
+    }
+    _server = null
+  }
+  eventClients.clear()
+}
 
 /**
  * Broadcast an event to all connected WebSocket clients.
@@ -32,7 +49,7 @@ export function startHttpRpcServer(
   handlers: RPCHandlers,
   port = 50100
 ): { port: number } {
-  Bun.serve({
+  _server = Bun.serve({
     port,
     fetch(req, server) {
       const url = new URL(req.url)

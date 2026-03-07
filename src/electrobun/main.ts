@@ -6,7 +6,7 @@ import { getDb, closeDb } from './services/db'
 import { closeSettings, getLocale } from './services/settings'
 import { ServiceRegistry } from './services/registry'
 import { allRPCHandlers } from './rpc/index'
-import { startHttpRpcServer } from './http-rpc'
+import { startHttpRpcServer, stopHttpRpcServer } from './http-rpc'
 
 // ── Resolve user data path ──────────────────────────────────────────────────
 const homeDir = PATHS.HOME_DIR ?? process.env.HOME ?? require('os').homedir()
@@ -92,24 +92,41 @@ mainWindow.on('close', () => {
 })
 
 // ── Cleanup ──────────────────────────────────────────────────────────────────
+// Guard against cleanup() being invoked multiple times (SIGINT + window close,
+// or concurrently sending SIGTERM while SIGINT is already in flight).
+let isCleaningUp = false
+
 function cleanup(): void {
+  if (isCleaningUp) return
+  isCleaningUp = true
+
   console.log('[VoiceVault] Shutting down...')
+
+  // 1. Stop the HTTP RPC server first — releases port 50100 immediately.
+  //    This must happen before process.exit() so the port is free for the
+  //    next launch without needing lsof cleanup.
+  stopHttpRpcServer()
+
   try {
+    // 2. Shutdown background services (Whisper/LLM subprocesses, etc.)
     ServiceRegistry.shutdown().catch((err) => {
       console.error('[shutdown] ServiceRegistry shutdown failed:', err)
     })
+    // 3. Flush and close SQLite databases
     closeDb()
     closeSettings()
-    // Guard: tray.remove() calls native.symbols.removeTray() via FFI.
-    // If the native library failed to initialize (e.g. libasar.so not found),
-    // this will throw — we catch and log to avoid a cascading crash.
+    // 4. Remove tray icon — calls native.symbols.removeTray() via FFI.
+    //    Guard: if native library failed to initialize (e.g. libasar.so not
+    //    found on a previous crash), this throws — catch to avoid cascading.
     tray.remove()
   } catch (err) {
-    console.error('[cleanup] Native FFI error during shutdown (FFI may not have initialized):', (err as Error).message)
+    console.error('[cleanup] Error during shutdown:', (err as Error).message)
   }
 }
 
-// Handle process termination signals
+// Handle process termination signals.
+// concurrently sends SIGTERM to all child processes when one exits;
+// Ctrl-C sends SIGINT. Both must trigger a clean shutdown.
 process.on('SIGINT', () => {
   cleanup()
   process.exit(0)
