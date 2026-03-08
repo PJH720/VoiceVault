@@ -2,6 +2,8 @@ import { ClassificationChannels } from '../../shared/ipc-channels'
 import type { SummaryOutput, RecordingTemplate } from '../../shared/types'
 import { getDb } from '../services/db'
 import { ServiceRegistry } from '../services/registry'
+import { getLlmModel } from '../services/settings'
+import { assertNonEmptyString } from '../utils/validate'
 import { existsSync, readFileSync, readdirSync, writeFileSync, unlinkSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { getUserDataPath } from '../types'
@@ -69,7 +71,7 @@ export const classificationRPCHandlers = {
     const prompt = `Classify the following transcript into one of these categories:\n${templateList}\n\nTranscript:\n${params.transcript}\n\nRespond with only the template ID.`
 
     let result = ''
-    await llm.streamCompletion(prompt, 'gemma-2-3n-instruct-q4_k_m.gguf', (token) => {
+    await llm.streamCompletion(prompt, `${getLlmModel()}.gguf`, (token) => {
       result += token
     })
 
@@ -102,7 +104,7 @@ export const classificationRPCHandlers = {
     let summary = ''
     await llm.streamCompletion(
       `${template.prompts.summary}\n\nTranscript:\n${transcript}`,
-      'gemma-2-3n-instruct-q4_k_m.gguf',
+      `${getLlmModel()}.gguf`,
       (token) => { summary += token }
     )
 
@@ -110,7 +112,7 @@ export const classificationRPCHandlers = {
     if (template.prompts.keyPoints) {
       await llm.streamCompletion(
         `${template.prompts.keyPoints}\n\nTranscript:\n${transcript}`,
-        'gemma-2-3n-instruct-q4_k_m.gguf',
+        `${getLlmModel()}.gguf`,
         (token) => { keyPoints += token }
       )
     }
@@ -119,7 +121,7 @@ export const classificationRPCHandlers = {
     if (template.prompts.actionItems) {
       await llm.streamCompletion(
         `${template.prompts.actionItems}\n\nTranscript:\n${transcript}`,
-        'gemma-2-3n-instruct-q4_k_m.gguf',
+        `${getLlmModel()}.gguf`,
         (token) => { actionItems += token }
       )
     }
@@ -157,9 +159,7 @@ export const classificationRPCHandlers = {
   [ClassificationChannels.TEMPLATES_GET]: async (params: {
     id: string
   }): Promise<RecordingTemplate | null> => {
-    if (typeof params.id !== 'string' || params.id.trim().length === 0) {
-      throw new Error('Template id must be a non-empty string')
-    }
+    assertNonEmptyString(params.id, 'Template id')
     const templates = loadTemplates()
     return templates.find((t) => t.id === params.id) ?? null
   },
@@ -192,9 +192,7 @@ export const classificationRPCHandlers = {
     id: string
     updates: Partial<RecordingTemplate>
   }): Promise<RecordingTemplate | null> => {
-    if (typeof params.id !== 'string' || params.id.trim().length === 0) {
-      throw new Error('Template id must be a non-empty string')
-    }
+    assertNonEmptyString(params.id, 'Template id')
     const dir = getTemplatesDir()
     const filePath = join(dir, `${params.id}.json`)
     if (!existsSync(filePath)) return null
@@ -208,9 +206,7 @@ export const classificationRPCHandlers = {
   [ClassificationChannels.TEMPLATES_DELETE]: async (params: {
     id: string
   }): Promise<{ success: boolean }> => {
-    if (typeof params.id !== 'string' || params.id.trim().length === 0) {
-      throw new Error('Template id must be a non-empty string')
-    }
+    assertNonEmptyString(params.id, 'Template id')
     const filePath = join(getTemplatesDir(), `${params.id}.json`)
     if (existsSync(filePath)) unlinkSync(filePath)
     return { success: true }
@@ -219,9 +215,7 @@ export const classificationRPCHandlers = {
   [ClassificationChannels.TEMPLATES_EXPORT]: async (params: {
     id: string
   }): Promise<{ json: string }> => {
-    if (typeof params.id !== 'string' || params.id.trim().length === 0) {
-      throw new Error('Template id must be a non-empty string')
-    }
+    assertNonEmptyString(params.id, 'Template id')
     const templates = loadTemplates()
     const template = templates.find((t) => t.id === params.id)
     if (!template) throw new Error('Template not found')

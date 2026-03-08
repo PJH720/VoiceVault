@@ -1,23 +1,16 @@
-import type { RPCSchema, ElectrobunRPCSchema } from 'electrobun'
-
 /**
- * Electrobun-specific type augmentations for VoiceVault.
- * Extends the shared types with Electrobun RPC schema definitions.
+ * Main-process singletons and helpers shared across the Electrobun worker.
+ * Intentionally minimal — types live in src/shared/types.ts.
  */
 
-// Re-export shared types used across the Electrobun main process
-export type { RPCSchema, ElectrobunRPCSchema }
-
-// User data path resolved at startup
-export let userDataPath: string = ''
+// User data path resolved once at startup, then read by all services
+let _userDataPath = ''
 
 export function setUserDataPath(p: string): void {
-  userDataPath = p
+  _userDataPath = p
 }
 
 export function getUserDataPath(): string {
-  if (!userDataPath) {
-    throw new Error('User data path not set — call setUserDataPath() first')
-  }
-  return userDataPath
+  if (!_userDataPath) throw new Error('User data path not set — call setUserDataPath() first')
+  return _userDataPath
 }

@@ -1,5 +1,5 @@
 export const APP_NAME = 'VoiceVault'
-export const APP_VERSION = '0.5.0'
+export const APP_VERSION = '0.7.0'
 
 export const AUDIO_CONFIG = {
   SAMPLE_RATE: 16000,

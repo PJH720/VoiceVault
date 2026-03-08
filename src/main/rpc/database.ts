@@ -1,4 +1,4 @@
-import { existsSync, unlinkSync } from 'fs'
+import { existsSync, unlinkSync, statSync } from 'fs'
 import { DatabaseChannels } from '../../shared/ipc-channels'
 import type { ListOptions, Recording, RecordingWithTranscript } from '../../shared/types'
 import { getDb } from '../services/db'
@@ -129,8 +129,7 @@ export const databaseRPCHandlers = {
     audioPath: string
   }): Recording | null => {
     const db = getDb()
-    const { existsSync: exists, statSync: stat } = require('fs') as typeof import('fs')
-    const fileSizeBytes = exists(params.audioPath) ? stat(params.audioPath).size : 0
+    const fileSizeBytes = existsSync(params.audioPath) ? statSync(params.audioPath).size : 0
     db.query(
       `INSERT INTO recordings (title, duration, audio_path, category, tags, is_bookmarked, is_archived, file_size_bytes, template_id, classification_confidence, created_at, updated_at) VALUES (?, ?, ?, NULL, NULL, 0, 0, ?, NULL, NULL, datetime('now'), datetime('now'))`
     ).run(params.title, params.duration, params.audioPath, fileSizeBytes)

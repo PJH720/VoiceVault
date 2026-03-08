@@ -4,7 +4,9 @@ import { ServiceRegistry } from '../services/registry'
 import { getDb } from '../services/db'
 import { getLlmModel, setLlmModel } from '../services/settings'
 
-let cancelled = false
+// Per-call AbortController — avoids the race condition of a shared boolean flag
+// (a cancel from one concurrent call would previously cancel unrelated calls).
+let activeController: AbortController | null = null
 
 export const summarizationRPCHandlers = {
   [LlmChannels.SUMMARIZE_STREAM]: async (params: {
@@ -12,44 +14,48 @@ export const summarizationRPCHandlers = {
     type?: string
     previousSummary?: string
   }): Promise<{ success: boolean; output: SummaryOutput | null; cancelled: boolean }> => {
-    cancelled = false
-    const llm = ServiceRegistry.getLlmSubprocess()
-    const modelName = getLlmModel()
-    const modelPath = `${modelName}.gguf`
+    // Cancel any in-flight summarization before starting a new one
+    activeController?.abort()
+    activeController = new AbortController()
+    const { signal } = activeController
 
-    // Build summarization prompt
-    const systemPrompt = params.type === 'interim'
-      ? 'You are a summarizer. Provide a brief interim summary of the following transcript.'
-      : 'You are a summarizer. Provide a comprehensive summary of the following transcript. Include action items, discussion points, key statements, and decisions.'
+    const llm = ServiceRegistry.getLlmSubprocess()
+    const modelPath = `${getLlmModel()}.gguf`
+
+    const systemPrompt =
+      params.type === 'interim'
+        ? 'You are a summarizer. Provide a brief interim summary of the following transcript.'
+        : 'You are a summarizer. Provide a comprehensive summary of the following transcript. Include action items, discussion points, key statements, and decisions.'
 
     const prompt = params.previousSummary
       ? `${systemPrompt}\n\nPrevious summary:\n${params.previousSummary}\n\nNew transcript:\n${params.transcript}`
       : `${systemPrompt}\n\nTranscript:\n${params.transcript}`
 
-    let fullOutput = ''
-    await llm.streamCompletion(prompt, modelPath, (token) => {
-      if (cancelled) return
-      fullOutput += token
-      // Token streaming is handled via RPC messages in the actual implementation
-    })
+    try {
+      let fullOutput = ''
+      await llm.streamCompletion(prompt, modelPath, (token) => { fullOutput += token }, { signal })
 
-    if (cancelled) {
-      return { success: true, output: null, cancelled: true }
+      if (signal.aborted) return { success: true, output: null, cancelled: true }
+
+      const output: SummaryOutput = {
+        summary: fullOutput,
+        actionItems: [],
+        discussionPoints: [],
+        keyStatements: [],
+        decisions: [],
+      }
+      return { success: true, output, cancelled: false }
+    } catch (err) {
+      if (signal.aborted) return { success: true, output: null, cancelled: true }
+      throw err
+    } finally {
+      activeController = null
     }
-
-    const output: SummaryOutput = {
-      summary: fullOutput,
-      actionItems: [],
-      discussionPoints: [],
-      keyStatements: [],
-      decisions: []
-    }
-
-    return { success: true, output, cancelled: false }
   },
 
   [LlmChannels.STOP]: async (): Promise<{ success: boolean }> => {
-    cancelled = true
+    activeController?.abort()
+    activeController = null
     ServiceRegistry.getLlmSubprocess().unload()
     return { success: true }
   },
@@ -57,18 +63,16 @@ export const summarizationRPCHandlers = {
   [LlmChannels.DOWNLOAD_MODEL]: async (params: {
     modelName: LlmModelName
   }): Promise<{ success: boolean }> => {
-    const llm = ServiceRegistry.getLlmSubprocess()
     setLlmModel(params.modelName)
-    await llm.downloadModel(params.modelName)
+    await ServiceRegistry.getLlmSubprocess().downloadModel(params.modelName)
     return { success: true }
   },
 
   [LlmChannels.MODEL_STATUS]: async (params?: {
     modelName?: LlmModelName
   }): Promise<{ modelName: LlmModelName; available: boolean }> => {
-    const llm = ServiceRegistry.getLlmSubprocess()
     const target = params?.modelName ?? getLlmModel()
-    const status = await llm.getModelStatus(`${target}.gguf`)
+    const status = await ServiceRegistry.getLlmSubprocess().getModelStatus(`${target}.gguf`)
     return { modelName: target, available: status.loaded }
   },
 
@@ -84,7 +88,9 @@ export const summarizationRPCHandlers = {
     const db = getDb()
     const result = db
       .query(
-        `INSERT INTO summaries (recording_id, summary_text, action_items, discussion_points, key_statements, decisions) VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO summaries
+           (recording_id, summary_text, action_items, discussion_points, key_statements, decisions)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
       .run(
         params.recordingId,
@@ -92,7 +98,7 @@ export const summarizationRPCHandlers = {
         JSON.stringify(params.output.actionItems),
         JSON.stringify(params.output.discussionPoints),
         JSON.stringify(params.output.keyStatements),
-        JSON.stringify(params.output.decisions)
+        JSON.stringify(params.output.decisions),
       )
     return { id: Number(result.lastInsertRowid) }
   },
@@ -101,7 +107,9 @@ export const summarizationRPCHandlers = {
     const db = getDb()
     const row = db
       .query(
-        `SELECT id, recording_id, summary_text, action_items, discussion_points, key_statements, decisions, created_at FROM summaries WHERE recording_id = ? ORDER BY id DESC LIMIT 1`
+        `SELECT id, recording_id, summary_text,
+                action_items, discussion_points, key_statements, decisions, created_at
+         FROM summaries WHERE recording_id = ? ORDER BY id DESC LIMIT 1`
       )
       .get(params.recordingId) as Record<string, unknown> | undefined
 
@@ -116,8 +124,8 @@ export const summarizationRPCHandlers = {
         actionItems: row.action_items ? JSON.parse(row.action_items as string) : [],
         discussionPoints: row.discussion_points ? JSON.parse(row.discussion_points as string) : [],
         keyStatements: row.key_statements ? JSON.parse(row.key_statements as string) : [],
-        decisions: row.decisions ? JSON.parse(row.decisions as string) : []
-      }
+        decisions: row.decisions ? JSON.parse(row.decisions as string) : [],
+      },
     }
-  }
+  },
 }

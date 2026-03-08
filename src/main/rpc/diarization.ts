@@ -1,6 +1,24 @@
 import { DiarizationChannels } from '../../shared/ipc-channels'
 import type { SpeakerProfile, SpeakerSegment, TranscriptSegment } from '../../shared/types'
 import { getDb } from '../services/db'
+import { assertFiniteId } from '../utils/validate'
+
+// Shared row → SpeakerSegment mapper — used by ALIGN_TRANSCRIPT and LIST_SPEAKER_SEGMENTS
+function mapSpeakerSegment(row: Record<string, unknown>): SpeakerSegment {
+  return {
+    id: row.id as number,
+    recordingId: row.recording_id as number,
+    speakerProfileId: row.speaker_profile_id as number | null,
+    start: row.start_time as number,
+    end: row.end_time as number,
+    confidence: row.confidence as number,
+    speaker: row.raw_speaker_label as string,
+  }
+}
+
+const SPEAKER_SEGMENTS_SQL =
+  `SELECT id, recording_id, speaker_profile_id, start_time, end_time, confidence, raw_speaker_label
+   FROM speaker_segments WHERE recording_id = ? ORDER BY start_time ASC`
 
 export const diarizationRPCHandlers = {
   [DiarizationChannels.PROCESS]: async (params: {
@@ -17,9 +35,7 @@ export const diarizationRPCHandlers = {
     transcriptSegments: TranscriptSegment[]
     speakerSegments?: SpeakerSegment[]
   }): TranscriptSegment[] => {
-    if (typeof params.recordingId !== 'number' || !Number.isFinite(params.recordingId)) {
-      throw new Error('Invalid recordingId')
-    }
+    assertFiniteId(params.recordingId, 'recordingId')
     if (!Array.isArray(params.transcriptSegments)) {
       throw new Error('transcriptSegments must be an array')
     }
@@ -71,25 +87,9 @@ export const diarizationRPCHandlers = {
   [DiarizationChannels.LIST_SPEAKER_SEGMENTS]: (params: {
     recordingId: number
   }): SpeakerSegment[] => {
-    if (typeof params.recordingId !== 'number' || !Number.isFinite(params.recordingId)) {
-      throw new Error('Invalid recordingId')
-    }
+    assertFiniteId(params.recordingId, 'recordingId')
     const db = getDb()
-    const rows = db
-      .query(
-        'SELECT id, recording_id, speaker_profile_id, start_time, end_time, confidence, raw_speaker_label FROM speaker_segments WHERE recording_id = ? ORDER BY start_time ASC'
-      )
-      .all(params.recordingId) as Array<Record<string, unknown>>
-
-    return rows.map((row) => ({
-      id: row.id as number,
-      recordingId: row.recording_id as number,
-      speakerProfileId: row.speaker_profile_id as number | null,
-      start: row.start_time as number,
-      end: row.end_time as number,
-      confidence: row.confidence as number,
-      speaker: row.raw_speaker_label as string
-    }))
+    return (db.query(SPEAKER_SEGMENTS_SQL).all(params.recordingId) as Array<Record<string, unknown>>).map(mapSpeakerSegment)
   },
 
   [DiarizationChannels.LIST_SPEAKERS]: (): SpeakerProfile[] => {

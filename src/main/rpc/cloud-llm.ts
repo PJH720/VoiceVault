@@ -1,7 +1,7 @@
 import { CloudLlmChannels } from '../../shared/ipc-channels'
 import type { CloudModelName } from '../../shared/types'
+import { assertString, assertBoolean } from '../utils/validate'
 import {
-  addUsage,
   getAnthropicApiKey,
   getOpenAIApiKey,
   getGeminiApiKey,
@@ -21,7 +21,7 @@ import {
 
 export const cloudLlmRPCHandlers = {
   [CloudLlmChannels.SET_API_KEY]: (params: { key: string }): { success: boolean } => {
-    if (typeof params.key !== 'string') throw new Error('API key must be a string')
+    assertString(params.key, 'API key')
     setAnthropicApiKey(params.key.trim())
     return { success: true }
   },
@@ -31,7 +31,7 @@ export const cloudLlmRPCHandlers = {
   },
 
   [CloudLlmChannels.SET_OPENAI_API_KEY]: (params: { key: string }): { success: boolean } => {
-    if (typeof params.key !== 'string') throw new Error('API key must be a string')
+    assertString(params.key, 'API key')
     setOpenAIApiKey(params.key.trim())
     return { success: true }
   },
@@ -41,7 +41,7 @@ export const cloudLlmRPCHandlers = {
   },
 
   [CloudLlmChannels.SET_GEMINI_API_KEY]: (params: { key: string }): { success: boolean } => {
-    if (typeof params.key !== 'string') throw new Error('API key must be a string')
+    assertString(params.key, 'API key')
     setGeminiApiKey(params.key.trim())
     return { success: true }
   },
@@ -87,7 +87,7 @@ export const cloudLlmRPCHandlers = {
   [CloudLlmChannels.SET_LOCAL_ONLY]: (params: {
     enabled: boolean
   }): { enabled: boolean } => {
-    if (typeof params.enabled !== 'boolean') throw new Error('enabled must be a boolean')
+    assertBoolean(params.enabled, 'enabled')
     return { enabled: setLocalOnlyMode(params.enabled) }
   },
 
@@ -109,7 +109,7 @@ export const cloudLlmRPCHandlers = {
   },
 
   [CloudLlmChannels.SET_MODEL]: (params: { model: CloudModelName }): { model: CloudModelName } => {
-    if (typeof params.model !== 'string') throw new Error('Model must be a string')
+    assertString(params.model, 'model')
     return { model: setCloudModel(params.model) }
   },
 

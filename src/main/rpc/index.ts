@@ -22,12 +22,12 @@ import {
   setLlmModel
 } from '../services/settings'
 import { getUserDataPath } from '../types'
+import { APP_VERSION } from '../../shared/constants'
 import type { LlmModelName, SupportedLocale, WhisperModelSize } from '../../shared/types'
 
-// App-level + Settings RPC handlers (ported from src/main/index.ts inline handlers)
+// App-level + Settings RPC handlers
 const appRPCHandlers = {
   [AppChannels.GET_PATH]: (params: { name: string }): string => {
-    // In Electrobun, paths resolve from the user data path
     const pathMap: Record<string, string> = {
       userData: getUserDataPath(),
       appData: getUserDataPath(),
@@ -36,9 +36,7 @@ const appRPCHandlers = {
     return pathMap[params.name] ?? getUserDataPath()
   },
 
-  [AppChannels.GET_VERSION]: (): string => {
-    return process.env.VOICEVAULT_VERSION ?? '0.6.0'
-  },
+  [AppChannels.GET_VERSION]: (): string => process.env.VOICEVAULT_VERSION ?? APP_VERSION,
 
   [AppChannels.REPORT_ERROR]: (params: {
     message: string

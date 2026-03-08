@@ -4,7 +4,7 @@ import type {
   SupportedLanguage,
   TranslationResult
 } from '../../shared/types'
-import { getTranslationTargetLanguage, setTranslationTargetLanguage } from '../services/settings'
+import { getLlmModel, getTranslationTargetLanguage, setTranslationTargetLanguage } from '../services/settings'
 import { ServiceRegistry } from '../services/registry'
 
 export const translationRPCHandlers = {
@@ -18,7 +18,7 @@ export const translationRPCHandlers = {
     const prompt = `Translate the following text from ${params.sourceLanguage} to ${params.targetLanguage}. Output only the translation, nothing else.\n\nText: ${params.text}`
 
     let translated = ''
-    await llm.streamCompletion(prompt, 'gemma-2-3n-instruct-q4_k_m.gguf', (token) => {
+    await llm.streamCompletion(prompt, `${getLlmModel()}.gguf`, (token) => {
       translated += token
     })
 
@@ -28,7 +28,7 @@ export const translationRPCHandlers = {
       sourceLanguage: params.sourceLanguage,
       targetLanguage: params.targetLanguage,
       confidence: 0.8,
-      model: 'gemma-2-3n-instruct-q4_k_m'
+      model: getLlmModel()
     }
   },
 

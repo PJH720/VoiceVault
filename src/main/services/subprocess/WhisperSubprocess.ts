@@ -1,91 +1,57 @@
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 import type { TranscriptSegment } from '../../../shared/types'
 import { getUserDataPath } from '../../types'
+import { resolveBinary, resolveModel, spawnEnv, downloadFile } from '../../utils/subprocess'
 
 export interface WhisperTranscribeOptions {
   language?: string
   threads?: number
   translate?: boolean
-  outputFormat?: 'json' | 'srt' | 'txt'
 }
 
 export class WhisperSubprocess {
   private runningProc: ReturnType<typeof Bun.spawn> | null = null
   private readonly binaryName = 'whisper-cli'
 
-  private getBinaryPath(): string {
-    const candidates = [
-      join(getUserDataPath(), 'bin', this.binaryName),
-      '/home/linuxbrew/.linuxbrew/bin/' + this.binaryName,
-      '/usr/local/bin/' + this.binaryName,
-      '/opt/homebrew/bin/' + this.binaryName,
-      '/usr/bin/' + this.binaryName,
-      this.binaryName
+  // Build the whisper-cli arg list — shared by transcribeFile + streamTranscribe
+  private buildArgs(modelPath: string, audioPath: string, opts: WhisperTranscribeOptions): string[] {
+    const args = [
+      resolveBinary(this.binaryName),
+      '-m', resolveModel(modelPath),
+      '-f', audioPath,
+      '--output-json',
+      '-t', String(opts.threads ?? 4),
+      '-l', opts.language ?? 'auto',
     ]
-    return candidates.find((p) => existsSync(p)) ?? this.binaryName
-  }
-
-  private getModelPath(modelPath: string): string {
-    if (existsSync(modelPath)) return modelPath
-    return join(getUserDataPath(), 'models', modelPath)
+    if (opts.translate) args.push('--translate')
+    return args
   }
 
   async transcribeFile(
     audioPath: string,
     modelPath: string,
-    options: WhisperTranscribeOptions = {}
+    options: WhisperTranscribeOptions = {},
   ): Promise<TranscriptSegment[]> {
-    const resolvedModel = this.getModelPath(modelPath)
-    const args = [
-      this.getBinaryPath(),
-      '-m', resolvedModel,
-      '-f', audioPath,
-      '--output-json',
-      '-t', String(options.threads ?? 4),
-      '-l', options.language ?? 'auto'
-    ]
-
-    if (options.translate) {
-      args.push('--translate')
-    }
-
-    const proc = Bun.spawn(args, {
+    const proc = Bun.spawn(this.buildArgs(modelPath, audioPath, options), {
       stdout: 'pipe',
       stderr: 'pipe',
-      env: {
-        ...process.env,
-        PATH: [
-          process.env.PATH,
-          '/home/linuxbrew/.linuxbrew/bin',
-          '/usr/local/bin',
-          '/opt/homebrew/bin'
-        ].filter(Boolean).join(':')
-      }
+      env: spawnEnv(),
     })
-
     this.runningProc = proc
-
-    const timeoutId = setTimeout(() => {
-      proc.kill()
-    }, 120_000)
+    const timeout = setTimeout(() => proc.kill(), 120_000)
 
     try {
       const stdout = await new Response(proc.stdout).text()
       const exitCode = await proc.exited
-      clearTimeout(timeoutId)
-      this.runningProc = null
-
       if (exitCode !== 0) {
         const stderr = await new Response(proc.stderr).text()
-        throw new Error(`whisper-cli exited with code ${exitCode}: ${stderr}`)
+        throw new Error(`whisper-cli exited ${exitCode}: ${stderr}`)
       }
-
-      return this.parseJsonOutput(stdout)
-    } catch (error) {
-      clearTimeout(timeoutId)
+      return parseJsonOutput(stdout)
+    } finally {
+      clearTimeout(timeout)
       this.runningProc = null
-      throw error
     }
   }
 
@@ -93,37 +59,18 @@ export class WhisperSubprocess {
     audioPath: string,
     modelPath: string,
     onSegment: (segment: TranscriptSegment) => void,
-    options: WhisperTranscribeOptions = {}
+    options: WhisperTranscribeOptions = {},
   ): Promise<void> {
-    const resolvedModel = this.getModelPath(modelPath)
-    const args = [
-      this.getBinaryPath(),
-      '-m', resolvedModel,
-      '-f', audioPath,
-      '--output-json',
-      '-t', String(options.threads ?? 4),
-      '-l', options.language ?? 'auto'
-    ]
-
-    const proc = Bun.spawn(args, {
+    const proc = Bun.spawn(this.buildArgs(modelPath, audioPath, options), {
       stdout: 'pipe',
       stderr: 'pipe',
-      env: {
-        ...process.env,
-        PATH: [
-          process.env.PATH,
-          '/home/linuxbrew/.linuxbrew/bin',
-          '/usr/local/bin',
-          '/opt/homebrew/bin'
-        ].filter(Boolean).join(':')
-      }
+      env: spawnEnv(),
     })
-
     this.runningProc = proc
 
-    const timeoutId = setTimeout(() => {
-      proc.kill()
-    }, 120_000)
+    // One decoder instance for the entire stream (not per-chunk)
+    const decoder = new TextDecoder()
+    const timeout = setTimeout(() => proc.kill(), 120_000)
 
     try {
       const reader = proc.stdout.getReader()
@@ -132,7 +79,7 @@ export class WhisperSubprocess {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        buffer += new TextDecoder().decode(value)
+        buffer += decoder.decode(value, { stream: true })
 
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
@@ -141,154 +88,87 @@ export class WhisperSubprocess {
           const trimmed = line.trim()
           if (!trimmed) continue
           try {
-            const parsed = JSON.parse(trimmed) as {
-              text: string
-              start: number
-              end: number
-              language?: string
-              confidence?: number
+            const p = JSON.parse(trimmed) as {
+              text: string; start: number; end: number; language?: string; confidence?: number
             }
-            const segment: TranscriptSegment = {
-              text: parsed.text,
-              start: parsed.start,
-              end: parsed.end,
-              language: parsed.language ?? options.language ?? 'auto',
-              confidence: parsed.confidence ?? 0.9
-            }
-            onSegment(segment)
-          } catch {
-            // skip non-JSON lines
-          }
+            onSegment({
+              text: p.text,
+              start: p.start,
+              end: p.end,
+              language: p.language ?? options.language ?? 'auto',
+              confidence: p.confidence ?? 0.9,
+            })
+          } catch { /* skip non-JSON lines */ }
         }
       }
 
-      clearTimeout(timeoutId)
       await proc.exited
+    } finally {
+      clearTimeout(timeout)
       this.runningProc = null
-    } catch (error) {
-      clearTimeout(timeoutId)
-      this.runningProc = null
-      throw error
     }
   }
 
-  async downloadModel(
-    modelName: string,
-    onProgress?: (percent: number) => void
-  ): Promise<void> {
+  async downloadModel(modelName: string, onProgress?: (percent: number) => void): Promise<void> {
     const modelsDir = join(getUserDataPath(), 'models')
     const outputPath = join(modelsDir, `ggml-${modelName}.bin`)
+    if (existsSync(outputPath)) { onProgress?.(100); return }
 
-    if (existsSync(outputPath)) {
-      onProgress?.(100)
-      return
-    }
-
-    const url = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${modelName}.bin`
-
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to download model: ${response.statusText}`)
-    }
-
-    const contentLength = Number(response.headers.get('content-length') ?? 0)
-    const reader = response.body?.getReader()
-    if (!reader) throw new Error('No response body')
-
-    const { mkdirSync, writeFileSync } = await import('fs')
     mkdirSync(modelsDir, { recursive: true })
-
-    const chunks: Uint8Array[] = []
-    let downloaded = 0
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      chunks.push(value)
-      downloaded += value.length
-      if (contentLength > 0) {
-        onProgress?.(Math.round((downloaded / contentLength) * 100))
-      }
-    }
-
-    const combined = new Uint8Array(downloaded)
-    let offset = 0
-    for (const chunk of chunks) {
-      combined.set(chunk, offset)
-      offset += chunk.length
-    }
-
-    writeFileSync(outputPath, combined)
-    onProgress?.(100)
+    const url = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${modelName}.bin`
+    await downloadFile(url, outputPath, onProgress)
   }
 
   async getBinaryStatus(): Promise<{ available: boolean; path: string }> {
-    const binaryPath = this.getBinaryPath()
-    const available = existsSync(binaryPath) || Bun.which(binaryPath) !== null
-    return { available, path: binaryPath }
+    const path = resolveBinary(this.binaryName)
+    return { available: existsSync(path) || Bun.which(this.binaryName) !== null, path }
   }
 
   abort(): void {
     this.runningProc?.kill()
     this.runningProc = null
   }
+}
 
-  private parseJsonOutput(stdout: string): TranscriptSegment[] {
-    try {
-      const parsed = JSON.parse(stdout) as {
-        transcription?: Array<{
-          timestamps: { from: string; to: string }
-          text: string
-        }>
-      }
-      if (parsed.transcription) {
-        return parsed.transcription.map((item) => ({
-          text: item.text.trim(),
-          start: this.parseTimestamp(item.timestamps.from),
-          end: this.parseTimestamp(item.timestamps.to),
-          language: 'auto',
-          confidence: 0.9
-        }))
-      }
-    } catch {
-      // Try line-by-line JSON
+// ── JSON output parsing (module-level: no `this` dependency) ──────────────────
+
+function parseJsonOutput(stdout: string): TranscriptSegment[] {
+  // Try structured JSON first (whisper-cli --output-json full format)
+  try {
+    const parsed = JSON.parse(stdout) as {
+      transcription?: Array<{ timestamps: { from: string; to: string }; text: string }>
     }
+    if (parsed.transcription) {
+      return parsed.transcription.map((item) => ({
+        text: item.text.trim(),
+        start: parseTimestamp(item.timestamps.from),
+        end: parseTimestamp(item.timestamps.to),
+        language: 'auto',
+        confidence: 0.9,
+      }))
+    }
+  } catch { /* fall through */ }
 
-    const segments: TranscriptSegment[] = []
-    for (const line of stdout.split('\n')) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
+  // Fallback: one JSON object per line
+  return stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
       try {
-        const parsed = JSON.parse(trimmed) as {
-          text: string
-          start: number
-          end: number
-          language?: string
-          confidence?: number
+        const p = JSON.parse(line) as {
+          text: string; start: number; end: number; language?: string; confidence?: number
         }
-        segments.push({
-          text: parsed.text,
-          start: parsed.start,
-          end: parsed.end,
-          language: parsed.language ?? 'auto',
-          confidence: parsed.confidence ?? 0.9
-        })
-      } catch {
-        // skip
-      }
-    }
-    return segments
-  }
+        return [{ text: p.text, start: p.start, end: p.end, language: p.language ?? 'auto', confidence: p.confidence ?? 0.9 }]
+      } catch { return [] }
+    })
+}
 
-  private parseTimestamp(ts: string): number {
-    // "HH:MM:SS,mmm" or "HH:MM:SS.mmm" -> seconds
-    const parts = ts.replace(',', '.').split(':')
-    if (parts.length === 3) {
-      const hours = Number(parts[0])
-      const minutes = Number(parts[1])
-      const seconds = Number(parts[2])
-      return hours * 3600 + minutes * 60 + seconds
-    }
-    return Number(ts) || 0
+function parseTimestamp(ts: string): number {
+  // "HH:MM:SS,mmm" or "HH:MM:SS.mmm" → seconds
+  const parts = ts.replace(',', '.').split(':')
+  if (parts.length === 3) {
+    return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(parts[2])
   }
+  return Number(ts) || 0
 }

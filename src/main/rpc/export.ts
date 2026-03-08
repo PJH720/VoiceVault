@@ -2,7 +2,7 @@ import { ExportChannels } from '../../shared/ipc-channels'
 import type { ExportOptions, ExportResult, ExportTemplateSummary } from '../../shared/types'
 import { getObsidianVaultPath, setObsidianVaultPath } from '../services/settings'
 import { getDb } from '../services/db'
-import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, mkdirSync } from 'fs'
 import { join, basename } from 'path'
 
 function getExportTemplatesDir(): string {
@@ -57,7 +57,7 @@ export const exportRPCHandlers = {
     if (!existsSync(vaultPath)) mkdirSync(vaultPath, { recursive: true })
 
     const outputPath = join(vaultPath, `${title.replace(/[/\\:*?"<>|]/g, '_')}.md`)
-    writeFileSync(outputPath, content, 'utf-8')
+    await Bun.write(outputPath, content)
 
     return { path: outputPath, content }
   },
