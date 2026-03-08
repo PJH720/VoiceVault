@@ -1,6 +1,7 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.6.0-blue" alt="version">
+  <img src="https://img.shields.io/badge/version-0.7.0-blue" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
+  <img src="https://img.shields.io/badge/desktop-Electrobun%201.15-orange" alt="electrobun">
   <img src="https://img.shields.io/badge/python-3.12-yellow" alt="python">
   <img src="https://img.shields.io/badge/Next.js-16-black" alt="nextjs">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="platform">
@@ -95,12 +96,37 @@ Export any recording as an Obsidian-compatible Markdown file, complete with:
 
 ## Architecture
 
-VoiceVault is a monorepo with a Python backend, a Next.js frontend, and an Obsidian plugin:
+VoiceVault is a monorepo with two independent apps and an Obsidian plugin:
 
-> **Note:** The Streamlit UI (`src/ui/`) is deprecated. The Next.js frontend is the primary UI.
+| App | Stack | Entry |
+|---|---|---|
+| **Desktop** (primary) | Electrobun 1.15 + Bun + React 19 + Vite | `pnpm dev` |
+| **Web** | Python FastAPI + Next.js 16 | `make dev` |
+| **Obsidian plugin** | TypeScript + esbuild | `plugin/` |
+
+> **v0.7.0:** The desktop app is now fully migrated from Electron to [Electrobun](https://github.com/blackboardsh/electrobun)
+> (Bun runtime + Zig native + system WebView). Electron has been removed entirely.
 
 ```
 VoiceVault/
+├── src/
+│   ├── main/                  # Electrobun main process (Bun Worker)
+│   │   ├── main.ts            # Entry — DB, RPC server, BrowserWindow
+│   │   ├── http-rpc.ts        # HTTP RPC server (port 50100)
+│   │   ├── rpc/               # Domain handlers (audio, whisper, LLM, export…)
+│   │   └── services/
+│   │       ├── db.ts          # bun:sqlite WAL database
+│   │       ├── settings.ts    # Settings (bun:sqlite-backed)
+│   │       ├── registry.ts    # ServiceRegistry singleton
+│   │       └── subprocess/    # Bun.spawn wrappers: WhisperSubprocess, LlmSubprocess
+│   ├── renderer/              # React 19 + Vite (port 5173)
+│   │   └── src/
+│   │       ├── lib/
+│   │       │   └── electrobun-bridge.ts  # Routes window.api.* → HTTP RPC
+│   │       ├── components/    # UI (shadcn/ui + Tailwind CSS v4)
+│   │       └── pages/         # Route-level pages
+│   └── shared/                # Types + IPC channel constants
+│
 ├── backend/                   # Python (FastAPI + services)
 │   ├── src/
 │   │   ├── api/               # REST routes + WebSocket
@@ -114,27 +140,43 @@ VoiceVault/
 │   │       ├── rag/           # ChromaDB + embeddings + retriever
 │   │       └── storage/       # SQLite + Obsidian export
 │   ├── tests/                 # pytest (unit/integration/e2e/stress)
-│   ├── scripts/               # Dev utilities
 │   ├── pyproject.toml
 │   └── requirements.txt
 │
 ├── frontend/                  # Next.js 16 + TypeScript
-│   ├── src/
-│   │   ├── app/               # App Router pages (recording, summaries)
-│   │   ├── components/        # React components (ui, recording, summaries)
-│   │   ├── hooks/             # Custom hooks (WebSocket, audio capture)
-│   │   ├── lib/               # API client, utilities
-│   │   ├── stores/            # Zustand state management
-│   │   └── types/             # TypeScript types (auto-generated from OpenAPI)
-│   ├── e2e/                   # Playwright E2E tests
-│   ├── package.json
-│   └── Dockerfile
+│   └── src/
+│       ├── app/               # App Router pages
+│       ├── components/        # React components
+│       ├── stores/            # Zustand state
+│       └── types/             # Auto-generated from OpenAPI
 │
+├── plugin/                    # Obsidian community plugin (TypeScript + esbuild)
+├── scripts/                   # Dev utilities + smoke tests
 ├── templates/                 # Classification template JSON files
-├── docs/                      # OpenAPI spec (openapi.json)
-├── docker-compose.yml         # Backend + Frontend + Ollama (optional)
-├── Dockerfile                 # Backend Docker image
-└── Makefile                   # Unified dev commands
+├── docker-compose.yml
+├── Dockerfile
+└── Makefile
+```
+
+### Desktop App — Data Flow (Electrobun)
+
+```
+Microphone (browser MediaRecorder)
+    │ audio blob
+    ▼
+HTTP RPC  POST /rpc  { channel: "whisper:transcribe-file", params: {...} }
+    │
+    ▼
+WhisperSubprocess  (Bun.spawn whisper-cli)
+    │ transcript segments
+    ▼
+LlmSubprocess  (Bun.spawn llama-cli)
+    │ summary / classification
+    ▼
+bun:sqlite  ~/.voicevault/voicevault.db
+    │
+    ▼
+Obsidian Export  (Markdown + YAML frontmatter)
 ```
 
 ### Data Flow
@@ -379,6 +421,15 @@ For more help, check the [FAQ & Troubleshooting](wiki/FAQ-&-Troubleshooting.md) 
 
 VoiceVault is open source and built with:
 
+**Desktop app (v0.7.0 — Electrobun):**
+- **Runtime:** [Electrobun](https://github.com/blackboardsh/electrobun) 1.15 (Bun + Zig + system WebView)
+- **UI:** React 19 · Vite 6 · Tailwind CSS v4 · shadcn/ui
+- **Main process:** Bun Worker · HTTP RPC (port 50100) · `bun:sqlite` WAL
+- **Speech-to-Text:** `whisper-cli` via `Bun.spawn` (no N-API bindings)
+- **LLM:** `llama-cli` via `Bun.spawn` (local GGUF) or Claude / OpenAI API
+- **Testing:** Vitest (unit) · Playwright (E2E artifacts)
+
+**Web app:**
 - **Backend:** Python 3.12 · FastAPI · WebSocket (real-time audio streaming)
 - **Frontend:** Next.js 16 · React 19 · TypeScript · Tailwind CSS · Zustand
 - **Speech-to-Text:** faster-whisper (CTranslate2)
@@ -441,6 +492,7 @@ make setup            # Full project setup (backend + frontend + models)
 - [x] OpenAPI → TypeScript type generation
 - [x] Docker Compose orchestration (backend + frontend + Ollama)
 - [x] CI pipeline with path-filtered jobs
+- [x] Electrobun desktop migration (v0.7.0 — Electron fully removed)
 - [ ] Obsidian community plugin (embedded UI + RAG search)
 - [ ] Speaker diarization (who said what)
 - [ ] Mobile companion app

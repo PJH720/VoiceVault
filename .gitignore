@@ -38,6 +38,9 @@ models/
 *.gguf
 *.ggml
 
+# ── Runtime user data (generated at runtime, not committed) ───────────────────
+data/
+
 # ── Databases ─────────────────────────────────────────────────────────────────
 *.db
 *.db-journal
@@ -63,10 +66,20 @@ htmlcov/
 *.pyc
 *.pyo
 
-# ── Stray prompt / scratch files ──────────────────────────────────────────────
+# ── Stray prompt / scratch files & planning docs ──────────────────────────────
 issue-*.txt
 prompt-*.txt
 *.plan.md
+plugin_reframe_spec.md
+PHASE3_RESULTS.md
+WEBVIEW_COMPAT.md
+
+# ── Stray research / planning directories (not source) ────────────────────────
+pre-research/
+png/
+"project plan & architecture"/
+project_plan*/
+project\ plan*/
 
 # ── IDE / tool artifacts ──────────────────────────────────────────────────────
 .vscode/
