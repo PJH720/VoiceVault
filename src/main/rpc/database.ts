@@ -3,6 +3,10 @@ import { DatabaseChannels } from '../../shared/ipc-channels'
 import type { ListOptions, Recording, RecordingWithTranscript } from '../../shared/types'
 import { getDb } from '../services/db'
 
+const RECORDING_COLS =
+  'id, title, duration, audio_path, created_at, updated_at, category, tags, ' +
+  'is_bookmarked, is_archived, file_size_bytes, template_id, classification_confidence'
+
 type RecordingRow = {
   id: number
   title: string
@@ -74,7 +78,7 @@ export const databaseRPCHandlers = {
       sqlParams.push(`%${raw}%`, ftsEscaped)
     }
 
-    let sql = `SELECT id, title, duration, audio_path, created_at, updated_at, category, tags, is_bookmarked, is_archived, file_size_bytes, template_id, classification_confidence FROM recordings`
+    let sql = `SELECT ${RECORDING_COLS} FROM recordings`
     if (where.length > 0) sql += ` WHERE ${where.join(' AND ')}`
     sql += ` ORDER BY ${sortByMap[sortBy] ?? 'created_at'} ${sortOrder}`
     if (typeof options.limit === 'number' && options.limit > 0) {
@@ -94,7 +98,7 @@ export const databaseRPCHandlers = {
     const db = getDb()
     const row = db
       .query(
-        `SELECT id, title, duration, audio_path, created_at, updated_at, category, tags, is_bookmarked, is_archived, file_size_bytes, template_id, classification_confidence FROM recordings WHERE id = ? AND is_archived = 0`
+        `SELECT ${RECORDING_COLS} FROM recordings WHERE id = ? AND is_archived = 0`
       )
       .get(params.id) as RecordingRow | undefined
     if (!row) return null
@@ -130,12 +134,11 @@ export const databaseRPCHandlers = {
   }): Recording | null => {
     const db = getDb()
     const fileSizeBytes = existsSync(params.audioPath) ? statSync(params.audioPath).size : 0
-    db.query(
+    const { lastInsertRowid } = db.query(
       `INSERT INTO recordings (title, duration, audio_path, category, tags, is_bookmarked, is_archived, file_size_bytes, template_id, classification_confidence, created_at, updated_at) VALUES (?, ?, ?, NULL, NULL, 0, 0, ?, NULL, NULL, datetime('now'), datetime('now'))`
     ).run(params.title, params.duration, params.audioPath, fileSizeBytes)
 
-    const lastId = db.query('SELECT last_insert_rowid() as id').get() as { id: number }
-    return databaseRPCHandlers[DatabaseChannels.GET]({ id: lastId.id }) as Recording | null
+    return databaseRPCHandlers[DatabaseChannels.GET]({ id: Number(lastInsertRowid) })
   },
 
   [DatabaseChannels.SEARCH]: (params: { query: string; options?: ListOptions }): Recording[] => {

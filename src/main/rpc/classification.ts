@@ -4,7 +4,7 @@ import { getDb } from '../services/db'
 import { ServiceRegistry } from '../services/registry'
 import { getLlmModel } from '../services/settings'
 import { assertNonEmptyString } from '../utils/validate'
-import { existsSync, readFileSync, readdirSync, writeFileSync, unlinkSync, mkdirSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, unlinkSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { getUserDataPath } from '../types'
 
@@ -20,36 +20,23 @@ function getBuiltinTemplatesDir(): string {
   return candidates.find((d) => existsSync(d)) ?? candidates[0]
 }
 
+function loadTemplatesFromDir(dir: string, category: 'built-in' | 'custom'): RecordingTemplate[] {
+  if (!existsSync(dir)) return []
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .flatMap((file) => {
+      try {
+        const data = JSON.parse(readFileSync(join(dir, file), 'utf-8')) as RecordingTemplate
+        return [{ ...data, category }]
+      } catch { return [] }
+    })
+}
+
 function loadTemplates(): RecordingTemplate[] {
-  const templates: RecordingTemplate[] = []
-
-  // Built-in templates
-  const builtinDir = getBuiltinTemplatesDir()
-  if (existsSync(builtinDir)) {
-    for (const file of readdirSync(builtinDir).filter((f) => f.endsWith('.json'))) {
-      try {
-        const data = JSON.parse(readFileSync(join(builtinDir, file), 'utf-8')) as RecordingTemplate
-        templates.push({ ...data, category: 'built-in' })
-      } catch {
-        // skip invalid templates
-      }
-    }
-  }
-
-  // Custom templates
-  const customDir = getTemplatesDir()
-  if (existsSync(customDir)) {
-    for (const file of readdirSync(customDir).filter((f) => f.endsWith('.json'))) {
-      try {
-        const data = JSON.parse(readFileSync(join(customDir, file), 'utf-8')) as RecordingTemplate
-        templates.push({ ...data, category: 'custom' })
-      } catch {
-        // skip invalid templates
-      }
-    }
-  }
-
-  return templates
+  return [
+    ...loadTemplatesFromDir(getBuiltinTemplatesDir(), 'built-in'),
+    ...loadTemplatesFromDir(getTemplatesDir(), 'custom'),
+  ]
 }
 
 function linesToList(text: string, fallback: string[] = []): string[] {
@@ -101,10 +88,11 @@ export const classificationRPCHandlers = {
     if (!transcript) throw new Error('Recording has no transcript')
 
     const llm = ServiceRegistry.getLlmSubprocess()
+    const modelPath = `${getLlmModel()}.gguf`
     let summary = ''
     await llm.streamCompletion(
       `${template.prompts.summary}\n\nTranscript:\n${transcript}`,
-      `${getLlmModel()}.gguf`,
+      modelPath,
       (token) => { summary += token }
     )
 
@@ -112,7 +100,7 @@ export const classificationRPCHandlers = {
     if (template.prompts.keyPoints) {
       await llm.streamCompletion(
         `${template.prompts.keyPoints}\n\nTranscript:\n${transcript}`,
-        `${getLlmModel()}.gguf`,
+        modelPath,
         (token) => { keyPoints += token }
       )
     }
@@ -121,7 +109,7 @@ export const classificationRPCHandlers = {
     if (template.prompts.actionItems) {
       await llm.streamCompletion(
         `${template.prompts.actionItems}\n\nTranscript:\n${transcript}`,
-        `${getLlmModel()}.gguf`,
+        modelPath,
         (token) => { actionItems += token }
       )
     }
@@ -184,7 +172,7 @@ export const classificationRPCHandlers = {
 
     const dir = getTemplatesDir()
     mkdirSync(dir, { recursive: true })
-    writeFileSync(join(dir, `${template.id}.json`), JSON.stringify(template, null, 2))
+    await Bun.write(join(dir, `${template.id}.json`), JSON.stringify(template, null, 2))
     return template
   },
 
@@ -199,7 +187,7 @@ export const classificationRPCHandlers = {
 
     const existing = JSON.parse(readFileSync(filePath, 'utf-8')) as RecordingTemplate
     const updated = { ...existing, ...params.updates, id: params.id, updatedAt: new Date().toISOString() }
-    writeFileSync(filePath, JSON.stringify(updated, null, 2))
+    await Bun.write(filePath, JSON.stringify(updated, null, 2))
     return updated
   },
 

@@ -1,33 +1,23 @@
 import { WhisperSubprocess } from './subprocess/WhisperSubprocess'
 import { LlmSubprocess } from './subprocess/LlmSubprocess'
 
-/**
- * ServiceRegistry for Electrobun — singleton access to subprocess-based services.
- * Replaces the Electron ServiceRegistry that used native Node.js modules.
- */
 class ServiceRegistryImpl {
-  private whisperSubprocess: WhisperSubprocess | null = null
-  private llmSubprocess: LlmSubprocess | null = null
+  private whisperSubprocess?: WhisperSubprocess
+  private llmSubprocess?: LlmSubprocess
 
-  public getWhisperSubprocess(): WhisperSubprocess {
-    if (!this.whisperSubprocess) {
-      this.whisperSubprocess = new WhisperSubprocess()
-    }
-    return this.whisperSubprocess
+  getWhisperSubprocess(): WhisperSubprocess {
+    return (this.whisperSubprocess ??= new WhisperSubprocess())
   }
 
-  public getLlmSubprocess(): LlmSubprocess {
-    if (!this.llmSubprocess) {
-      this.llmSubprocess = new LlmSubprocess()
-    }
-    return this.llmSubprocess
+  getLlmSubprocess(): LlmSubprocess {
+    return (this.llmSubprocess ??= new LlmSubprocess())
   }
 
-  public async shutdown(): Promise<void> {
+  async shutdown(): Promise<void> {
     this.whisperSubprocess?.abort()
     this.llmSubprocess?.unload()
-    this.whisperSubprocess = null
-    this.llmSubprocess = null
+    this.whisperSubprocess = undefined
+    this.llmSubprocess = undefined
   }
 }
 

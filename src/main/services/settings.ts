@@ -89,12 +89,24 @@ function tryParseJson(value: string): unknown {
   }
 }
 
-// Typed accessors matching src/main/store.ts
+
+// ── Private helpers ──────────────────────────────────────────────────────────
+
+/** Returns a stored string value only if it appears in `valid`; otherwise `fallback`. */
+function validatedGet<T extends string>(key: string, valid: readonly T[], fallback: T): T {
+  const value = get<string>(key, fallback)
+  return (valid as readonly string[]).includes(value) ? (value as T) : fallback
+}
+
+/** Deletes a key when value is blank, otherwise stores it. */
+function setApiKey(dbKey: string, value: string): void {
+  if (!value.trim()) del(dbKey); else set(dbKey, value)
+}
+
+// Typed accessors
 
 export function getLocale(): SupportedLocale {
-  const value = get<string>('locale', 'ko')
-  const valid: SupportedLocale[] = ['ko', 'en', 'ja']
-  return valid.includes(value as SupportedLocale) ? (value as SupportedLocale) : 'ko'
+  return validatedGet('locale', ['ko', 'en', 'ja'] as const, 'ko')
 }
 
 export function setLocale(locale: SupportedLocale): SupportedLocale {
@@ -103,9 +115,7 @@ export function setLocale(locale: SupportedLocale): SupportedLocale {
 }
 
 export function getWhisperModel(): WhisperModelSize {
-  const value = get<string>('whisperModel', 'base')
-  const valid: WhisperModelSize[] = ['base', 'small', 'medium', 'large-v3-turbo']
-  return valid.includes(value as WhisperModelSize) ? (value as WhisperModelSize) : 'base'
+  return validatedGet('whisperModel', ['base', 'small', 'medium', 'large-v3-turbo'] as const, 'base')
 }
 
 export function setWhisperModel(model: WhisperModelSize): WhisperModelSize {
@@ -114,9 +124,7 @@ export function setWhisperModel(model: WhisperModelSize): WhisperModelSize {
 }
 
 export function getLlmModel(): LlmModelName {
-  const value = get<string>('llmModel', 'gemma-2-3n-instruct-q4_k_m')
-  const valid: LlmModelName[] = ['gemma-2-3n-instruct-q4_k_m', 'llama-3.2-3b-instruct-q4_k_m']
-  return valid.includes(value as LlmModelName) ? (value as LlmModelName) : 'gemma-2-3n-instruct-q4_k_m'
+  return validatedGet('llmModel', ['gemma-2-3n-instruct-q4_k_m', 'llama-3.2-3b-instruct-q4_k_m'] as const, 'gemma-2-3n-instruct-q4_k_m')
 }
 
 export function setLlmModel(model: LlmModelName): LlmModelName {
@@ -128,37 +136,19 @@ export function getAnthropicApiKey(): string | null {
   return get<string | null>('anthropicApiKey', null)
 }
 
-export function setAnthropicApiKey(key: string): void {
-  if (!key) {
-    del('anthropicApiKey')
-    return
-  }
-  set('anthropicApiKey', key)
-}
+export function setAnthropicApiKey(key: string): void { setApiKey('anthropicApiKey', key) }
 
 export function getOpenAIApiKey(): string | null {
   return get<string | null>('openaiApiKey', null)
 }
 
-export function setOpenAIApiKey(key: string): void {
-  if (!key) {
-    del('openaiApiKey')
-    return
-  }
-  set('openaiApiKey', key)
-}
+export function setOpenAIApiKey(key: string): void { setApiKey('openaiApiKey', key) }
 
 export function getGeminiApiKey(): string | null {
   return get<string | null>('geminiApiKey', null)
 }
 
-export function setGeminiApiKey(key: string): void {
-  if (!key) {
-    del('geminiApiKey')
-    return
-  }
-  set('geminiApiKey', key)
-}
+export function setGeminiApiKey(key: string): void { setApiKey('geminiApiKey', key) }
 
 export function maskApiKey(key: string | null): string | null {
   if (!key) return null

@@ -11,7 +11,7 @@ function getDbPath(): string {
 
 function loadMigrations(): Array<{ id: number; fileName: string; sql: string }> {
   const candidates = [
-    join(import.meta.dir, '../../main/migrations'),
+    join(import.meta.dir, '../migrations'),
     join(process.cwd(), 'src/main/migrations')
   ]
   const migrationsDir = candidates.find((dir) => existsSync(dir))
@@ -76,9 +76,7 @@ export function getDb(): Database {
   mkdirSync(join(dbPath, '..'), { recursive: true })
 
   _db = new Database(dbPath)
-  _db.exec('PRAGMA journal_mode = WAL')
-  _db.exec('PRAGMA synchronous = NORMAL')
-  _db.exec('PRAGMA foreign_keys = ON')
+  _db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON')
 
   runMigrations(_db)
 

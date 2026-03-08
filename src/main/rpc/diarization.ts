@@ -43,20 +43,8 @@ export const diarizationRPCHandlers = {
     const db = getDb()
     const sourceSegments =
       params.speakerSegments ??
-      (db
-        .query(
-          'SELECT id, recording_id, speaker_profile_id, start_time, end_time, confidence, raw_speaker_label FROM speaker_segments WHERE recording_id = ? ORDER BY start_time ASC'
-        )
-        .all(params.recordingId) as Array<Record<string, unknown>>
-      ).map((row) => ({
-        id: row.id as number,
-        recordingId: row.recording_id as number,
-        speakerProfileId: row.speaker_profile_id as number | null,
-        start: row.start_time as number,
-        end: row.end_time as number,
-        confidence: row.confidence as number,
-        speaker: row.raw_speaker_label as string
-      }))
+      (db.query(SPEAKER_SEGMENTS_SQL).all(params.recordingId) as Array<Record<string, unknown>>)
+        .map(mapSpeakerSegment)
 
     // Simple alignment: assign speaker based on time overlap
     const aligned = params.transcriptSegments.map((ts) => {
@@ -115,13 +103,12 @@ export const diarizationRPCHandlers = {
     const colors = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899']
     const color = colors[Math.floor(Math.random() * colors.length)]
 
-    db.query(
+    const { lastInsertRowid } = db.query(
       `INSERT INTO speaker_profiles (name, color, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))`
     ).run(params.name, color)
 
-    const lastId = db.query('SELECT last_insert_rowid() as id').get() as { id: number }
     return {
-      id: lastId.id,
+      id: Number(lastInsertRowid),
       name: params.name,
       color,
       createdAt: new Date().toISOString(),

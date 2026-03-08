@@ -4,6 +4,7 @@ import { getObsidianVaultPath, setObsidianVaultPath } from '../services/settings
 import { getDb } from '../services/db'
 import { existsSync, readFileSync, readdirSync, mkdirSync } from 'fs'
 import { join, basename } from 'path'
+import { assertFiniteId, assertNonEmptyString } from '../utils/validate'
 
 function getExportTemplatesDir(): string {
   const candidates = [
@@ -81,12 +82,8 @@ export const exportRPCHandlers = {
     recordingId: number
     templateName: string
   }): Promise<ExportResult> => {
-    if (typeof params.recordingId !== 'number' || !Number.isFinite(params.recordingId)) {
-      throw new Error('Invalid recordingId')
-    }
-    if (typeof params.templateName !== 'string' || params.templateName.trim().length === 0) {
-      throw new Error('templateName must be a non-empty string')
-    }
+    assertFiniteId(params.recordingId, 'recordingId')
+    assertNonEmptyString(params.templateName, 'templateName')
 
     // Preview without writing to disk
     const db = getDb()
@@ -123,12 +120,10 @@ export const exportRPCHandlers = {
 
     const templates: ExportTemplateSummary[] = readdirSync(dir)
       .filter((f) => f.endsWith('.md') || f.endsWith('.hbs'))
-      .map((f) => ({
-        name: basename(f, f.endsWith('.md') ? '.md' : '.hbs'),
-        label: basename(f, f.endsWith('.md') ? '.md' : '.hbs')
-          .replace(/[-_]/g, ' ')
-          .replace(/\b\w/g, (c) => c.toUpperCase())
-      }))
+      .map((f) => {
+        const stem = basename(f, f.endsWith('.md') ? '.md' : '.hbs')
+        return { name: stem, label: stem.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }
+      })
 
     return { templates }
   }
