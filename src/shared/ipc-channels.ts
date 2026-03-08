@@ -31,6 +31,13 @@ export const AppChannels = {
   REPORT_ERROR: 'app:report-error'
 } as const
 
+export const SetupChannels = {
+  /** Returns SetupStatus — whether required binaries and models are present */
+  CHECK: 'setup:check',
+  /** Download a Whisper model; responds with { path: string } */
+  DOWNLOAD_WHISPER_MODEL: 'setup:download-whisper-model',
+} as const
+
 export const WhisperChannels = {
   START_STREAM: 'whisper:transcribe-stream',
   STOP: 'whisper:stop',

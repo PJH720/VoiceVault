@@ -11,8 +11,11 @@ import { systemAudioRPCHandlers } from './system-audio'
 import { translationRPCHandlers } from './translation'
 import {
   AppChannels,
-  SettingsChannels
+  SettingsChannels,
+  SetupChannels,
 } from '../../shared/ipc-channels'
+import { checkSetup, downloadWhisperModel } from '../services/setup'
+import { assertNonEmptyString } from '../utils/validate'
 import {
   getLocale,
   setLocale,
@@ -55,7 +58,20 @@ const appRPCHandlers = {
     setWhisperModel(params.model),
   [SettingsChannels.GET_LLM_MODEL]: (): LlmModelName => getLlmModel(),
   [SettingsChannels.SET_LLM_MODEL]: (params: { model: LlmModelName }): LlmModelName =>
-    setLlmModel(params.model)
+    setLlmModel(params.model),
+
+  // ── Setup / First-Run ──────────────────────────────────────────────────
+  [SetupChannels.CHECK]: () => checkSetup(),
+
+  [SetupChannels.DOWNLOAD_WHISPER_MODEL]: async (params: unknown) => {
+    const size = (params as any)?.size as string
+    assertNonEmptyString(size)
+    if (!['tiny.en', 'base.en', 'small.en'].includes(size)) {
+      throw new Error(`Invalid Whisper model size: ${size}`)
+    }
+    const path = await downloadWhisperModel(size as 'tiny.en' | 'base.en' | 'small.en')
+    return { path }
+  },
 }
 
 /**
