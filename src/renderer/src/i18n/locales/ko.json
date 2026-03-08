@@ -221,11 +221,6 @@
       "turns": "턴",
       "secondsShort": "초",
       "recordingsShort": "녹음"
-    },
-    "versions": {
-      "electron": "Electron v{{version}}",
-      "chromium": "Chromium v{{version}}",
-      "node": "Node v{{version}}"
     }
   },
   "errors": {

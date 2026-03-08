@@ -1,8 +1,18 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
     "composite": true,
-    "types": ["electron-vite/node"]
-  }
+    "skipLibCheck": true,
+    "types": ["node"],
+    "paths": {}
+  },
+  "include": [
+    "src/electrobun/**/*",
+    "src/shared/**/*",
+    "electrobun.config.ts",
+    "scripts/**/*.ts"
+  ]
 }
