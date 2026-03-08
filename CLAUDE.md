@@ -4,180 +4,109 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VoiceVault is a cross-platform Electron desktop app that records, transcribes, summarizes, and auto-organizes voice recordings into structured notes — all on-device, no server required.
+VoiceVault — open-source AI voice recorder: transcribes, summarizes, and auto-organizes recordings into structured notes, all on-device.
 
-**Stack:** Electron 39 + React 19 + TypeScript 5 + electron-vite + Tailwind CSS v4 + shadcn/ui + pnpm
+**Two parallel stacks** in this repo:
 
-## Build & Run
+| Stack | Path | Tech |
+|---|---|---|
+| Electron desktop app | `src/main/`, `src/preload/`, `src/renderer/`, `src/shared/` | Electron 39 + React 19 + TS 5 + electron-vite + Tailwind v4 + shadcn/ui + pnpm |
+| Python web app | `backend/`, `frontend/` | FastAPI + Next.js 16 + Python 3.12 + Zustand + ChromaDB |
+| Electrobun migration (WIP) | `src/electrobun/` | Bun + system webview (replaces Electron main process) |
 
-```bash
-pnpm install
-pnpm dev          # Development with hot reload
-pnpm build        # Production build (runs typecheck first)
-pnpm lint         # ESLint
-pnpm typecheck    # TypeScript check (both node + web configs)
-```
-
-## Testing
+## Commands
 
 ```bash
-pnpm test                           # All unit tests (Vitest)
-pnpm test:watch                     # Watch mode
-npx vitest run tests/unit/WhisperService.test.ts  # Single test file
-pnpm test:e2e                       # Playwright E2E (needs built app)
-```
+# ── Electron (pnpm) ──────────────────────────────────
+pnpm dev / pnpm build / pnpm lint / pnpm typecheck
+pnpm test                           # Vitest unit tests
+pnpm test:watch                     # watch mode
+npx vitest run tests/unit/Foo.test.ts  # single file
+pnpm test:e2e                       # Playwright (needs built app)
+pnpm check:translations             # i18n completeness
 
-- Unit tests: `tests/unit/` — Vitest with `globals: true`
-- Renderer tests (`tests/unit/renderer/**/*.test.tsx`): auto-switched to jsdom environment
-- E2E tests: `tests/e2e/` — Playwright with Electron support (`_electron.launch()`)
-- Native modules (`whisper-cpp-node`, `better-sqlite3`, etc.) are mocked via `vi.mock()`
+# ── Python web app (Makefile) ────────────────────────
+make setup / make dev / make dev-backend / make dev-frontend
+make test / make test-backend / make test-frontend / make lint
+make gen-openapi / make gen-types   # OpenAPI → TS types
+make up / make up-ollama            # Docker
+
+# ── Electrobun (bun) ────────────────────────────────
+bun run dev:electrobun              # Vite renderer + Bun main
+bun run build:electrobun            # production build
+```
 
 ## Architecture
 
-### Three-Process Model (Electron)
+### Electron: Three-Process Model
 
 ```
-Renderer (React UI)  ←→  Preload (contextBridge)  ←→  Main (Node.js + Native)
-   window.api.*              src/preload/              src/main/services/
-   src/renderer/             index.ts                  src/main/ipc/
+Renderer (React UI)  <-->  Preload (contextBridge)  <-->  Main (Node.js + Native)
+   window.api.*              src/preload/index.ts          src/main/services/
+   src/renderer/                                           src/main/ipc/
 ```
 
-**All heavy compute runs in main process.** The renderer is a thin UI layer with zero Node.js access.
+All heavy compute in main process. Renderer is a thin UI layer with zero Node.js access.
 
-### Key Directories
+**Key paths (Electron):**
+- `src/main/services/` — Native module wrappers (Whisper, LLM, Database, Vector, Export)
+- `src/main/ipc/` — IPC handlers, one file per domain
+- `src/main/migrations/` — Numbered SQL files (`001_init.sql`, …)
+- `src/preload/index.ts` — **Only** bridge; exposes typed `window.api.*`
+- `src/renderer/src/{components,contexts,hooks}/` — React UI (Context for state, no Redux)
+- `src/shared/types.ts` + `src/shared/ipc-channels.ts` — Shared types & channel constants
 
-- `src/main/services/` — Service classes wrapping native modules (WhisperService, LLMService, DatabaseService, etc.)
-- `src/main/ipc/` — IPC handler registrations, one file per domain (audio, transcription, summarization, etc.)
-- `src/main/migrations/` — Numbered SQL migration files (`001_init.sql`, `002_transcripts.sql`, ...) run by DatabaseService
-- `src/preload/index.ts` — The **only** bridge between main and renderer. Exposes typed `window.api.*`
-- `src/renderer/src/components/` — React components grouped by feature (Recording, Library, Summary, etc.)
-- `src/renderer/src/contexts/` — React Context providers (state management, no Redux/Zustand)
-- `src/renderer/src/hooks/` — Custom hooks that abstract IPC calls (`useRecording`, `useTranscription`, etc.)
-- `src/shared/types.ts` — Shared TypeScript types across all processes
-- `src/shared/ipc-channels.ts` — All IPC channel name constants (grouped as `AudioChannels`, `DatabaseChannels`, etc.)
-- `resources/templates/` — Built-in classification templates (JSON) and Obsidian export templates (Markdown)
+**Key paths (Python):**
+- `backend/src/api/` — FastAPI routes + WebSocket
+- `backend/src/services/` — audio, transcription, summarization, classification, RAG, storage
+- `frontend/src/` — Next.js App Router (Zustand stores, OpenAPI-generated types)
 
-### ServiceRegistry (Singleton)
+**ServiceRegistry** (`src/main/services/ServiceRegistry.ts`): Lazy singleton for LLM, Whisper, Embedding, Diarization, Translation. Call `ServiceRegistry.cleanup()` on quit.
 
-`src/main/services/ServiceRegistry.ts` — Lazy-creates and caches service instances (LLM, Whisper, Embedding, Diarization, Translation). Prevents double model loading. Access via `ServiceRegistry.getLLMService()`, etc. Call `ServiceRegistry.cleanup()` on app quit.
+**Data flow:** Audio → WhisperService → SQLite segments → LLMService (summarize every 60s + on stop) → Classification → Obsidian export. RAG embeds via VectorService.
 
-### Data Flow
-
-Audio capture → WhisperService (transcription) → SQLite (segments) → LLMService (summarization every 60s + on stop) → Classification → Obsidian export. RAG search embeds segments via VectorService for semantic search.
-
-### TypeScript Configuration
-
-Two separate tsconfigs referenced from the root `tsconfig.json`:
-- `tsconfig.node.json` — Main + preload processes (extends `@electron-toolkit/tsconfig/tsconfig.node.json`)
-- `tsconfig.web.json` — Renderer process (extends `@electron-toolkit/tsconfig/tsconfig.web.json`, path alias `@renderer/*`)
-
-The renderer also has a Vite alias: `@renderer` → `src/renderer/src` (configured in `electron.vite.config.ts`).
+**TypeScript:** Two tsconfigs from root — `tsconfig.node.json` (main+preload), `tsconfig.web.json` (renderer, alias `@renderer/*`). Vite alias: `@renderer` → `src/renderer/src`.
 
 ## Code Conventions
 
-### IPC Rules (Critical)
-- **Never expose Node.js APIs to renderer** — all communication goes through `src/preload/index.ts` contextBridge
-- **No `ipcRenderer` in renderer code** — only `window.api.*`
-- **All IPC channel names** defined as constants in `src/shared/ipc-channels.ts`
-- **Validate all IPC inputs** in main process handlers (assume renderer is compromised)
+**IPC (Critical):** Never expose Node.js to renderer. No `ipcRenderer` in renderer — only `window.api.*`. All channel names in `src/shared/ipc-channels.ts`. Validate all IPC inputs in main (assume renderer compromised).
 
-### TypeScript
-- Strict mode, no `any` (use `unknown` + narrowing)
-- Explicit return types on exported functions
-- Semicolons, single quotes
+**TypeScript:** Strict, no `any` (use `unknown`+narrowing). Explicit return types on exports. Semicolons, single quotes.
 
-### React
-- Functional components only, React Context for state (no Redux)
-- Tailwind CSS for styling (no inline styles, no CSS modules)
-- shadcn/ui for UI primitives (`src/renderer/src/components/ui/`)
+**React:** Functional components only. Context for state in Electron app; Zustand in Next.js. Tailwind CSS (no inline styles). shadcn/ui primitives.
 
-### i18n
-- All user-facing strings use `react-i18next` `t()` — no hardcoded strings
-- Korean (`ko`) is primary locale; English (`en`) and Japanese (`ja`) supported
-- Locale files in `src/renderer/src/i18n/locales/`
-- Translation key format: `namespace.section.key` (e.g., `recording.controls.start`)
-- Run `pnpm check:translations` to verify translation completeness
+**i18n:** All strings via `react-i18next` `t()`. Korean (`ko`) primary; `en`/`ja` supported. Keys: `namespace.section.key`.
 
-### Naming
-- Components: `PascalCase.tsx` — Services: `PascalCaseService.ts`
-- Hooks: `useHookName.ts` — IPC channels: `domain:action` kebab-case
-- SQL columns: `snake_case` — TypeScript types/interfaces: `PascalCase`
+**Naming:** Components `PascalCase.tsx`, Services `PascalCaseService.ts`, Hooks `useX.ts`, IPC `domain:action`, SQL `snake_case`.
 
-### Database
-- SQLite via `better-sqlite3` with WAL mode
-- Migrations are numbered SQL files in `src/main/migrations/` (run sequentially on init)
-- Use prepared statements, wrap bulk writes in transactions
+**Logging:** `console.log('[ServiceName]', …)` with bracketed prefix.
 
-### Git Commits
-Conventional commits: `feat(scope):`, `fix(scope):`, `refactor(scope):`, `test(scope):`, `chore(scope):`
+**Database:** `better-sqlite3` WAL (Electron), `bun:sqlite` (Electrobun), async SQLAlchemy+aiosqlite (backend). Numbered migration SQL files. Prepared statements, transactions for bulk writes.
+
+**Git:** Conventional commits — `feat(scope):`, `fix(scope):`, `refactor(scope):`, `test(scope):`, `chore(scope):`
 
 ## Key Technical Notes
 
-- **whisper-cpp-node@0.2.9 API:** Uses `createWhisperContext()` / `transcribeAsync()` / `ctx.free()`. Segments return `{start: "HH:MM:SS,mmm", end, text}` strings that get parsed to float seconds. Confidence defaults to 0.9 (not provided by native API).
-- **node-llama-cpp** handles local GGUF model inference for summarization and classification.
-- **electron-store** persists user settings (model paths, locale, etc.) in `src/main/store.ts`.
-- Several services are coded but have uninstalled native deps: `pyannote-cpp-node` (diarization), `native-audio-node` (system audio capture).
+- **whisper-cpp-node@0.2.9:** `createWhisperContext()` / `transcribeAsync()` / `ctx.free()`. Segments return `{start: "HH:MM:SS,mmm", end, text}` strings parsed to float seconds. Confidence defaults 0.9.
+- **node-llama-cpp:** Local GGUF model inference for summarization/classification.
+- **electron-store:** User settings in `src/main/store.ts`.
+- Uninstalled native deps exist in code: `pyannote-cpp-node` (diarization), `native-audio-node` (system audio).
+- **Linux:** Requires `libasound2-dev libpulse-dev` (Debian) or `alsa-lib-devel pulseaudio-libs-devel` (Fedora).
 
-## Electrobun Migration (Phase 1 — Scaffold)
+## Electrobun Migration
 
-**Branch:** `feat/electrobun-migration`
+**Branch:** `feat/electrobun-migration` — migrating from Electron to [Electrobun](https://github.com/blackboardsh/electrobun) (Bun+Zig, system webview). Existing `src/main/` preserved.
 
-VoiceVault is being migrated from Electron to [Electrobun](https://github.com/blackboardsh/electrobun) — a desktop framework using Bun + Zig with a system webview. The existing `src/main/` Electron code is preserved; the new Electrobun main process lives in `src/electrobun/`.
-
-### Electrobun Dev Commands
-
-```bash
-bun run dev:electrobun       # Dev with hot reload (Vite renderer + Bun main)
-bun run build:electrobun     # Production build
-bun run build:electrobun:linux  # Package for Linux
-bun run build:electrobun:mac    # Package for macOS
-bun run build:electrobun:win    # Package for Windows
-```
-
-### Key Architectural Differences from Electron
-
-| Concern | Electron (`src/main/`) | Electrobun (`src/electrobun/`) |
+| Concern | Electron | Electrobun |
 |---|---|---|
 | Runtime | Node.js | Bun |
-| IPC | `ipcMain.handle` + `contextBridge` preload | Electrobun typed RPC (`BrowserView.defineRPC`) |
-| SQLite | `better-sqlite3` | `bun:sqlite` (built-in) |
-| Settings store | `electron-store` | `bun:sqlite`-backed `settings.ts` |
-| Whisper STT | `whisper-cpp-node` (native module) | `Bun.spawn` subprocess (`whisper-cli`) |
-| LLM inference | `node-llama-cpp` (native module) | `Bun.spawn` subprocess (`llama-cli`) |
-| Window | `BrowserWindow` (Chromium) | `BrowserWindow` (system webview) |
-| Renderer | Stays 100% intact (React 19 + Vite + Tailwind) | Same |
+| IPC | `ipcMain.handle` + contextBridge | `BrowserView.defineRPC` + HTTP/WS bridge |
+| SQLite | `better-sqlite3` | `bun:sqlite` |
+| Settings | `electron-store` | `bun:sqlite`-backed `settings.ts` |
+| Whisper/LLM | Native modules | `Bun.spawn` subprocess (whisper-cli/llama-cli) |
 
-### Electrobun Directory Structure
+**Directory:** `src/electrobun/` — `main.ts` (entry), `http-rpc.ts` (HTTP+WS server), `types.ts`, `rpc/` (11 domain handlers + barrel), `services/` (db, settings, registry, subprocess wrappers).
 
-```
-src/electrobun/
-├── main.ts              # App entry point
-├── types.ts             # Electrobun-specific type augmentations
-├── rpc/                 # Typed RPC handlers (replaces src/main/ipc/)
-│   ├── index.ts         # Barrel — combines all handlers into allRPCHandlers
-│   ├── audio.ts         # Audio capture
-│   ├── database.ts      # CRUD recordings, segments, speakers
-│   ├── transcription.ts # Whisper subprocess
-│   ├── summarization.ts # LLM subprocess summarization
-│   ├── classification.ts# Template classification
-│   ├── cloud-llm.ts     # Cloud LLM (Anthropic/OpenAI/Gemini)
-│   ├── diarization.ts   # Speaker diarization
-│   ├── rag.ts           # RAG search
-│   ├── export.ts        # Obsidian export
-│   ├── system-audio.ts  # System audio capture
-│   └── translation.ts   # Translation
-└── services/
-    ├── db.ts            # bun:sqlite singleton + migrations
-    ├── settings.ts      # bun:sqlite-backed settings
-    ├── registry.ts      # ServiceRegistry for subprocess services
-    └── subprocess/
-        ├── WhisperSubprocess.ts  # Bun.spawn whisper-cli wrapper
-        └── LlmSubprocess.ts     # Bun.spawn llama-cli wrapper
-```
+**Renderer bridge:** `src/renderer/src/lib/electrobun-bridge.ts` — detects runtime, routes to HTTP RPC (Electrobun) or `window.api` passthrough (Electron). `main.tsx` patches `window.api` so components work unchanged.
 
-### Migration Status
-
-- [x] Phase 1: Scaffold (directory structure, all RPC handlers, services, subprocess wrappers)
-- [ ] Phase 2: Renderer bridge (connect React app to Electrobun RPC)
-- [ ] Phase 3: Native integration (audio capture, model downloads)
-- [ ] Phase 4: Packaging and distribution
+**Status:** Phase 1 (scaffold) ✓ · Phase 2 (renderer bridge + WebAudio audit) ✓ · Phase 3 (native integration) TODO · Phase 4 (packaging) TODO
