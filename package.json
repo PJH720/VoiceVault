@@ -25,7 +25,7 @@
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
     "predev:electrobun": "lsof -t -i:50100 -i:5173 2>/dev/null | xargs -r kill -9 || true",
-    "dev:electrobun": "concurrently \"vite src/renderer --port 5173\" \"LD_LIBRARY_PATH=. VOICEVAULT_DEV=1 bun run src/electrobun/main.ts\"",
+    "dev:electrobun": "concurrently \"vite src/renderer --port 5173\" \"bash scripts/dev-electrobun.sh\"",
     "build:electrobun": "vite build src/renderer && bun build src/electrobun/main.ts --outdir out/electrobun/main --target bun",
     "build:electrobun:linux": "bun run build:electrobun && electrobun package --platform linux",
     "build:electrobun:mac": "bun run build:electrobun && electrobun package --platform mac",
