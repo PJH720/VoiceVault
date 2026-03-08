@@ -18,7 +18,7 @@ sleep 0.5
 
 # ── Step 1: Build bun entrypoint ──────────────────────────────────────────────
 echo "[dev-electrobun] Building bun entrypoint..."
-bun build src/electrobun/main.ts \
+bun build src/main/main.ts \
   --outdir out/electrobun/main \
   --target bun
 

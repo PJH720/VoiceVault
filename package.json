@@ -12,7 +12,7 @@
     "typecheck:bun": "tsc --noEmit -p tsconfig.node.json --composite false",
     "predev": "lsof -t -i:50100 -i:5173 2>/dev/null | xargs -r kill -9 || true",
     "dev": "concurrently \"vite src/renderer --port 5173\" \"bash scripts/dev-electrobun.sh\"",
-    "build": "vite build src/renderer && bun build src/electrobun/main.ts --outdir out/electrobun/main --target bun",
+    "build": "vite build src/renderer && bun build src/main/main.ts --outdir out/electrobun/main --target bun",
     "package:linux": "pnpm run build && electrobun package --platform linux",
     "package:mac": "pnpm run build && electrobun package --platform mac",
     "package:win": "pnpm run build && electrobun package --platform win",

@@ -4,8 +4,8 @@
  */
 import { existsSync } from 'fs'
 import { join } from 'path'
-import { setUserDataPath } from '../src/electrobun/types'
-import { WhisperSubprocess } from '../src/electrobun/services/subprocess/WhisperSubprocess'
+import { setUserDataPath } from '../src/main/types'
+import { WhisperSubprocess } from '../src/main/services/subprocess/WhisperSubprocess'
 
 const HOME = process.env.HOME ?? '/home/pj'
 const USER_DATA = join(HOME, '.local/share/VoiceVault')

@@ -10,7 +10,7 @@
     "paths": {}
   },
   "include": [
-    "src/electrobun/**/*",
+    "src/main/**/*",
     "src/shared/**/*",
     "electrobun.config.ts",
     "scripts/**/*.ts"
