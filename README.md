@@ -2,31 +2,32 @@
   <img src="https://img.shields.io/badge/version-0.7.0-blue" alt="version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/desktop-Electrobun%201.15-orange" alt="electrobun">
-  <img src="https://img.shields.io/badge/python-3.12-yellow" alt="python">
-  <img src="https://img.shields.io/badge/Next.js-16-black" alt="nextjs">
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="platform">
+  <img src="https://img.shields.io/badge/runtime-Bun-black" alt="bun">
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey" alt="platform">
 </p>
 
 <h1 align="center">VoiceVault</h1>
 <p align="center"><strong>Record your day, let AI organize it.</strong></p>
 <p align="center">
-An open-source AI voice recorder that transcribes, summarizes, and auto-organizes your recordings into structured notes — then lets you search across everything with natural language.
+An open-source desktop app that transcribes, summarizes, and auto-organizes your recordings
+into structured notes — then lets you search across everything with natural language.
+Runs entirely on your machine. No cloud. No subscription.
 </p>
 
 ---
 
 ## Why VoiceVault?
 
-You record a lecture, a meeting, a casual conversation with friends — and it all just sits there as audio files you'll never listen to again.
+You record a lecture, a meeting, a casual conversation — and it all just sits there as audio you'll never revisit.
 
-**VoiceVault changes that.** It listens in real time, transcribes everything, and uses AI to:
+**VoiceVault changes that.** It transcribes everything with on-device Whisper, then uses AI to:
 
-- Automatically generate concise summaries every minute
-- Classify each segment (lecture, meeting, conversation, personal memo)
-- Let you search across all your recordings with natural-language questions
+- Generate concise summaries every minute
+- Classify each recording (lecture, meeting, conversation, memo)
+- Let you search across all past recordings with natural-language questions
 - Export everything as clean, organized Markdown notes for [Obsidian](https://obsidian.md)
 
-All of this runs **locally on your machine** — no cloud, no subscription, no data leaving your computer.
+All of this runs **locally on your machine** — no cloud, no API keys required (unless you opt in).
 
 ---
 
@@ -34,15 +35,13 @@ All of this runs **locally on your machine** — no cloud, no subscription, no d
 
 ### Real-Time Transcription
 
-Record and see your words appear as text instantly. VoiceVault uses [faster-whisper](https://github.com/SYSTRAN/faster-whisper) to transcribe audio as you speak — no internet required.
+See your words appear as text while you speak. VoiceVault uses [`whisper-cli`](https://github.com/ggerganov/whisper.cpp) (on-device, via `Bun.spawn` subprocess) — no internet required.
 
 ### Smart Summaries
 
-Every minute, VoiceVault generates a short AI summary of what was said. After a long recording, you get a clean timeline of key points instead of hours of raw audio.
+Every minute, an AI summary of what was said appears automatically. Long recordings become clean timelines of key points instead of hours of raw audio.
 
 ### Auto-Classification
-
-Stop organizing manually. VoiceVault uses zero-shot AI classification to automatically detect what kind of content you're recording:
 
 | What you recorded | What VoiceVault creates |
 |---|---|
@@ -51,29 +50,24 @@ Stop organizing manually. VoiceVault uses zero-shot AI classification to automat
 | Coffee with a friend | A **conversation log** |
 | Thinking out loud | A **personal memo** |
 
-You can create your own custom templates to match your workflow.
+Classification is fully offline using local LLM via [`llama-cli`](https://github.com/ggerganov/llama.cpp). Custom templates are JSON files in `templates/`.
 
 ### RAG Search — Ask Your Past Recordings
 
-This is where it gets powerful. VoiceVault remembers everything you've ever recorded. Just ask a question in plain English (or any language):
+Ask a question in plain English (or any language):
 
 > *"What did the professor say about transformer architecture last week?"*
 
-VoiceVault searches across all your recordings, finds the relevant segments, and gives you a grounded answer with exact sources and timestamps.
+VoiceVault searches across all your recordings and gives you a grounded answer with exact sources and timestamps.
 
 ### Obsidian Integration
 
-Export any recording as an Obsidian-compatible Markdown file, complete with:
-
-- YAML frontmatter (title, date, category, tags, speakers)
-- Auto-generated `[[wikilinks]]` to related recordings
-- Clean formatting ready for your knowledge base
+Export any recording as an Obsidian-compatible Markdown file with YAML frontmatter, auto-generated `[[wikilinks]]` to related recordings, and a clean timeline — ready for your vault.
 
 ### Privacy First
 
-- **100% offline** — runs entirely on your machine
-- **No accounts, no sign-ups** — just download and use
-- **Your data stays yours** — recordings, transcripts, and notes are stored locally
+- **100% offline** — Whisper and LLM run locally; no data leaves your machine by default
+- **No accounts, no sign-ups**
 - **Open source** — inspect every line of code
 
 ---
@@ -83,118 +77,74 @@ Export any recording as an Obsidian-compatible Markdown file, complete with:
 | | VoiceVault | Clova Note | Otter.ai | Built-in Voice Memo |
 |---|:---:|:---:|:---:|:---:|
 | **Price** | Free | Paid | Paid | Free |
-| **Works offline** | Yes | No | No | Yes |
-| **Auto-summarize** | Yes | Partial | Yes | No |
-| **Auto-classify** | Yes | No | No | No |
-| **Search past recordings** | Natural language (RAG) | Text only | Text only | No |
-| **Custom templates** | Yes | No | No | No |
-| **Obsidian / PKM export** | Yes | No | No | No |
+| **Works offline** | ✅ | ✗ | ✗ | ✅ |
+| **Auto-summarize** | ✅ | Partial | ✅ | ✗ |
+| **Auto-classify** | ✅ | ✗ | ✗ | ✗ |
+| **Search past recordings** | Natural language (RAG) | Text only | Text only | ✗ |
+| **Custom templates** | ✅ | ✗ | ✗ | ✗ |
+| **Obsidian / PKM export** | ✅ | ✗ | ✗ | ✗ |
 | **Privacy** | Local-only | Cloud | Cloud | Local |
-| **Open source** | Yes | No | No | No |
+| **Open source** | ✅ | ✗ | ✗ | ✗ |
 
 ---
 
 ## Architecture
 
-VoiceVault is a monorepo with two independent apps and an Obsidian plugin:
-
-| App | Stack | Entry |
-|---|---|---|
-| **Desktop** (primary) | Electrobun 1.15 + Bun + React 19 + Vite | `pnpm dev` |
-| **Web** | Python FastAPI + Next.js 16 | `make dev` |
-| **Obsidian plugin** | TypeScript + esbuild | `plugin/` |
-
-> **v0.7.0:** The desktop app is now fully migrated from Electron to [Electrobun](https://github.com/blackboardsh/electrobun)
-> (Bun runtime + Zig native + system WebView). Electron has been removed entirely.
+VoiceVault is a **standalone Electrobun desktop app** — a single binary that ships Bun (runtime) + Zig (launcher) + the system WebView. No Electron. No Python. No Docker.
 
 ```
 VoiceVault/
 ├── src/
-│   ├── main/                  # Electrobun main process (Bun Worker)
-│   │   ├── main.ts            # Entry — DB, RPC server, BrowserWindow
-│   │   ├── http-rpc.ts        # HTTP RPC server (port 50100)
-│   │   ├── rpc/               # Domain handlers (audio, whisper, LLM, export…)
-│   │   └── services/
-│   │       ├── db.ts          # bun:sqlite WAL database
-│   │       ├── settings.ts    # Settings (bun:sqlite-backed)
-│   │       ├── registry.ts    # ServiceRegistry singleton
-│   │       └── subprocess/    # Bun.spawn wrappers: WhisperSubprocess, LlmSubprocess
-│   ├── renderer/              # React 19 + Vite (port 5173)
+│   ├── main/                      # Electrobun main process (Bun Worker)
+│   │   ├── main.ts                # Entry — DB init, RPC server, BrowserWindow
+│   │   ├── http-rpc.ts            # HTTP RPC server (port 50100)
+│   │   ├── rpc/                   # Domain handlers: audio, whisper, LLM, export…
+│   │   ├── services/
+│   │   │   ├── db.ts              # bun:sqlite WAL database
+│   │   │   ├── settings.ts        # Settings (bun:sqlite-backed)
+│   │   │   ├── registry.ts        # ServiceRegistry singleton
+│   │   │   └── subprocess/
+│   │   │       ├── WhisperSubprocess.ts   # Bun.spawn whisper-cli
+│   │   │       └── LlmSubprocess.ts       # Bun.spawn llama-cli
+│   │   └── utils/
+│   │       ├── subprocess.ts      # resolveBinary / resolveModel / downloadFile
+│   │       └── validate.ts        # assertFiniteId / assertNonEmptyString / …
+│   ├── renderer/                  # React 19 + Vite (port 5173)
 │   │   └── src/
 │   │       ├── lib/
-│   │       │   └── electrobun-bridge.ts  # Routes window.api.* → HTTP RPC
-│   │       ├── components/    # UI (shadcn/ui + Tailwind CSS v4)
-│   │       └── pages/         # Route-level pages
-│   └── shared/                # Types + IPC channel constants
+│   │       │   └── electrobun-bridge.ts   # Routes window.api.* → HTTP RPC
+│   │       ├── components/        # UI (shadcn/ui + Tailwind CSS v4)
+│   │       └── pages/             # Route-level pages
+│   └── shared/                    # Types + IPC channel constants
 │
-├── backend/                   # Python (FastAPI + services)
-│   ├── src/
-│   │   ├── api/               # REST routes + WebSocket
-│   │   ├── core/              # Config, models, exceptions
-│   │   └── services/          # Business logic
-│   │       ├── audio/         # Recording + preprocessing
-│   │       ├── transcription/ # faster-whisper STT
-│   │       ├── summarization/ # 1-min / hour / range summaries
-│   │       ├── classification/# Zero-shot + template matching
-│   │       ├── llm/           # Claude / Ollama providers
-│   │       ├── rag/           # ChromaDB + embeddings + retriever
-│   │       └── storage/       # SQLite + Obsidian export
-│   ├── tests/                 # pytest (unit/integration/e2e/stress)
-│   ├── pyproject.toml
-│   └── requirements.txt
-│
-├── frontend/                  # Next.js 16 + TypeScript
-│   └── src/
-│       ├── app/               # App Router pages
-│       ├── components/        # React components
-│       ├── stores/            # Zustand state
-│       └── types/             # Auto-generated from OpenAPI
-│
-├── plugin/                    # Obsidian community plugin (TypeScript + esbuild)
-├── scripts/                   # Dev utilities + smoke tests
-├── templates/                 # Classification template JSON files
-├── docker-compose.yml
-├── Dockerfile
-└── Makefile
-```
-
-### Desktop App — Data Flow (Electrobun)
-
-```
-Microphone (browser MediaRecorder)
-    │ audio blob
-    ▼
-HTTP RPC  POST /rpc  { channel: "whisper:transcribe-file", params: {...} }
-    │
-    ▼
-WhisperSubprocess  (Bun.spawn whisper-cli)
-    │ transcript segments
-    ▼
-LlmSubprocess  (Bun.spawn llama-cli)
-    │ summary / classification
-    ▼
-bun:sqlite  ~/.voicevault/voicevault.db
-    │
-    ▼
-Obsidian Export  (Markdown + YAML frontmatter)
+├── plugin/                        # Obsidian community plugin (TypeScript + esbuild)
+├── scripts/                       # dev-electrobun.sh, test-whisper.sh
+├── templates/                     # Classification template JSON files
+├── tests/
+│   ├── unit/                      # Vitest (renderer components, i18n, format utils)
+│   └── e2e/                       # Playwright (app-launch smoke test)
+└── electrobun.config.ts
 ```
 
 ### Data Flow
 
 ```
-Microphone → WebSocket → faster-whisper STT → Real-time Transcript → SQLite
-    │                                                 │
-    │                                          Every 60s → LLM Summarize
-    │                                                 │
-    │                                          1-min Summary → SQLite + ChromaDB
+Microphone (browser MediaRecorder)
+    │ audio blob
+    ▼
+HTTP RPC  POST /rpc  { channel: "whisper:transcribe-file", params: { filePath } }
     │
-    ▼ (Recording Stop)
-Collect all summaries → Hour Integration → Zero-shot Classification
-    │                                            │
-    │                                     Template Matching → Segments
-    │                                            │
-    ▼                                     Obsidian Markdown Export
-RAG Query → Embed → ChromaDB Search → Re-rank → LLM Answer with Citations
+    ▼
+WhisperSubprocess  →  Bun.spawn whisper-cli
+    │ transcript segments
+    ▼
+LlmSubprocess  →  Bun.spawn llama-cli  (or Claude / OpenAI API)
+    │ summary / classification
+    ▼
+bun:sqlite  (~/.voicevault/voicevault.db)
+    │
+    ▼
+Obsidian Export  →  Markdown + YAML frontmatter
 ```
 
 ---
@@ -203,182 +153,128 @@ RAG Query → Embed → ChromaDB Search → Re-rank → LLM Answer with Citation
 
 ### Prerequisites
 
-- **macOS, Linux, or Windows** (macOS recommended)
+- **Linux x64 or macOS** (Windows: untested)
 - A working **microphone**
-- ~2 GB of free disk space (for AI models)
-- **[uv](https://docs.astral.sh/uv/)** (Python package manager)
-- **[Node.js 22+](https://nodejs.org/)** and **[pnpm](https://pnpm.io/)**
+- ~2 GB free disk space (AI models)
+- **[Bun](https://bun.sh/)** (`~/.bun/bin/bun`)
+- **[pnpm](https://pnpm.io/)** (`npm install -g pnpm`)
+- **[Linuxbrew](https://brew.sh/)** (Linux) or Homebrew (macOS) — for `whisper-cli` and `llama-cli`
 
-### Option 1: Quick Setup (Recommended)
-
-1. **Install tooling:**
-
-   ```bash
-   # uv (Python)
-   curl -LsSf https://astral.sh/uv/install.sh | sh   # or: brew install uv
-
-   # pnpm (Node.js)
-   corepack enable && corepack prepare pnpm@latest --activate
-   ```
-
-2. **Clone and setup:**
-
-   ```bash
-   git clone https://github.com/PJH720/VoiceVault.git
-   cd VoiceVault
-   cp .env.example .env          # Configure your environment
-   make setup                    # Installs backend + frontend deps + Whisper model
-   ```
-
-3. **Start developing:**
-
-   ```bash
-   make dev   # Starts backend (port 8000) + frontend (port 3000) concurrently
-   ```
-
-4. **Open your browser** at **http://localhost:3000** — you're ready to record!
-
-### Option 2: Docker (One Command)
-
-If you have [Docker](https://www.docker.com/products/docker-desktop/) installed:
+### 1. Clone
 
 ```bash
 git clone https://github.com/PJH720/VoiceVault.git
 cd VoiceVault
-cp .env.example .env
-make up                          # or: docker compose up -d
 ```
 
-Open **http://localhost:3000** and you're done.
-
-To include Ollama (local LLM) in Docker:
+### 2. Install dependencies
 
 ```bash
-make up-ollama                   # or: docker compose --profile ollama up -d
+pnpm install
+```
+
+### 3. Install on-device AI binaries
+
+```bash
+# Whisper (speech-to-text)
+brew install whisper-cpp
+
+# llama.cpp (local LLM — for summarization and classification)
+brew install llama.cpp
+```
+
+Both install as `whisper-cli` and `llama-cli` in your Linuxbrew/Homebrew bin directory.
+
+### 4. Download models
+
+```bash
+# Whisper model (~75 MB)
+mkdir -p ~/.voicevault/models
+wget -O ~/.voicevault/models/ggml-tiny.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+
+# LLM model (~2 GB — Gemma 3 or similar GGUF)
+# Download from HuggingFace and place in ~/.voicevault/models/
+```
+
+### 5. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env — at minimum no changes needed for fully offline use.
+# Add API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) to enable cloud LLM providers.
+```
+
+### 6. Start developing
+
+```bash
+pnpm dev
+# Starts: Vite renderer (port 5173) + Electrobun launcher
 ```
 
 ---
 
 ## Using VoiceVault
 
-### 1. Record
+### Record
 
-Open VoiceVault in your browser and click the record button. Speak naturally — you'll see your words transcribed in real time. Every minute, an AI summary appears automatically.
+Click the record button — your words appear as text in real time. Every minute, an AI summary is generated automatically.
 
-### 2. Review
+### Review
 
-When you stop recording, VoiceVault classifies your content and presents organized summaries. Browse the timeline, read key points, and see how your recording was categorized.
+Stop recording: VoiceVault classifies the content and presents organized summaries. Browse the timeline and see how your session was categorized.
 
-### 3. Search
+### Search
 
-Go to the **RAG Search** tab and type any question. VoiceVault searches through all your past recordings and answers with specific references:
+Go to **RAG Search** and ask anything:
 
 > **You:** "When is the project deadline?"
 >
 > **VoiceVault:** "Based on your recording from Feb 8 (conversation with Sarah), the project deadline is next Friday, February 14th. *[Source: rec-2026-02-08, 00:12:30]*"
 
-### 4. Export
+### Export
 
-Select any recording and export it as an Obsidian Markdown file. The exported note includes structured metadata, tags, and links to related recordings — ready to drop into your vault.
+Select any recording and export it as an Obsidian Markdown file — metadata, tags, and cross-links included.
 
 ---
 
 ## Choosing an AI Provider
 
-VoiceVault needs a language model for summarization and classification. You have two options:
+### Local (Default, Recommended)
 
-### Ollama (Free, Local, Recommended)
-
-Runs entirely on your machine. No API key needed.
+Fully offline. No API key needed. Uses `llama-cli` via `Bun.spawn`.
 
 ```bash
-# Install Ollama
-brew install ollama    # macOS
-# or visit https://ollama.com for other platforms
-
-# Download the model (~2 GB)
-ollama pull llama3.2
-
-# Start the server
-ollama serve
+# Download a GGUF model (e.g. Gemma 3)
+# Place in ~/.voicevault/models/ and set LLM_MODEL in .env
 ```
 
-### Claude API (Cloud, Higher Quality)
+### Cloud (Claude / OpenAI)
 
-If you prefer Anthropic's Claude for better summaries, add your API key to the `.env` file:
+Higher quality summaries. Add keys to `.env`:
 
 ```
 LLM_PROVIDER=claude
-CLAUDE_API_KEY=your-key-here
+ANTHROPIC_API_KEY=your-key-here
 ```
 
-Get an API key at [console.anthropic.com](https://console.anthropic.com).
-
-### Security & WebSocket Authentication
-
-By default, VoiceVault runs without authentication for local use. If you're deploying to a remote server or want to add security, enable WebSocket token authentication:
-
-```bash
-# Generate a secure token
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-
-# Add to .env
-WS_AUTH_ENABLED=true
-WS_AUTH_TOKEN=your-generated-token-here
-```
-
-The WebSocket client will need to include the token in the connection URL:
-```
-ws://your-server:8000/ws/transcribe?recording_id=123&token=your-token
-```
-
-**Note:** Authentication is recommended for any non-localhost deployment to prevent unauthorized access to your recording sessions.
-
----
-
-## Example: A Day with VoiceVault
-
-Here's what a typical day looks like:
-
-```
-09:00  Start recording at a café with a friend
-       → VoiceVault: conversation log
-
-10:30  Walk into a lecture hall — keep recording
-       → VoiceVault: lecture note (auto-detected!)
-
-12:00  Lunch with another friend
-       → VoiceVault: conversation log
-
-13:00  Library study session, talking through ideas
-       → VoiceVault: personal memo
-
-18:00  Stop recording
-```
-
-**Result:** Four organized documents, each properly classified, summarized, and searchable — from a single continuous recording session.
-
-Later that evening:
-
-> **You:** "What was that concept about agents from today's lecture?"
->
-> **VoiceVault:** "In the Advanced AI lecture (10:30–12:00), the professor discussed LangChain Agent design patterns, specifically the ReAct framework for combining reasoning and acting..."
+Get a Claude API key at [console.anthropic.com](https://console.anthropic.com).
 
 ---
 
 ## Custom Templates
 
-VoiceVault comes with seven built-in templates:
+VoiceVault ships with seven built-in classification templates:
 
-- **Lecture** — structured notes with key concepts and definitions
-- **Meeting** — agenda items, decisions, and action items
-- **Conversation** — participants, topics, and memorable moments
+- **Lecture** — key concepts and definitions
+- **Meeting** — agenda items, decisions, action items
+- **Conversation** — participants, topics, memorable moments
 - **Memo** — personal thoughts and ideas
-- **Person** — contact/person notes
+- **Person** — contact notes
 - **English Vocabulary** — vocabulary study entries
 - **Incident** — incident report documentation
 
-You can create your own templates to match any recording scenario. Templates are simple JSON files — see the `templates/` folder for examples.
+Add your own by dropping a JSON file into `templates/`. See the existing files for the format.
 
 ---
 
@@ -386,96 +282,57 @@ You can create your own templates to match any recording scenario. Templates are
 
 | Question | Answer |
 |---|---|
-| Where is my data stored? | In the `data/` folder on your machine |
-| Does anything go to the cloud? | Not unless you choose Claude API as your LLM provider |
-| Can I delete my data? | Yes — delete files in `data/` or the whole folder |
-| Can I back up my recordings? | Yes — the `data/` folder contains everything |
-| What format are exports in? | Standard Markdown (.md) files |
+| Where is data stored? | `~/.voicevault/` on your machine |
+| Does anything go to the cloud? | Only if you opt into Claude / OpenAI API |
+| Can I delete my data? | Yes — delete `~/.voicevault/` |
+| What format are exports? | Standard Markdown (`.md`) |
 
 ---
 
 ## Troubleshooting
 
-**"I can't hear anything / no transcription appears"**
+**No transcription appearing**
 - Check that your browser has microphone permission
-- On macOS: System Settings → Privacy & Security → Microphone → allow your browser
+- Verify `whisper-cli` is installed: `which whisper-cli`
+- Run the smoke test: `pnpm test:whisper`
 
-**"Summaries are slow or not appearing"**
-- If using Ollama, make sure it's running: `ollama serve`
-- Check that a model is downloaded: `ollama list`
-- The first summary may take 10–15 seconds; subsequent ones are faster
+**LLM summaries not working**
+- Verify `llama-cli` is installed: `which llama-cli`
+- Check that your GGUF model path is correct in `.env`
 
-**"I get a connection error"**
-- Make sure the backend is running on port 8000: `make dev-backend`
-- Check the frontend can reach `http://localhost:8000`
+**App window doesn't open**
+- Verify GTK WebKit is installed (Linux): `apt install libwebkit2gtk-4.1-dev`
+- Check `scripts/dev-electrobun.sh` for build artifact path
 
-**"Docker won't start"**
-- Ensure Docker Desktop is running
-- Try `make down` then `make up` again
-
-For more help, check the [FAQ & Troubleshooting](wiki/FAQ-&-Troubleshooting.md) guide or [open an issue](https://github.com/PJH720/VoiceVault/issues).
+For more, see [wiki/FAQ-&-Troubleshooting.md](./wiki/FAQ-&-Troubleshooting.md) or [open an issue](https://github.com/PJH720/VoiceVault/issues).
 
 ---
 
 ## For Developers
 
-VoiceVault is open source and built with:
+```bash
+pnpm dev             # Vite renderer (5173) + Electrobun launcher
+pnpm build           # vite build + bun build → out/
+pnpm test            # Vitest unit tests (tests/unit/)
+pnpm test:watch      # Vitest watch mode
+pnpm test:e2e        # Playwright (tests/e2e/app-launch.test.ts)
+pnpm test:whisper    # Whisper HTTP RPC smoke test
+pnpm lint            # ESLint + Prettier
+pnpm typecheck       # tsc (renderer, tsconfig.web.json)
+pnpm typecheck:bun   # tsc (main process, tsconfig.node.json)
+pnpm package:linux   # Package for Linux
+pnpm package:mac     # Package for macOS
+```
 
-**Desktop app (v0.7.0 — Electrobun):**
+**Stack:**
 - **Runtime:** [Electrobun](https://github.com/blackboardsh/electrobun) 1.15 (Bun + Zig + system WebView)
 - **UI:** React 19 · Vite 6 · Tailwind CSS v4 · shadcn/ui
 - **Main process:** Bun Worker · HTTP RPC (port 50100) · `bun:sqlite` WAL
-- **Speech-to-Text:** `whisper-cli` via `Bun.spawn` (no N-API bindings)
+- **Speech-to-Text:** `whisper-cli` via `Bun.spawn`
 - **LLM:** `llama-cli` via `Bun.spawn` (local GGUF) or Claude / OpenAI API
-- **Testing:** Vitest (unit) · Playwright (E2E artifacts)
+- **Testing:** Vitest · Playwright
 
-**Web app:**
-- **Backend:** Python 3.12 · FastAPI · WebSocket (real-time audio streaming)
-- **Frontend:** Next.js 16 · React 19 · TypeScript · Tailwind CSS · Zustand
-- **Speech-to-Text:** faster-whisper (CTranslate2)
-- **LLM:** Ollama (local) or Claude API (cloud)
-- **Vector Search:** ChromaDB + sentence-transformers
-- **Database:** SQLite (async via SQLAlchemy + aiosqlite)
-- **Testing:** pytest (backend) · Vitest + Playwright (frontend)
-- **CI:** GitHub Actions with path-filtered backend/frontend jobs
-- **API Contract:** OpenAPI schema → auto-generated TypeScript types
-
-See the **[wiki/](./wiki/)** for detailed documentation — architecture, API reference, data schema, deployment, and contribution guidelines.
-
-### Make Targets
-
-```bash
-# Development
-make dev              # Run backend + frontend concurrently
-make dev-backend      # Backend only (port 8000)
-make dev-frontend     # Frontend only (port 3000)
-
-# Testing
-make test             # Run all tests (backend + frontend)
-make test-backend     # pytest
-make test-frontend    # vitest
-
-# Linting
-make lint             # Lint all code
-make lint-backend     # ruff check + format check
-make lint-frontend    # eslint + prettier + tsc
-
-# Code Generation
-make gen-openapi      # Export OpenAPI schema to docs/openapi.json
-make gen-types        # Generate TypeScript types from OpenAPI spec
-
-# Docker
-make up               # Start backend + frontend
-make up-ollama        # Start with Ollama included
-make down             # Stop all services
-make logs             # Stream logs
-make health           # Check service health
-make seed             # Seed demo data
-make clean            # Stop services + remove volumes
-
-# Setup
-make setup            # Full project setup (backend + frontend + models)
-```
+See [CLAUDE.md](./CLAUDE.md) for contributor guidance and architectural decisions.
 
 ---
 
@@ -488,10 +345,6 @@ make setup            # Full project setup (backend + frontend + models)
 - [x] Obsidian Markdown export
 - [x] Hourly hierarchical summaries
 - [x] Cross-boundary time range extraction
-- [x] Next.js frontend with TypeScript
-- [x] OpenAPI → TypeScript type generation
-- [x] Docker Compose orchestration (backend + frontend + Ollama)
-- [x] CI pipeline with path-filtered jobs
 - [x] Electrobun desktop migration (v0.7.0 — Electron fully removed)
 - [ ] Obsidian community plugin (embedded UI + RAG search)
 - [ ] Speaker diarization (who said what)
