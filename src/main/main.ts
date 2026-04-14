@@ -1,9 +1,9 @@
 import { BrowserWindow, BrowserView, Tray, PATHS } from 'electrobun'
 import { join } from 'path'
-import { mkdirSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 import { setUserDataPath } from './types'
 import { getDb, closeDb } from './services/db'
-import { closeSettings, getLocale } from './services/settings'
+import { closeSettings, getLocale, getWhisperModel } from './services/settings'
 import { ServiceRegistry } from './services/registry'
 import { allRPCHandlers } from './rpc/index'
 import { startHttpRpcServer, stopHttpRpcServer } from './http-rpc'
@@ -23,6 +23,31 @@ setUserDataPath(userDataPath)
 // ── Initialize database ─────────────────────────────────────────────────────
 const db = getDb()
 console.log('[VoiceVault] Database initialized at:', join(userDataPath, 'voicevault.db'))
+
+// ── Startup pre-warm (best-effort, non-blocking) ─────────────────────────────
+function startWhisperPrewarm(): void {
+  setTimeout(async () => {
+    try {
+      const modelSize = getWhisperModel()
+      const modelPath = join(userDataPath, 'models', `ggml-${modelSize}.bin`)
+      if (!existsSync(modelPath)) {
+        console.log(`[WhisperPrewarm] skipped: model not found (${modelPath})`)
+        return
+      }
+
+      console.log(`[WhisperPrewarm] start: model=${modelSize}`)
+      const prewarmStart = performance.now()
+      await ServiceRegistry.getWhisperSubprocess().prewarmModel(`ggml-${modelSize}.bin`)
+      const elapsedMs = Number((performance.now() - prewarmStart).toFixed(1))
+      console.log(`[WhisperPrewarm] done: model=${modelSize}, elapsedMs=${elapsedMs}`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.warn(`[WhisperPrewarm] failed: ${message}`)
+    }
+  }, 0)
+}
+
+startWhisperPrewarm()
 
 // ── Start HTTP RPC server ────────────────────────────────────────────────────
 // Done EARLY — before any blocking native FFI calls — so the RPC bridge is

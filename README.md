@@ -317,16 +317,16 @@ pnpm test            # Vitest unit tests (tests/unit/)
 pnpm test:watch      # Vitest watch mode
 pnpm test:e2e        # Playwright (tests/e2e/app-launch.test.ts)
 pnpm test:whisper    # Whisper HTTP RPC smoke test
-pnpm lint            # ESLint + Prettier
+pnpm lint            # ESLint
 pnpm typecheck       # tsc (renderer, tsconfig.web.json)
 pnpm typecheck:bun   # tsc (main process, tsconfig.node.json)
-pnpm package:linux   # Package for Linux
-pnpm package:mac     # Package for macOS
+pnpm package:linux   # pnpm build + electrobun build --env=stable
+pnpm package:mac     # pnpm build + electrobun build --env=stable
 ```
 
 **Stack:**
 - **Runtime:** [Electrobun](https://github.com/blackboardsh/electrobun) 1.15 (Bun + Zig + system WebView)
-- **UI:** React 19 · Vite 6 · Tailwind CSS v4 · shadcn/ui
+- **UI:** React 19 · Vite 7 · Tailwind CSS v4 · shadcn/ui
 - **Main process:** Bun Worker · HTTP RPC (port 50100) · `bun:sqlite` WAL
 - **Speech-to-Text:** `whisper-cli` via `Bun.spawn`
 - **LLM:** `llama-cli` via `Bun.spawn` (local GGUF) or Claude / OpenAI API

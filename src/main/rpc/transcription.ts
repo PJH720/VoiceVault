@@ -25,10 +25,23 @@ export const transcriptionRPCHandlers = {
     modelSize?: WhisperModelSize
   }): Promise<TranscriptSegment[]> => {
     const modelSize = params.modelSize ?? getWhisperModel()
-    return ServiceRegistry.getWhisperSubprocess().transcribeFile(
+    const whisper = ServiceRegistry.getWhisperSubprocess()
+    const segments = await whisper.transcribeFile(
       params.audioPath,
       `ggml-${modelSize}.bin`,
     )
+    const metrics = whisper.getLastMetrics()
+    if (metrics) {
+      console.log('[WhisperMetrics][RPC]', JSON.stringify({
+        modelSize,
+        durationMs: metrics.durationMs,
+        rssBeforeMb: metrics.rssBeforeMb,
+        rssAfterMb: metrics.rssAfterMb,
+        rssPeakMb: metrics.rssPeakMb,
+        rssDeltaMb: metrics.rssDeltaMb,
+      }))
+    }
+    return segments
   },
 
   [WhisperChannels.DOWNLOAD_MODEL]: async (params: {

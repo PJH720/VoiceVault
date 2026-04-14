@@ -14,7 +14,7 @@ self-contained desktop app.
 | Layer | Path | Tech |
 |---|---|---|
 | Desktop main process | `src/main/` | Electrobun 1.15.1 + Bun + bun:sqlite |
-| Renderer (UI) | `src/renderer/` | React 19 + Vite 6 + Tailwind CSS v4 + shadcn/ui |
+| Renderer (UI) | `src/renderer/` | React 19 + Vite 7 + Tailwind CSS v4 + shadcn/ui |
 | Shared types | `src/shared/` | TypeScript (consumed by both layers) |
 | Obsidian plugin | `plugin/` | TypeScript + esbuild |
 
@@ -39,8 +39,8 @@ pnpm test:e2e       # Playwright (tests/e2e/app-launch.test.ts)
 pnpm test:whisper   # bash scripts/test-whisper.sh — smoke test Whisper via HTTP RPC
 
 # ── Packaging ─────────────────────────────────────────────────────────────────
-pnpm package:linux  # pnpm build + electrobun package --platform linux
-pnpm package:mac    # pnpm build + electrobun package --platform mac
+pnpm package:linux  # pnpm build + electrobun build --env=stable
+pnpm package:mac    # pnpm build + electrobun build --env=stable
 ```
 
 ---

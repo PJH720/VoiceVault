@@ -13,6 +13,7 @@ setUserDataPath(USER_DATA)
 
 const MODEL_PATH = join(USER_DATA, 'models', 'ggml-tiny.en.bin')
 const TEST_WAV = '/tmp/vv-smoke-test.wav'
+const TEST_WAV_DURATION_SEC = 2
 
 async function main(): Promise<void> {
   console.log('=== WhisperSubprocess Smoke Test ===\n')
@@ -73,10 +74,16 @@ async function main(): Promise<void> {
     threads: 4
   })
   const latency = performance.now() - t0
+  const metrics = whisper.getLastMetrics()
+  const rtf = latency / (TEST_WAV_DURATION_SEC * 1000)
 
   console.log(`    Result: ${JSON.stringify(segments, null, 2)}`)
   console.log(`    Segments: ${segments.length}`)
   console.log(`    Latency: ${latency.toFixed(1)} ms`)
+  console.log(`    RTF: ${rtf.toFixed(3)}x`)
+  if (metrics) {
+    console.log(`    Metrics: ${JSON.stringify(metrics)}`)
+  }
   console.log(`    ${segments.length >= 0 ? 'PASS' : 'FAIL'}: transcription completed\n`)
 
   // Summary
@@ -85,6 +92,8 @@ async function main(): Promise<void> {
   console.log(`model: ${MODEL_PATH}`)
   console.log(`segments returned: ${segments.length}`)
   console.log(`latency: ${latency.toFixed(1)} ms`)
+  console.log(`rtf: ${rtf.toFixed(3)}x`)
+  if (metrics) console.log(`metrics: ${JSON.stringify(metrics)}`)
   console.log(`verdict: PASS`)
 }
 

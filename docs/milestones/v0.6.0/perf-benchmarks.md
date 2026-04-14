@@ -179,3 +179,95 @@ Capture and document:
 - [ ] Peak RSS memory per configuration
 - [ ] Battery impact (Energy Impact in Activity Monitor) during sustained transcription
 - [ ] Thermal throttling behavior under sustained load
+
+---
+
+## 7. Measured Baseline Workflow (Implemented in code)
+
+This section describes the current measurement workflow now wired into runtime/scripts.
+
+### 7.1 Startup pre-warm
+
+- `src/main/main.ts` triggers best-effort startup pre-warm for the currently selected Whisper model.
+- Logging prefix:
+  - `[WhisperPrewarm] start: ...`
+  - `[WhisperPrewarm] done: ...`
+  - `[WhisperPrewarm] failed: ...`
+- Behavior:
+  - Non-blocking (startup continues even if pre-warm fails)
+  - Skips when model file is missing
+
+### 7.2 Runtime memory + latency metrics
+
+`WhisperSubprocess.transcribeFile()` now emits structured runtime metrics:
+
+- `durationMs`
+- `rssBeforeMb`
+- `rssAfterMb`
+- `rssPeakMb`
+- `rssDeltaMb`
+
+Log prefixes:
+- `[WhisperMetrics]`
+- `[WhisperMetrics][RPC]`
+
+### 7.3 Commands
+
+Single-run smoke + metrics:
+
+```bash
+bun scripts/test-whisper-subprocess.ts
+```
+
+Sustained throttling benchmark (default 5 minutes):
+
+```bash
+bun scripts/bench-whisper-sustained.ts --model base --minutes 5
+bun scripts/bench-whisper-sustained.ts --model small --minutes 5
+```
+
+One-shot suite (auto-download base/small + run both 5-min benchmarks + comparison summary):
+
+```bash
+bun scripts/run-whisper-bench-suite.ts
+```
+
+Optional parameters:
+- `--audio /path/to.wav` (default: generated 5s silent WAV)
+- `--threads 4`
+- `--timeout-ms 300000` (increase per-run timeout for slower environments)
+- `--output-json /path/to/result.json` (for `bench-whisper-sustained.ts`)
+- `--minutes <n>` (for `run-whisper-bench-suite.ts`, default: 5 per model)
+
+### 7.4 Thermal slowdown interpretation
+
+`bench-whisper-sustained.ts` summary includes:
+
+- `earlyAvgDurationMs`
+- `lateAvgDurationMs`
+- `slowdownPct`
+
+Recommended interpretation:
+- `slowdownPct <= 5%`: stable
+- `5% < slowdownPct <= 15%`: moderate thermal impact
+- `slowdownPct > 15%`: noticeable throttling under sustained load
+
+### 7.5 Measurement conditions to record
+
+For reproducible numbers, always record:
+
+- Power source (battery / plugged-in)
+- Background app load
+- Ambient room temperature
+- Model size (`base`, `small`, `medium`, etc.)
+- Thread count and audio sample used
+
+### 7.6 Output artifacts
+
+- Single benchmark output (`--output-json`) is written to the provided path.
+- Suite comparison output is saved automatically under:
+  - `docs/milestones/v0.6.0/whisper-bench-suite-<timestamp>.json`
+- Suite run prerequisites:
+  - `whisper-cli` installed and available in PATH
+  - Network access for first-time model download (`base`, `small`)
+  - Runtime expectation: ~10 minutes+ (5 min per model + download overhead)
