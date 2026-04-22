@@ -38,6 +38,11 @@ const config: ElectrobunConfig = {
       codesign: false,           // Set to true when ELECTROBUN_DEVELOPER_ID is configured
       notarize: false,           // Set to true when Apple credentials are configured
       icons: 'build/icon.iconset',
+      entitlements: {
+        'com.apple.security.device.audio-input': 'VoiceVault needs microphone access to record audio.',
+        'com.apple.security.cs.allow-jit': true,
+        'com.apple.security.cs.allow-unsigned-executable-memory': true,
+      },
     },
 
     // Lifecycle hooks — called by electrobun build at specific stages

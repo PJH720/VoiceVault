@@ -88,6 +88,56 @@ Export any recording as an Obsidian-compatible Markdown file with YAML frontmatt
 
 ---
 
+## Installation
+
+Download the latest release from [GitHub Releases](https://github.com/PJH720/VoiceVault/releases/latest).
+
+### macOS (Apple Silicon)
+
+1. Download `stable-macos-arm64-VoiceVault.dmg`
+2. Open the DMG and drag **VoiceVault** to Applications
+3. On first launch, macOS Gatekeeper will show a warning (the app is unsigned).
+   Right-click the app → **Open** to bypass, or run:
+   ```bash
+   xattr -cr /Applications/VoiceVault.app
+   ```
+4. Grant microphone permission when prompted
+
+**Requirements:** macOS 14+ (Sonoma), Apple Silicon (M1/M2/M3/M4)
+
+### Linux (x64)
+
+1. Download `stable-linux-x64-VoiceVault-Setup.tar.gz`
+2. Extract and run the installer:
+   ```bash
+   tar -xzf stable-linux-x64-VoiceVault-Setup.tar.gz
+   ./installer
+   ```
+   The installer places VoiceVault in `~/.local/share/VoiceVault/` and creates a desktop shortcut.
+3. Install system dependencies (if not already present):
+   ```bash
+   sudo apt install libwebkit2gtk-4.1-dev   # Ubuntu/Debian
+   ```
+
+**Requirements:** Linux x64, glibc 2.35+ (Ubuntu 22.04+), GTK 4 + WebKitGTK
+
+### AI Models (First Run)
+
+On first launch, VoiceVault will prompt you to download the Whisper speech-to-text model (~75 MB). This is the only time an internet connection is required.
+
+For local LLM summarization, download a GGUF model and place it in `~/.voicevault/models/`:
+
+```bash
+# Example: Whisper base model (manual download)
+mkdir -p ~/.voicevault/models
+wget -O ~/.voicevault/models/ggml-base.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+```
+
+Cloud LLM providers (Claude, OpenAI, Google Gemini) are also supported — add your API key in Settings to enable them. No API key is required for fully offline use.
+
+---
+
 ## Architecture
 
 VoiceVault is a **standalone Electrobun desktop app** — a single binary that ships Bun (runtime) + Zig (launcher) + the system WebView. No Electron. No Python. No Docker.

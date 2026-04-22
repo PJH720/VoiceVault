@@ -14,8 +14,9 @@ self-contained desktop app.
 | Layer | Path | Tech |
 |---|---|---|
 | Desktop main process | `src/main/` | Electrobun 1.15.1 + Bun + bun:sqlite |
-| Renderer (UI) | `src/renderer/` | React 19 + Vite 7 + Tailwind CSS v4 + shadcn/ui |
+| Renderer (UI) | `src/renderer/` | React 19 + Vite 7 + Tailwind CSS v4 + shadcn/ui + react-router-dom |
 | Shared types | `src/shared/` | TypeScript (consumed by both layers) |
+| Templates | `templates/` | Handlebars-based classification templates |
 | Obsidian plugin | `plugin/` | TypeScript + esbuild |
 
 ---
@@ -25,12 +26,15 @@ self-contained desktop app.
 ```bash
 # ── Development ──────────────────────────────────────────────────────────────
 pnpm dev            # Vite renderer (5173) + Electrobun launcher via scripts/dev-electrobun.sh
+                    # predev hook auto-kills stale processes on ports 50100/5173
 pnpm build          # vite build renderer + bun build src/main/main.ts → out/
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 pnpm lint           # ESLint (typescript-eslint + prettier rules)
+pnpm format         # Prettier --write
 pnpm typecheck      # tsc --noEmit (renderer, tsconfig.web.json)
 pnpm typecheck:bun  # tsc --noEmit (main process, tsconfig.node.json)
+pnpm check:translations  # Verify i18n key consistency across locales
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 pnpm test           # Vitest unit tests (tests/unit/)
@@ -38,9 +42,13 @@ pnpm test:watch     # Vitest watch mode
 pnpm test:e2e       # Playwright (tests/e2e/app-launch.test.ts)
 pnpm test:whisper   # bash scripts/test-whisper.sh — smoke test Whisper via HTTP RPC
 
+# Run a single test file:
+#   pnpm test -- tests/unit/format.test.ts
+
 # ── Packaging ─────────────────────────────────────────────────────────────────
 pnpm package:linux  # pnpm build + electrobun build --env=stable
 pnpm package:mac    # pnpm build + electrobun build --env=stable
+pnpm package:dev    # electrobun build --env=dev (no pnpm build, faster iteration)
 ```
 
 ---
@@ -104,6 +112,18 @@ No N-API native modules. All heavy compute via subprocess:
 | Local LLM | `llama-cli` (Linuxbrew / Homebrew) | `LlmSubprocess.ts` |
 
 Binary search order: `~/.local/share/VoiceVault/bin/` → `/home/linuxbrew/.linuxbrew/bin/` → `$PATH`.
+
+### Cloud LLM providers (optional)
+
+For summarization, VoiceVault also supports cloud APIs as alternatives to local `llama-cli`:
+
+| Provider | SDK | Env var |
+|---|---|---|
+| Anthropic | `@anthropic-ai/sdk` | `ANTHROPIC_API_KEY` |
+| OpenAI | `openai` | `OPENAI_API_KEY` |
+| Google | `@google/generative-ai` | `GOOGLE_API_KEY` |
+
+No API keys are required — local `llama-cli` is the default path.
 
 Model location: `~/.voicevault/models/`
 - Whisper: `ggml-<size>.bin` (e.g. `ggml-tiny.en.bin`)
@@ -261,11 +281,22 @@ Do not `pnpm add electron*`, any N-API native binding packages, or any Python to
 
 ---
 
-## Platform Notes (Linux x64)
+## Platform Notes
 
+### Linux x64
 - Electrobun native wrapper: `libNativeWrapper.so` v1.0.2 (GTK WebKit, system webview)
 - GTK 4 + WebKitGTK required: `sudo apt install libgtk-4-dev libwebkit2gtk-4.1-dev`
-- Audio capture: browser `MediaRecorder` API (no kernel module needed)
 - Linuxbrew prefix: `/home/linuxbrew/.linuxbrew/`
+
+### macOS (Apple Silicon / Intel)
+- Electrobun uses system WebKit via native wrapper
 - Binaries installed via: `brew install whisper-cpp llama.cpp`
+
+### Both platforms
+- Audio capture: browser `MediaRecorder` API (no kernel module needed)
 - Symlinks in repo root (`libasar.so`, `libNativeWrapper.so`, etc.) point into `node_modules/electrobun/` — do not delete
+
+### Stale Cursor rules warning
+
+`.cursor/rules/` files reference Electron, better-sqlite3, electron-store, and other removed packages.
+They are **outdated** and should not be trusted. This CLAUDE.md is the authoritative guide.
