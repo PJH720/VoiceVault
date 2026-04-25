@@ -1,0 +1,15 @@
+{
+  "name": "conversation",
+  "display_name": "Conversation Log",
+  "triggers": ["conversation", "chat", "friend", "talk", "casual", "catch up", "hangout", "social"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "topics", "label": "Topics Discussed", "type": "list"},
+    {"name": "participants", "label": "Participants", "type": "list"},
+    {"name": "mood", "label": "Mood / Tone", "type": "text"}
+  ],
+  "icon": "💬",
+  "priority": 5,
+  "is_default": false
+}

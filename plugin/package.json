@@ -1,0 +1,20 @@
+{
+  "name": "voicevault-obsidian",
+  "version": "0.5.0",
+  "description": "VoiceVault Obsidian Plugin — AI voice recorder with RAG search",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": ["obsidian", "voicevault", "voice-recorder", "rag"],
+  "author": "Jae-hyun Park",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "latest",
+    "typescript": "^5.7.0"
+  }
+}

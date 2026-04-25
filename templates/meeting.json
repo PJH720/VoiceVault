@@ -1,0 +1,16 @@
+{
+  "name": "meeting",
+  "display_name": "Meeting Minutes",
+  "triggers": ["meeting", "project", "agenda", "action item", "standup", "sprint", "review", "retrospective", "discussion"],
+  "output_format": "markdown",
+  "fields": [
+    {"name": "summary", "label": "Summary", "type": "text"},
+    {"name": "decisions", "label": "Decisions", "type": "list"},
+    {"name": "action_items", "label": "Action Items", "type": "list"},
+    {"name": "participants", "label": "Participants", "type": "list"},
+    {"name": "next_steps", "label": "Next Steps", "type": "list"}
+  ],
+  "icon": "🤝",
+  "priority": 8,
+  "is_default": false
+}
