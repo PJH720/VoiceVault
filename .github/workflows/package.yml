@@ -166,7 +166,7 @@ jobs:
 
       # ── Upload artifacts ────────────────────────────────────────────────────
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: VoiceVault-linux-x64
           path: artifacts/
@@ -326,7 +326,7 @@ jobs:
 
       # ── Upload artifacts ────────────────────────────────────────────────────
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: VoiceVault-macos-arm64
           path: artifacts/
